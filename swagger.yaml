@@ -1,0 +1,549 @@
+openapi: 3.0.0
+info:
+  title: Participium API
+  description: API per l'applicazione di partecipazione cittadina "Participium" del Comune di Torino.
+  version: "1.0.0"
+servers:
+  - url: https://api.participium.comune.torino.it/v1
+    description: Server di produzione
+
+paths:
+  /auth/register:
+    post:
+      summary: Registra un nuovo cittadino
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: Utente registrato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Dati di input non validi (es. email duplicata)
+
+  /auth/login:
+    post:
+      summary: Effettua il login per cittadini o staff
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login riuscito, restituisce un token JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Credenziali non valide
+
+  /users/me:
+    get:
+      summary: Ottiene il profilo dell'utente loggato
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dati del profilo utente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    put:
+      summary: Aggiorna il profilo dell'utente loggato
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+      responses:
+        '200':
+          description: Profilo aggiornato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  /reports:
+    post:
+      summary: Invia una nuova segnalazione
+      tags: [Reports]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: # Necessario per upload foto
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      responses:
+        '201':
+          description: Segnalazione creata (stato Pending Approval)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+    get:
+      summary: Ottiene la lista pubblica delle segnalazioni per la tabella
+      tags: [Reports]
+      parameters:
+        - in: query
+          name: category
+          schema:
+            $ref: '#/components/schemas/ReportCategory'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista di segnalazioni filtrate
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportSummary'
+
+  /reports/map:
+    get:
+      summary: Ottiene i dati delle segnalazioni per la mappa interattiva
+      tags: [Reports]
+      responses:
+        '200':
+          description: Dati geolocalizzati delle segnalazioni approvate
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportMapItem'
+
+  /reports/download:
+    get:
+      summary: Scarica i dati delle segnalazioni in formato CSV
+      tags: [Reports]
+      parameters:
+        - in: query
+          name: category
+          schema:
+            $ref: '#/components/schemas/ReportCategory'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: File CSV con i dati delle segnalazioni
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /reports/{reportId}:
+    get:
+      summary: Ottiene i dettagli di una singola segnalazione
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dettagli della segnalazione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Segnalazione non trovata
+
+  /reports/{reportId}/messages:
+    post:
+      summary: Invia un messaggio relativo a una segnalazione (Cittadino)
+      tags: [Reports]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        '201':
+          description: Messaggio inviato
+
+  /staff/reports/assigned:
+    get:
+      summary: (Staff Tecnico) Ottiene la lista delle segnalazioni assegnate
+      tags: [Staff]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista delle segnalazioni per l'ufficio tecnico competente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '403':
+          description: Accesso non autorizzato
+
+  /staff/reports/{reportId}/status:
+    put:
+      summary: (Staff Tecnico) Aggiorna lo stato di una segnalazione
+      tags: [Staff]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/ReportStatus'
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: Stato aggiornato
+
+  /urp/reports/review:
+    get:
+      summary: (URP) Ottiene la lista delle segnalazioni in "Pending Approval"
+      tags: [URP]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista segnalazioni da revisionare
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '403':
+          description: Accesso non autorizzato
+
+  /urp/reports/{reportId}/review:
+    put:
+      summary: (URP) Approva o rifiuta una segnalazione
+      tags: [URP]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportReview'
+      responses:
+        '200':
+          description: Revisione completata
+        '400':
+          description: Dati non validi (es. rifiuto senza spiegazione)
+
+  /admin/users:
+    post:
+      summary: (Admin) Crea un nuovo utente municipale
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      # ... (requestBody con dati utente staff)
+      responses:
+        '201':
+          description: Utente staff creato
+
+  /admin/users/{userId}/role:
+    put:
+      summary: (Admin) Assegna un ruolo a un utente municipale
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  $ref: '#/components/schemas/UserRole'
+      responses:
+        '200':
+          description: Ruolo aggiornato
+
+  /statistics/public:
+    get:
+      summary: Ottiene le statistiche pubbliche
+      tags: [Statistics]
+      responses:
+        '200':
+          description: Dati statistici pubblici
+
+  /statistics/private:
+    get:
+      summary: Ottiene le statistiche private (solo Admin)
+      tags: [Statistics]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dati statistici privati
+        '403':
+          description: Accesso non autorizzato
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRegister:
+      type: object
+      required: [email, username, firstName, lastName, password]
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        password:
+          type: string
+          format: password
+    UserLogin:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoUrl:
+          type: string
+          format: uri
+        telegramUsername:
+          type: string
+        emailNotificationsEnabled:
+          type: boolean
+          default: true
+    UserProfileUpdate:
+      type: object
+      properties:
+        photoUrl:
+          type: string
+          format: uri
+        telegramUsername:
+          type: string
+        emailNotificationsEnabled:
+          type: boolean
+    
+    ReportCategory:
+      type: string
+      enum: [Water Supply, Architectural Barriers, Sewer System, Public Lighting, Waste, Road Signs, Roads, Public Green Areas, Other]
+
+    ReportStatus:
+      type: string
+      enum: [Pending Approval, Assigned, In Progress, Suspended, Rejected, Resolved]
+
+    UserRole:
+      type: string
+      enum: [municipal public relations officer, municipal administrator, technical office staff member]
+
+    ReportCreate:
+      type: object
+      required: [title, description, category, latitude, longitude, photos]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        anonymous:
+          type: boolean
+          default: false
+        photos:
+          type: array
+          items:
+            type: string
+            format: binary
+          minItems: 1
+          maxItems: 3
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        reporterName: # "anonymous" se flaggato
+          type: string
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReportSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        reporterName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ReportMapItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        reporterName:
+          type: string
+
+    ReportReview:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [accepted, rejected]
+        rejectionReason: # Obbligatorio se action = rejected
+          type: string

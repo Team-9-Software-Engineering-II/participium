@@ -1,0 +1,157 @@
+-- Tabella per i ruoli del sistema [cite: 73]
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL -- Es. 'citizen', 'admin', 'uro', 'technical_staff'
+);
+
+-- Tabella per gli uffici tecnici competenti 
+CREATE TABLE technical_offices (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL -- Es. 'Ufficio Strade', 'Ufficio Verde Pubblico'
+);
+
+-- Tabella associativa per mappare lo staff tecnico al proprio ufficio
+CREATE TABLE staff_office_assignments (
+    user_id INT PRIMARY KEY, -- Chiave primaria E chiave esterna
+    technical_office_id INT NOT NULL,
+    
+    -- Se un utente viene eliminato, viene eliminata anche la sua assegnazione
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, 
+    
+    -- Se un ufficio viene eliminato, non può esserci staff assegnato
+    FOREIGN KEY (technical_office_id) REFERENCES technical_offices(id) ON DELETE CASCADE
+);
+
+-- Tabella principale per tutti gli utenti (Cittadini e Staff)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    
+    role_id INT NOT NULL, -- Chiave esterna per il ruolo
+    
+    -- Campi del profilo cittadino (saranno NULL per lo staff)
+    photo_url VARCHAR(255),
+    telegram_username VARCHAR(100) UNIQUE,
+    email_notifications_enabled BOOLEAN DEFAULT true,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+-- Tabella delle categorie dei problemi 
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    technical_office_id INT NOT NULL, -- Ufficio competente per questa categoria 
+    
+    FOREIGN KEY (technical_office_id) REFERENCES technical_offices(id)
+);
+
+-- Tabella centrale per le segnalazioni
+CREATE TABLE reports (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL, -- Chi ha creato la segnalazione 
+    
+    title VARCHAR(255) NOT NULL, -- [cite: 10]
+    description TEXT NOT NULL, -- [cite: 10]
+    category_id INT NOT NULL, -- [cite: 10]
+    
+    -- Dati di geolocalizzazione [cite: 10, 73]
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    
+    -- Stato del ciclo di vita [cite: 25]
+    status VARCHAR(50) NOT NULL DEFAULT 'Pending Approval' 
+        CHECK (status IN ('Pending Approval', 'Assigned', 'In Progress', 'Suspended', 'Rejected', 'Resolved')),
+    
+    is_anonymous BOOLEAN DEFAULT false, -- [cite: 22, 81]
+    
+    rejection_reason TEXT, -- Obbligatorio se status = 'Rejected' [cite: 34, 74]
+    
+    assigned_office_id INT, -- Ufficio assegnato dopo l'approvazione 
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id),
+    FOREIGN KEY (assigned_office_id) REFERENCES technical_offices(id)
+);
+
+-- Tabella per le foto collegate alle segnalazioni (da 1 a 3 per segnalazione) 
+CREATE TABLE report_photos (
+    id SERIAL PRIMARY KEY,
+    report_id INT NOT NULL,
+    photo_url VARCHAR(255) NOT NULL, -- URL o path del file storage
+    
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+);
+
+-- Tabella per i messaggi/commenti tra staff e cittadini 
+CREATE TABLE report_messages (
+    id SERIAL PRIMARY KEY,
+    report_id INT NOT NULL,
+    user_id INT NOT NULL, -- Mittente (può essere cittadino o staff)
+    message_text TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Tabella per le notifiche in-app [cite: 37]
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL, -- Destinatario (il cittadino)
+    report_id INT, -- Segnalazione correlata (opzionale)
+    message VARCHAR(255) NOT NULL, -- Es. "La tua segnalazione è stata Approvata"
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE SET NULL
+);
+
+
+
+
+                                    +-------------------+
+                                    | technical_offices |
+                                    +-------------------+
+                                        ^           ^
+                                     (1)|           |(1)
+    +---------+    (FK: tech_office_id) |           | (FK: tech_office_id)
+    |  roles  |                         |           |
+    +---------+                         |           |
+         ^                              |           |
+         | (1)                          |           +-------------------- [ staff_office_assignments ] (N)
+    +---------+                         | (N)                                        ^
+    |  users  |-------------------------+(FK: role_id) ------------------------------| (1) (FK: user_id)
+    +---------+                         |                                            |
+         | (1)                          | (1)                                        |
+         |                              |                                            |
+         | (N)                          v (N)                                        |
+         |    +----------------------- [ categories ]                                |
+         |    |                         ^                                            |
+         |    | (1) (FK: category_id)   | (FK: tech_office_id)                       |
+         |    |                         |                                            |
+         v (N)v (N)                     |                                            |
+    +-----------------+ (1) (FK: rep_id) +-----------+ (1) (FK: assigned_office_id)  /
+    | report_messages | <--------------- |  reports  | ----------------------------+
+    +-----------------+                  +-----------+
+         ^ (1) (FK: user_id)                 |   ^ (1) (FK: report_id)
+         |                                   |   |
+         | (N)                               |   +----------------- [ notifications ] (N)
+         +-- (from users)                    | (1)                     ^
+                                             |                         | (1) (FK: user_id)
+                                             | (N)                     | (N)
+                                             v                         +-- (from users)
+                                     +---------------+
+                                     | report_photos |
+                                     +---------------+
