@@ -388,7 +388,7 @@ components:
           type: string
         lastName:
           type: string
-        password:
+        hashedPassword:
           type: string
           format: password
     UserLogin:

@@ -29,6 +29,10 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: "Pending Approval",
       },
+      rejection_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       latitude: {
         type: DataTypes.FLOAT,
         allowNull: false,
