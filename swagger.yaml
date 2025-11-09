@@ -26,7 +26,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthSessionResponse'
         '400':
-          description: Dati di input non validi (es. email duplicata)
+          description: Dati di input non validi (es. formattazione email errata)
+        '409':
+          description: Email o username già esistente
 
   /auth/login:
     post:
