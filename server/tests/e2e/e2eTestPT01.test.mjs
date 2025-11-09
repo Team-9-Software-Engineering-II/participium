@@ -95,10 +95,10 @@ describe("API Authentication E2E Flow", () => {
       expect(res.body.user.username).toBe(testUser.username);
     });
 
-    it("should fail session check if no cookie is provided (401)", async () => {
+    it("should fail session check if no cookie is provided (200)", async () => {
       const res = await request(app).get("/auth/session");
-
-      expect(res.statusCode).toBe(401);
+      expect(res.body).toHaveProperty("authenticated", false);
+      expect(res.statusCode).toBe(200);
     });
   });
 
@@ -109,10 +109,10 @@ describe("API Authentication E2E Flow", () => {
       expect(res.statusCode).toBe(204);
     });
 
-    it("should fail session check after logout (401)", async () => {
+    it("should fail session check after logout (200)", async () => {
       const res = await request(app).get("/auth/session").set("Cookie", cookie);
-
-      expect(res.statusCode).toBe(401);
+      expect(res.body).toHaveProperty("authenticated", false);
+      expect(res.statusCode).toBe(200);
     });
   });
 });
