@@ -24,13 +24,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: '#/components/schemas/AuthSessionResponse'
         '400':
           description: Dati di input non validi (es. email duplicata)
 
   /auth/login:
     post:
-      summary: Effettua il login per cittadini o staff
+      summary: Effettua il login per cittadini o staff e avvia una sessione
       tags: [Auth]
       requestBody:
         required: true
@@ -40,16 +40,33 @@ paths:
               $ref: '#/components/schemas/UserLogin'
       responses:
         '200':
-          description: Login riuscito, restituisce un token JWT
+          description: Login riuscito, restituisce i dettagli della sessione attiva
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
+                $ref: '#/components/schemas/AuthSessionResponse'
         '401':
           description: Credenziali non valide
+
+  /auth/logout:
+    post:
+      summary: Chiude la sessione dell'utente autenticato
+      tags: [Auth]
+      responses:
+        '204':
+          description: Logout eseguito con successo
+
+  /auth/session:
+    get:
+      summary: Restituisce lo stato della sessione autenticata
+      tags: [Auth]
+      responses:
+        '200':
+          description: Stato della sessione corrente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
 
   /users/me:
     get:
@@ -388,9 +405,29 @@ components:
           type: string
         lastName:
           type: string
-        hashedPassword:
+        password:
           type: string
           format: password
+    AuthSessionResponse:
+      type: object
+      required: [authenticated]
+      properties:
+        authenticated:
+          type: boolean
+          description: Indica se l'utente ha una sessione attiva
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        session:
+          type: object
+          properties:
+            id:
+              type: string
+            cookie:
+              type: object
+              properties:
+                expiresAt:
+                  type: string
+                  format: date-time
     UserLogin:
       type: object
       required: [username, password]
