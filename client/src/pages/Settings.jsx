@@ -127,18 +127,18 @@ export default function Settings() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Settings</h1>
-          <p className="text-muted-foreground">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Settings</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your account settings and set e-mail preferences.
           </p>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Sidebar Menu */}
-          <aside className="w-64 flex-shrink-0">
-            <nav className="space-y-1">
+          <aside className="w-full lg:w-64 flex-shrink-0">
+            <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1 lg:space-y-1 pb-2 lg:pb-0">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -146,10 +146,10 @@ export default function Settings() {
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      'flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap lg:w-full',
                       activeTab === item.id
-                        ? 'bg-neutral-100 text-neutral-900'
-                        : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
+                        ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
+                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -161,7 +161,7 @@ export default function Settings() {
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 bg-card rounded-lg border p-8">
+          <main className="flex-1 bg-card rounded-lg border p-4 sm:p-6 lg:p-8">
             {activeTab === 'profile' && (
               <div className="space-y-6">
                 <div>

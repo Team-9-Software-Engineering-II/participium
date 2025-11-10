@@ -41,19 +41,19 @@ export default function Navbar() {
 
   return (
     <header className="border-b bg-background sticky top-0 z-50">
-      <div className="px-4 h-16 flex items-center justify-between">
+      <div className="px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
         {/* Logo a sinistra */}
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-1 sm:gap-2">
           <img 
             src={theme === 'dark' ? '/mole-logo-white.png' : '/mole-logo-black.png'}
             alt="Participium Logo" 
-            className="h-8 w-auto"
+            className="h-6 sm:h-8 w-auto"
           />
-          <div className="text-2xl font-bold">Participium</div>
+          <div className="text-lg sm:text-2xl font-bold">Participium</div>
         </Link>
 
         {/* Pulsanti a destra */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {isAuthenticated ? (
             <>
               {/* Notifications dropdown */}
@@ -126,13 +126,13 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Dark mode toggle */}
-              <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+              {/* Dark mode toggle - nascosto su mobile */}
+              <Button variant="ghost" size="icon" onClick={toggleDarkMode} className="hidden sm:flex">
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </Button>
 
-              {/* Settings button */}
-              <Button variant="ghost" size="icon" asChild>
+              {/* Settings button - nascosto su mobile */}
+              <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                 <Link to="/settings">
                   <Settings className="h-5 w-5" />
                 </Link>
@@ -153,9 +153,14 @@ export default function Navbar() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user?.firstName} {user?.lastName}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium leading-none">
+                          {user?.firstName} {user?.lastName}
+                        </p>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {user?.role?.name || user?.role }
+                        </span>
+                      </div>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user?.email}
                       </p>

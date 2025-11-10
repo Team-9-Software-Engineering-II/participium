@@ -17,10 +17,10 @@ export default function Dashboard() {
       <Navbar />
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">
             Benvenuto, {user?.firstName}!
           </h2>
           <p className="text-muted-foreground">
@@ -29,7 +29,7 @@ export default function Dashboard() {
         </div>
 
         {/* Le Mie Segnalazioni */}
-        <Card className="mb-6">
+        <Card className="mb-4 sm:mb-6">
           <CardHeader>
             <CardTitle>Le Mie Segnalazioni</CardTitle>
             <CardDescription>

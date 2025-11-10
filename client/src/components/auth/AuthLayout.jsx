@@ -45,33 +45,34 @@ export default function AuthLayout({ children }) {
       </div>
 
       {/* Right Side - Auth Form */}
-      <div className="flex flex-col bg-background relative">
+      <div className="flex flex-col bg-background relative min-h-screen lg:min-h-0">
         {/* Header with Back button (left) and Login/Register toggle (right) */}
-        <div className="flex justify-between items-center p-6">
+        <div className="flex justify-between items-center p-4 sm:p-6">
           {/* Back to Participium button */}
           <Button variant="ghost" size="sm" asChild>
             <Link to="/" className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              <span>Torna a Participium</span>
+              <span className="hidden sm:inline">Torna a Participium</span>
+              <span className="sm:hidden">Indietro</span>
             </Link>
           </Button>
 
           {/* Login/Register toggle */}
           {isLogin ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">
                 Non hai un account?
               </span>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" size="sm">
                 <Link to="/register">Registrati</Link>
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">
                 Hai già un account?
               </span>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" size="sm">
                 <Link to="/login">Login</Link>
               </Button>
             </div>
@@ -79,24 +80,24 @@ export default function AuthLayout({ children }) {
         </div>
 
         {/* Form Content */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
           <div className="w-full max-w-sm">
             {children}
           </div>
         </div>
 
         {/* Dark/Light Mode Toggle - Bottom Right */}
-        <div className="absolute bottom-6 right-6">
+        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
           <Button
             variant="outline"
             size="lg"
             onClick={toggleTheme}
-            className="rounded-full shadow-lg h-16 w-16"
+            className="rounded-full shadow-lg h-14 w-14 sm:h-16 sm:w-16"
           >
             {theme === 'light' ? (
-              <Moon style={{ width: '26px', height: '26px' }} />
+              <Moon style={{ width: '24px', height: '24px' }} className="sm:w-[26px] sm:h-[26px]" />
             ) : (
-              <Sun style={{ width: '26px', height: '26px' }} />
+              <Sun style={{ width: '24px', height: '24px' }} className="sm:w-[26px] sm:h-[26px]" />
             )}
           </Button>
         </div>
