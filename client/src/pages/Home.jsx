@@ -184,22 +184,21 @@ export default function Home() {
                 checked={showMyReports}
                 onCheckedChange={(checked) => {
                   if (!isAuthenticated && checked) {
-                    // Se non loggato e prova ad attivare lo switch, non fare nulla
-                    // Il messaggio di login è già mostrato sotto
+                    // Se non loggato, attiva lo switch comunque
+                    setShowMyReports(true);
                     return;
                   }
                   setShowMyReports(checked);
                 }}
-                disabled={!isAuthenticated}
               />
             </div>
           </div>
 
           {/* Messaggio Login se non autenticato e switch attivo */}
-          {!isAuthenticated && (
+          {!isAuthenticated && showMyReports ? (
             <div className="px-4 pb-4">
-              <div className="bg-muted rounded-lg p-4 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">
+              <div className="bg-background rounded-lg p-4 text-center space-y-3 border">
+                <p className="text-sm font-medium">
                   Effettua il login per vedere le tue segnalazioni
                 </p>
                 <Button
@@ -211,19 +210,21 @@ export default function Home() {
                 </Button>
               </div>
             </div>
+          ) : (
+            <>
+              {/* Conteggio risultati */}
+              <div className="px-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  {totalResults} risultati
+                </p>
+              </div>
+
+              {/* Reports List */}
+              <div className="flex-1 overflow-y-auto px-4">
+                <ReportsList />
+              </div>
+            </>
           )}
-
-          {/* Conteggio risultati */}
-          <div className="px-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              {totalResults} risultati
-            </p>
-          </div>
-
-          {/* Reports List */}
-          <div className="flex-1 overflow-y-auto px-4">
-            <ReportsList />
-          </div>
 
           {/* Pulsante Theme Toggle - Bottom Left (solo quando non loggato) */}
           {!isAuthenticated && (
@@ -298,8 +299,11 @@ export default function Home() {
         )}
 
         {/* Pulsanti in basso */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-3 px-4">
-          {/* Pulsante Lista Segnalazioni */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-between items-center px-4">
+          {/* Spazio vuoto a sinistra per bilanciare */}
+          <div className="w-14"></div>
+          
+          {/* Pulsante Lista Segnalazioni - Centro */}
           <Sheet>
             <SheetTrigger asChild>
               <Button
@@ -308,12 +312,15 @@ export default function Home() {
                 className="shadow-lg gap-2 h-12 px-4"
               >
                 <List className="h-5 w-5" />
-                <span>LISTA SEGNALAZIONI</span>
+                <span className="text-sm">Lista segnalazioni</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[80vh]">
               <SheetHeader>
                 <SheetTitle>Segnalazioni</SheetTitle>
+                <SheetDescription>
+                  Visualizza e gestisci le segnalazioni
+                </SheetDescription>
               </SheetHeader>
               
               <div className="mt-4 space-y-4">
@@ -343,41 +350,45 @@ export default function Home() {
                     checked={showMyReports}
                     onCheckedChange={(checked) => {
                       if (!isAuthenticated && checked) {
+                        setShowMyReports(true);
                         return;
                       }
                       setShowMyReports(checked);
                     }}
-                    disabled={!isAuthenticated}
                   />
                 </div>
 
-                {/* Messaggio Login se non autenticato */}
-                {!isAuthenticated && (
-                  <div className="bg-muted rounded-lg p-4 text-center space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Effettua il login per vedere le tue segnalazioni
-                    </p>
-                    <Button
-                      onClick={() => navigate('/login')}
-                      className="w-full"
-                      size="sm"
-                    >
-                      Login
-                    </Button>
+                {/* Messaggio Login se non autenticato e switch attivo */}
+                {!isAuthenticated && showMyReports ? (
+                  <div className="py-2">
+                    <div className="bg-background rounded-lg p-4 text-center space-y-3 border">
+                      <p className="text-sm font-medium">
+                        Effettua il login per vedere le tue segnalazioni
+                      </p>
+                      <Button
+                        onClick={() => navigate('/login')}
+                        className="w-full"
+                        size="sm"
+                      >
+                        Login
+                      </Button>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {/* Conteggio risultati */}
+                    <div className="py-2">
+                      <p className="text-sm text-muted-foreground">
+                        {totalResults} risultati
+                      </p>
+                    </div>
+
+                    {/* Lista Report - Scrollabile */}
+                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 400px)' }}>
+                      <ReportsList />
+                    </div>
+                  </>
                 )}
-
-                {/* Conteggio risultati */}
-                <div className="py-2">
-                  <p className="text-sm text-muted-foreground">
-                    {totalResults} risultati
-                  </p>
-                </div>
-
-                {/* Lista Report - Scrollabile */}
-                <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 400px)' }}>
-                  <ReportsList />
-                </div>
               </div>
 
               {/* Pulsante + fisso in basso a destra dentro lo Sheet */}
@@ -390,7 +401,7 @@ export default function Home() {
             </SheetContent>
           </Sheet>
 
-          {/* Pulsante Nuova Segnalazione - nascosto quando sheet è aperto */}
+          {/* Pulsante Nuova Segnalazione - Destra */}
           <Button
             size="lg"
             onClick={handleNewReport}
@@ -617,7 +628,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Accesso richiesto</DialogTitle>
             <DialogDescription>
-              Devi effettuare il login per creare una nuova segnalazione.
+              Devi effettuare il login per accedere a questa funzionalità.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
