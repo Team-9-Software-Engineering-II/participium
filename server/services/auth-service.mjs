@@ -44,7 +44,9 @@ export class AuthService {
    * @returns {Promise<object|null>} Sanitized user when credentials match, otherwise null.
    */
   static async validateCredentials(username, password) {
-    const user = await findUserByUsername(username);
+    const user =
+      (await findUserByUsername(username)) ||
+      (await findUserByEmail(username));
     if (!user) {
       return null;
     }
