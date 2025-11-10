@@ -30,6 +30,7 @@ export class AuthService {
       firstName,
       lastName,
       hashedPassword,
+      roleId: 1,
     });
 
     return this.#sanitizeUser(createdUser);
