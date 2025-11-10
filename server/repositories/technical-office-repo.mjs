@@ -13,7 +13,7 @@ export async function createTechnicalOffice(officeData) {
 export async function findAllTechnicalOffices() {
   return db.TechnicalOffice.findAll({
     include: [
-      { model: db.ProblemCategory, as: "problemCategory", required: false },
+      { model: db.Category, as: "category", required: false },
       {
         model: db.User,
         as: "users",
@@ -30,7 +30,7 @@ export async function findAllTechnicalOffices() {
 export async function findTechnicalOfficeById(id) {
   return db.TechnicalOffice.findByPk(id, {
     include: [
-      { model: db.ProblemCategory, as: "problemCategory", required: false },
+      { model: db.Category, as: "category", required: false },
       {
         model: db.User,
         as: "users",
@@ -48,7 +48,7 @@ export async function findTechnicalOfficeByName(name) {
   return db.TechnicalOffice.findOne({
     where: { name },
     include: [
-      { model: db.ProblemCategory, as: "problemCategory", required: false },
+      { model: db.Category, as: "category", required: false },
       {
         model: db.User,
         as: "users",
