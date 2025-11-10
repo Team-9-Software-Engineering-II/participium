@@ -1,16 +1,16 @@
 openapi: 3.0.0
 info:
   title: Participium API
-  description: API per l'applicazione di partecipazione cittadina "Participium" del Comune di Torino.
+  description: API for the citizen participation application "Participium" of the Municipality of Turin.
   version: "1.0.0"
 servers:
   - url: https://api.participium.comune.torino.it/v1
-    description: Server di produzione
+    description: Production server
 
 paths:
   /auth/register:
     post:
-      summary: Registra un nuovo cittadino
+      summary: Register a new citizen
       tags: [Auth]
       requestBody:
         required: true
@@ -20,17 +20,17 @@ paths:
               $ref: '#/components/schemas/UserRegister'
       responses:
         '201':
-          description: Utente registrato con successo
+          description: User successfully registered
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSessionResponse'
         '400':
-          description: Dati di input non validi (es. email duplicata)
+          description: Invalid input data (e.g. duplicate email)
 
   /auth/login:
     post:
-      summary: Effettua il login per cittadini o staff e avvia una sessione
+      summary: Login for citizens or staff and start a session
       tags: [Auth]
       requestBody:
         required: true
@@ -40,29 +40,29 @@ paths:
               $ref: '#/components/schemas/UserLogin'
       responses:
         '200':
-          description: Login riuscito, restituisce i dettagli della sessione attiva
+          description: Login successful, returns active session details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSessionResponse'
         '401':
-          description: Credenziali non valide
+          description: Invalid credentials
 
   /auth/logout:
     post:
-      summary: Chiude la sessione dell'utente autenticato
+      summary: Close the authenticated user's session
       tags: [Auth]
       responses:
         '204':
-          description: Logout eseguito con successo
+          description: Logout successful
 
   /auth/session:
     get:
-      summary: Restituisce lo stato della sessione autenticata
+      summary: Returns the authenticated session status
       tags: [Auth]
       responses:
         '200':
-          description: Stato della sessione corrente
+          description: Current session status
           content:
             application/json:
               schema:
@@ -70,19 +70,19 @@ paths:
 
   /users/me:
     get:
-      summary: Ottiene il profilo dell'utente loggato
+      summary: Get logged in user's profile
       tags: [Users]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Dati del profilo utente
+          description: User profile data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
     put:
-      summary: Aggiorna il profilo dell'utente loggato
+      summary: Update logged in user's profile
       tags: [Users]
       security:
         - BearerAuth: []
@@ -94,7 +94,7 @@ paths:
               $ref: '#/components/schemas/UserProfileUpdate'
       responses:
         '200':
-          description: Profilo aggiornato
+          description: Profile updated
           content:
             application/json:
               schema:
@@ -102,25 +102,25 @@ paths:
 
   /reports:
     post:
-      summary: Invia una nuova segnalazione
+      summary: Submit a new report
       tags: [Reports]
       security:
         - BearerAuth: []
       requestBody:
         required: true
         content:
-          multipart/form-data: # Necessario per upload foto
+          multipart/form-data: # Required for photo upload
             schema:
               $ref: '#/components/schemas/ReportCreate'
       responses:
         '201':
-          description: Segnalazione creata (stato Pending Approval)
+          description: Report created (status Pending Approval)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Report'
     get:
-      summary: Ottiene la lista pubblica delle segnalazioni per la tabella
+      summary: Get public list of reports for the table
       tags: [Reports]
       parameters:
         - in: query
@@ -143,7 +143,7 @@ paths:
             format: date
       responses:
         '200':
-          description: Lista di segnalazioni filtrate
+          description: List of filtered reports
           content:
             application/json:
               schema:
@@ -153,11 +153,11 @@ paths:
 
   /reports/map:
     get:
-      summary: Ottiene i dati delle segnalazioni per la mappa interattiva
+      summary: Get report data for the interactive map
       tags: [Reports]
       responses:
         '200':
-          description: Dati geolocalizzati delle segnalazioni approvate
+          description: Geolocated data of approved reports
           content:
             application/json:
               schema:
@@ -167,7 +167,7 @@ paths:
 
   /reports/download:
     get:
-      summary: Scarica i dati delle segnalazioni in formato CSV
+      summary: Download report data in CSV format
       tags: [Reports]
       parameters:
         - in: query
@@ -190,7 +190,7 @@ paths:
             format: date
       responses:
         '200':
-          description: File CSV con i dati delle segnalazioni
+          description: CSV file with report data
           content:
             text/csv:
               schema:
@@ -198,7 +198,7 @@ paths:
 
   /reports/{reportId}:
     get:
-      summary: Ottiene i dettagli di una singola segnalazione
+      summary: Get details of a single report
       tags: [Reports]
       parameters:
         - in: path
@@ -208,17 +208,17 @@ paths:
             type: integer
       responses:
         '200':
-          description: Dettagli della segnalazione
+          description: Report details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Report'
         '404':
-          description: Segnalazione non trovata
+          description: Report not found
 
   /reports/{reportId}/messages:
     post:
-      summary: Invia un messaggio relativo a una segnalazione (Cittadino)
+      summary: Send a message related to a report (Citizen)
       tags: [Reports]
       security:
         - BearerAuth: []
@@ -239,17 +239,17 @@ paths:
                   type: string
       responses:
         '201':
-          description: Messaggio inviato
+          description: Message sent
 
   /staff/reports/assigned:
     get:
-      summary: (Staff Tecnico) Ottiene la lista delle segnalazioni assegnate
+      summary: (Technical Staff) Get list of assigned reports
       tags: [Staff]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Lista delle segnalazioni per l'ufficio tecnico competente
+          description: List of reports for the relevant technical office
           content:
             application/json:
               schema:
@@ -257,11 +257,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/Report'
         '403':
-          description: Accesso non autorizzato
+          description: Unauthorized access
 
   /staff/reports/{reportId}/status:
     put:
-      summary: (Staff Tecnico) Aggiorna lo stato di una segnalazione
+      summary: (Technical Staff) Update report status
       tags: [Staff]
       security:
         - BearerAuth: []
@@ -284,17 +284,17 @@ paths:
                   type: string
       responses:
         '200':
-          description: Stato aggiornato
+          description: Status updated
 
   /urp/reports/review:
     get:
-      summary: (URP) Ottiene la lista delle segnalazioni in "Pending Approval"
+      summary: (URP) Get list of reports in "Pending Approval"
       tags: [URP]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Lista segnalazioni da revisionare
+          description: List of reports to review
           content:
             application/json:
               schema:
@@ -302,11 +302,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/Report'
         '403':
-          description: Accesso non autorizzato
+          description: Unauthorized access
 
   /urp/reports/{reportId}/review:
     put:
-      summary: (URP) Approva o rifiuta una segnalazione
+      summary: (URP) Approve or reject a report
       tags: [URP]
       security:
         - BearerAuth: []
@@ -324,24 +324,24 @@ paths:
               $ref: '#/components/schemas/ReportReview'
       responses:
         '200':
-          description: Revisione completata
+          description: Review completed
         '400':
-          description: Dati non validi (es. rifiuto senza spiegazione)
+          description: Invalid data (e.g. rejection without explanation)
 
   /admin/users:
     post:
-      summary: (Admin) Crea un nuovo utente municipale
+      summary: (Admin) Create a new municipal user
       tags: [Admin]
       security:
         - BearerAuth: []
-      # ... (requestBody con dati utente staff)
+      # ... (requestBody with staff user data)
       responses:
         '201':
-          description: Utente staff creato
+          description: Staff user created
 
   /admin/users/{userId}/role:
     put:
-      summary: (Admin) Assegna un ruolo a un utente municipale
+      summary: (Admin) Assign a role to a municipal user
       tags: [Admin]
       security:
         - BearerAuth: []
@@ -362,27 +362,27 @@ paths:
                   $ref: '#/components/schemas/UserRole'
       responses:
         '200':
-          description: Ruolo aggiornato
+          description: Role updated
 
   /statistics/public:
     get:
-      summary: Ottiene le statistiche pubbliche
+      summary: Get public statistics
       tags: [Statistics]
       responses:
         '200':
-          description: Dati statistici pubblici
+          description: Public statistical data
 
   /statistics/private:
     get:
-      summary: Ottiene le statistiche private (solo Admin)
+      summary: Get private statistics (Admin only)
       tags: [Statistics]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Dati statistici privati
+          description: Private statistical data
         '403':
-          description: Accesso non autorizzato
+          description: Unauthorized access
 
 components:
   securitySchemes:
@@ -414,7 +414,7 @@ components:
       properties:
         authenticated:
           type: boolean
-          description: Indica se l'utente ha una sessione attiva
+          description: Indicates whether the user has an active session
         user:
           $ref: '#/components/schemas/UserProfile'
         session:
@@ -528,7 +528,7 @@ components:
         longitude:
           type: number
           format: double
-        reporterName: # "anonymous" se flaggato
+        reporterName: # "anonymous" if flagged
           type: string
         photos:
           type: array
@@ -582,5 +582,5 @@ components:
         action:
           type: string
           enum: [accepted, rejected]
-        rejectionReason: # Obbligatorio se action = rejected
+        rejectionReason: # Required if action = rejected
           type: string
