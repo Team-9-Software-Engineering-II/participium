@@ -26,7 +26,14 @@ function sendSessionResponse(req, res, user, statusCode = 200) {
  */
 export async function register(req, res, next) {
   try {
-    const { email, username, firstName, lastName, password } = req.body ?? {};
+    const {
+      email,
+      username,
+      firstName,
+      lastName,
+      password,
+      roleId: requestedRoleId,
+    } = req.body ?? {};
 
     if (!email || !username || !firstName || !lastName || !password) {
       return res.status(400).json({
@@ -35,12 +42,24 @@ export async function register(req, res, next) {
       });
     }
 
+    let roleId;
+    if (requestedRoleId !== undefined) {
+      const parsedRoleId = Number(requestedRoleId);
+      if (!Number.isInteger(parsedRoleId) || parsedRoleId <= 0) {
+        return res.status(400).json({
+          message: "roleId must be a positive integer when provided.",
+        });
+      }
+      roleId = parsedRoleId;
+    }
+
     const user = await AuthService.registerUser({
       email,
       username,
       firstName,
       lastName,
       password,
+      roleId,
     });
 
     req.login(user, (loginError) => {

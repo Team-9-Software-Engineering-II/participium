@@ -18,7 +18,7 @@ export class AuthService {
    * @returns {Promise<object>} A sanitized user representation without sensitive fields.
    */
   static async registerUser(userInput) {
-    const { email, username, password, firstName, lastName } = userInput;
+    const { email, username, password, firstName, lastName, roleId } = userInput;
 
     this.#validateEmailFormat(email);
 
@@ -32,9 +32,11 @@ export class AuthService {
       firstName,
       lastName,
       hashedPassword,
+      roleId: roleId ?? 1,
     });
 
-    return this.#sanitizeUser(createdUser);
+    const hydratedUser = await findUserByIdRepo(createdUser.id);
+    return this.#sanitizeUser(hydratedUser ?? createdUser);
   }
 
   /** Validates the provided email format using a basic regex
@@ -59,7 +61,9 @@ export class AuthService {
    * @returns {Promise<object|null>} Sanitized user when credentials match, otherwise null.
    */
   static async validateCredentials(username, password) {
-    const user = await findUserByUsername(username);
+    const user =
+      (await findUserByUsername(username)) ||
+      (await findUserByEmail(username));
     if (!user) {
       return null;
     }
