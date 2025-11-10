@@ -1,0 +1,74 @@
+import { Link, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+
+export default function AuthLayout({ children }) {
+  const location = useLocation();
+  const isLogin = location.pathname === '/login';
+
+  return (
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:flex-col lg:justify-center lg:px-16 bg-neutral-900 text-white relative overflow-hidden">
+        {/* Background Logo - Mole Antonelliana */}
+        <div className="absolute bottom-0 left-0 opacity-25 translate-y-16">
+          <img 
+            src="/mole-login.png" 
+            alt="Mole Antonelliana" 
+            className="h-[120vh] w-auto object-contain origin-bottom-left" />
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 max-w-md">
+          <h1 className="text-7xl font-bold mb-6 tracking-tight">
+            Participium
+          </h1>
+          <p className="text-xl text-neutral-300 leading-relaxed">
+            La tua voce conta.
+          </p>
+
+          <div className="w-24 h-[2px] bg-neutral-600 my-4"></div>
+
+          <p className="text-l text-neutral-400 leading-relaxed">
+            Segnala problemi nella tua città, monitora i progressi 
+            e contribuisci a rendere Torino un posto migliore per tutti.
+          </p>
+          <div className="mt-8 flex items-center gap-2 text-sm text-neutral-400">
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Auth Form */}
+      <div className="flex flex-col">
+        {/* Header with Login/Register toggle */}
+        <div className="flex justify-end p-6">
+          {isLogin ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                Non hai un account?
+              </span>
+              <Button asChild variant="outline">
+                <Link to="/register">Registrati</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                Hai già un account?
+              </span>
+              <Button asChild variant="outline">
+                <Link to="/login">Login</Link>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Form Content */}
+        <div className="flex-1 flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-sm">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

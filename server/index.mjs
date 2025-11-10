@@ -4,6 +4,7 @@ import session from "express-session";
 import db from "./models/index.mjs";
 import router from "./routers/index.js";
 import { passport } from "./services/passport-service.mjs";
+import cors from "cors";
 
 const app = express();
 
@@ -11,6 +12,10 @@ const app = express();
  * Applies core middlewares required by the application.
  */
 function bootstrapExpress() {
+  app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }));
   app.use(morgan("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
