@@ -89,14 +89,14 @@ export default function AuthLayout({ children }) {
         <div className="absolute bottom-6 right-6">
           <Button
             variant="outline"
-            size="icon"
+            size="lg"
             onClick={toggleTheme}
-            className="rounded-full shadow-lg"
+            className="rounded-full shadow-lg h-16 w-16"
           >
             {theme === 'light' ? (
-              <Moon className="h-5 w-5" />
+              <Moon style={{ width: '26px', height: '26px' }} />
             ) : (
-              <Sun className="h-5 w-5" />
+              <Sun style={{ width: '26px', height: '26px' }} />
             )}
           </Button>
         </div>
