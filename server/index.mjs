@@ -5,6 +5,7 @@ import db from "./models/index.mjs";
 import router from "./routers/index.js";
 import { passport } from "./services/passport-service.mjs";
 import cors from "cors";
+import { seedDatabase } from "./seeders/index.mjs";
 
 const app = express();
 
@@ -53,27 +54,6 @@ function registerErrorHandlers() {
     console.error(err);
     res.status(statusCode).json({ message });
   });
-}
-
-/**
- * Seeds the database with initial data if tables are empty.
- */
-async function seedDatabase() {
-  try {
-    // Seed roles if the table is empty
-    const roleCount = await db.Role.count();
-    if (roleCount === 0) {
-      await db.Role.bulkCreate([
-        { id: 1, name: "citizen" },
-        { id: 2, name: "admin" },
-        { id: 3, name: "municipality_public_relations_officer" },
-        { id: 4, name: "technical_staff" },
-      ]);
-      console.log("Roles seeded successfully.");
-    }
-  } catch (err) {
-    console.error("Error seeding database:", err);
-  }
 }
 
 bootstrapExpress();
