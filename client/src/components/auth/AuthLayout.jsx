@@ -17,11 +17,11 @@ export default function AuthLayout({ children }) {
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:flex-col lg:justify-center lg:px-16 bg-neutral-900 dark:bg-neutral-950 text-white relative overflow-hidden">
         {/* Background Logo - Mole Antonelliana */}
-        <div className="absolute inset-0 flex items-end justify-start">
+        <div className="absolute inset-0">
           <img 
             src="/mole-login.png" 
             alt="Mole Antonelliana" 
-            className="h-full w-auto max-w-none object-cover object-bottom opacity-25" />
+            className="w-full h-full object-cover opacity-25" />
         </div>
         
         {/* Content */}
