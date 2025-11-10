@@ -18,7 +18,7 @@ export class AuthService {
    * @returns {Promise<object>} A sanitized user representation without sensitive fields.
    */
   static async registerUser(userInput) {
-    const { email, username, password, firstName, lastName } = userInput;
+    const { email, username, password, firstName, lastName, roleId } = userInput;
 
     await this.#ensureEmailAvailable(email);
     await this.#ensureUsernameAvailable(username);
@@ -30,9 +30,11 @@ export class AuthService {
       firstName,
       lastName,
       hashedPassword,
+      roleId: roleId ?? 1,
     });
 
-    return this.#sanitizeUser(createdUser);
+    const hydratedUser = await findUserByIdRepo(createdUser.id);
+    return this.#sanitizeUser(hydratedUser ?? createdUser);
   }
 
   /**

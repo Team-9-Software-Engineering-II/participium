@@ -11,6 +11,7 @@ paths:
   /auth/register:
     post:
       summary: Register a new citizen
+      description: Se non specificato, l'utente ottiene automaticamente il ruolo di cittadino (roleId = 1).
       tags: [Auth]
       requestBody:
         required: true
@@ -408,6 +409,10 @@ components:
         password:
           type: string
           format: password
+        roleId:
+          type: integer
+          minimum: 1
+          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
     AuthSessionResponse:
       type: object
       required: [authenticated]
@@ -451,6 +456,11 @@ components:
           type: string
         lastName:
           type: string
+        roleId:
+          type: integer
+          description: Identifier of the role assigned to the user
+        role:
+          $ref: '#/components/schemas/RoleSummary'
         photoUrl:
           type: string
           format: uri
@@ -583,4 +593,11 @@ components:
           type: string
           enum: [accepted, rejected]
         rejectionReason: # Required if action = rejected
+          type: string
+    RoleSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
           type: string
