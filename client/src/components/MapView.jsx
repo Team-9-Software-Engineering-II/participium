@@ -1,38 +1,45 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 export function MapView() {
+  const mapRef = useRef(null);
+  const [markerPosition, setMarkerPosition] = useState([45.0703, 7.6869]); // Turin
+
   useEffect(() => {
+    if (!mapRef.current || mapRef.current._leaflet_id) return;
 
-    if (document.getElementById("map")?._leaflet_id) return;
-
-    const map = L.map("map").setView([45.0703, 7.6869], 13); // Turin City Center
+    const map = L.map(mapRef.current).setView(markerPosition, 13);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
     }).addTo(map);
 
-    L.marker([45.0703, 7.6869])
-      .addTo(map)
-      //.bindPopup("Welcome to Participium!")
-      //.openPopup();
+    // Add a draggable marker
+    const marker = L.marker(markerPosition, { draggable: true }).addTo(map);
 
-    return () => {
-      map.remove();
-    };
-  }, []);
+    // Update state when the user moves the marker
+    marker.on("dragend", (e) => {
+      const { lat, lng } = e.target.getLatLng();
+      setMarkerPosition([lat, lng]);
+    });
+
+    // Add or move the marker when the user clicks on the map
+    map.on("click", (e) => {
+      const { lat, lng } = e.latlng;
+      marker.setLatLng([lat, lng]);
+      setMarkerPosition([lat, lng]);
+    });
+
+    return () => map.remove();
+  }, [markerPosition]);
 
   return (
     <div
-      id="map"
+      ref={mapRef}
       className="w-full h-full"
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-      }}
+      style={{ minHeight: "100vh" }}
     />
   );
 }

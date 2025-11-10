@@ -364,19 +364,10 @@ export default function Home() {
       </div>
 
       {/* Mobile Layout (below md) - With bottom buttons */}
-      <div className="md:hidden flex-1 relative">
-        {/* Map Area (Work in Progress) */}
-        <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
-          <div className="text-center space-y-4 p-4">
-            <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
-            <div>
-              <h2 className="text-xl font-bold mb-2">Interactive Map</h2>
-              <p className="text-sm text-muted-foreground">Work in Progress</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                The map will be displayed here with OpenStreetMap
-              </p>
-            </div>
-          </div>
+      <div className="md:hidden relative h-screen w-screen">
+        {/* Map Area */}
+        <div className="absolute inset-0 z-0">
+          <MapView />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
