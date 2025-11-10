@@ -18,7 +18,7 @@ export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
-  // Mock notifications - verranno caricate dall'API
+  // Mock notifications - will be loaded from API
   const notifications = [];
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -31,7 +31,7 @@ export default function Navbar() {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  // Ottieni le iniziali dell'utente per l'avatar fallback
+  // Get user initials for avatar fallback
   const getUserInitials = () => {
     if (!user) return 'U';
     const firstInitial = user.firstName?.charAt(0) || '';
@@ -42,7 +42,7 @@ export default function Navbar() {
   return (
     <header className="border-b bg-background sticky top-0 z-50">
       <div className="px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
-        {/* Logo a sinistra */}
+        {/* Logo on the left */}
         <Link to="/" className="flex items-center gap-1 sm:gap-2">
           <img 
             src={theme === 'dark' ? '/mole-logo-white.png' : '/mole-logo-black.png'}
@@ -52,7 +52,7 @@ export default function Navbar() {
           <div className="text-lg sm:text-2xl font-bold">Participium</div>
         </Link>
 
-        {/* Pulsanti a destra */}
+        {/* Buttons on the right */}
         <div className="flex items-center gap-1 sm:gap-2">
           {isAuthenticated ? (
             <>
@@ -61,7 +61,7 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
-                    {/* Badge per notifiche non lette */}
+                    {/* Badge for unread notifications */}
                     {unreadCount > 0 && (
                       <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
                     )}
@@ -126,12 +126,12 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Dark mode toggle - visibile su mobile solo quando loggato */}
+              {/* Dark mode toggle - visible on mobile only when logged in */}
               <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </Button>
 
-              {/* Settings button - nascosto su mobile */}
+              {/* Settings button - hidden on mobile */}
               <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                 <Link to="/settings">
                   <Settings className="h-5 w-5" />
@@ -206,12 +206,12 @@ export default function Navbar() {
                 <Link to="/login">Login</Link>
               </Button>
               <Button variant="default" size="sm" asChild>
-                <Link to="/register">Registrati</Link>
+                <Link to="/register">Sign in</Link>
               </Button>
 
               {/* Info button */}
               <Button variant="ghost" size="icon" asChild>
-                <Link to="/info" title="Informazioni">
+                <Link to="/info" title="Information">
                   <HelpCircle className="h-5 w-5" />
                 </Link>
               </Button>

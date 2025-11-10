@@ -9,7 +9,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Mock data - verranno caricate le segnalazioni reali dall'API
+  // Mock data - real reports will be loaded from API
   const myReports = [];
 
   return (
@@ -21,33 +21,33 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold mb-2">
-            Benvenuto, {user?.firstName}!
+            Welcome, {user?.firstName}!
           </h2>
           <p className="text-muted-foreground">
-            Gestisci le tue segnalazioni e contribuisci al miglioramento della città
+            Manage your reports and contribute to improving the city
           </p>
         </div>
 
-        {/* Le Mie Segnalazioni */}
+        {/* My Reports */}
         <Card className="mb-4 sm:mb-6">
           <CardHeader>
-            <CardTitle>Le Mie Segnalazioni</CardTitle>
+            <CardTitle>My Reports</CardTitle>
             <CardDescription>
-              Visualizza e gestisci tutte le tue segnalazioni
+              View and manage all your reports
             </CardDescription>
           </CardHeader>
           <CardContent>
             {myReports.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">Nessuna segnalazione</p>
+                <p className="font-medium">No reports</p>
                 <p className="text-sm mt-2">
-                  Non hai ancora creato nessuna segnalazione
+                  You haven't created any reports yet
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Qui verranno visualizzate le segnalazioni */}
+                {/* Reports will be displayed here */}
                 {myReports.map((report, index) => (
                   <div key={index} className="border rounded-lg p-4">
                     {/* Report card content */}
@@ -58,7 +58,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Pulsante Nuova Segnalazione */}
+        {/* New Report Button */}
         <div className="flex justify-center">
           <Button
             size="lg"
@@ -66,7 +66,7 @@ export default function Dashboard() {
             className="gap-2"
           >
             <Plus className="h-5 w-5" />
-            Crea Nuova Segnalazione
+            Create New Report
           </Button>
         </div>
       </main>

@@ -38,19 +38,19 @@ export default function Register() {
 
     if (!formData.email || !formData.username || !formData.firstName || 
         !formData.lastName || !formData.password || !formData.confirmPassword) {
-      setError('Tutti i campi sono obbligatori');
+      setError('All fields are required');
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Le password non coincidono');
+      setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('La password deve essere di almeno 6 caratteri');
+      setError('Password must be at least 6 characters');
       setLoading(false);
       return;
     }
@@ -62,7 +62,7 @@ export default function Register() {
     if (result.success) {
       navigate('/');
     } else {
-      setError(result.error || 'Errore durante la registrazione');
+      setError(result.error || 'Registration error');
     }
     
     setLoading(false);
@@ -72,9 +72,9 @@ export default function Register() {
     <AuthLayout>
       <div className="space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Crea un account</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Create an account</h1>
           <p className="text-sm text-muted-foreground">
-            Inserisci i tuoi dati per iniziare
+            Enter your details to get started
           </p>
         </div>
 
@@ -91,7 +91,7 @@ export default function Register() {
               id="email"
               name="email"
               type="email"
-              placeholder="nome@esempio.com"
+              placeholder="name@example.com"
               value={formData.email}
               onChange={handleChange}
               required
@@ -113,12 +113,12 @@ export default function Register() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">Nome</Label>
+              <Label htmlFor="firstName">First name</Label>
               <Input
                 id="firstName"
                 name="firstName"
                 type="text"
-                placeholder="Mario"
+                placeholder="John"
                 value={formData.firstName}
                 onChange={handleChange}
                 required
@@ -126,12 +126,12 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lastName">Cognome</Label>
+              <Label htmlFor="lastName">Last name</Label>
               <Input
                 id="lastName"
                 name="lastName"
                 type="text"
-                placeholder="Rossi"
+                placeholder="Doe"
                 value={formData.lastName}
                 onChange={handleChange}
                 required
@@ -146,7 +146,7 @@ export default function Register() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Almeno 6 caratteri"
+                placeholder="At least 6 characters"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -167,13 +167,13 @@ export default function Register() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Conferma Password</Label>
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Ripeti la password"
+                placeholder="Repeat password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
@@ -198,7 +198,7 @@ export default function Register() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Registrazione in corso...' : 'Registrati'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
       </div>

@@ -32,7 +32,7 @@ export default function Login() {
     setLoading(true);
 
     if (!formData.username || !formData.password) {
-      setError('Tutti i campi sono obbligatori');
+      setError('All fields are required');
       setLoading(false);
       return;
     }
@@ -42,7 +42,7 @@ export default function Login() {
     if (result.success) {
       navigate('/');
     } else {
-      setError(result.error || 'Credenziali non valide');
+      setError(result.error || 'Invalid credentials');
     }
     
     setLoading(false);
@@ -52,9 +52,9 @@ export default function Login() {
     <AuthLayout>
       <div className="space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Bentornato</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
           <p className="text-sm text-muted-foreground">
-            Inserisci le tue credenziali per accedere
+            Enter your credentials to log in
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export default function Login() {
               id="username"
               name="username"
               type="text"
-              placeholder="nome@esempio.com"
+              placeholder="name@example.com"
               value={formData.username}
               onChange={handleChange}
               required
@@ -85,7 +85,7 @@ export default function Login() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Inserisci la tua password"
+                placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -110,7 +110,7 @@ export default function Login() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Accesso in corso...' : 'Accedi'}
+            {loading ? 'Logging in...' : 'Log in'}
           </Button>
         </form>
       </div>

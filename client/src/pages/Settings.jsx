@@ -64,7 +64,7 @@ export default function Settings() {
     e.preventDefault();
     setLoading(true);
     
-    // Filtra solo i campi modificabili
+    // Filter only editable fields
     const updateData = {
       photoUrl: formData.photoUrl,
       email: formData.email,
@@ -79,7 +79,7 @@ export default function Settings() {
     e.preventDefault();
     setLoading(true);
     
-    // TODO: Implementare l'aggiornamento dei dati account
+    // TODO: Implement account data update
     console.log('Account data:', accountData);
     
     setLoading(false);
@@ -88,7 +88,7 @@ export default function Settings() {
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO: Implementare l'upload dell'immagine al server
+      // TODO: Implement image upload to server
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({
@@ -545,7 +545,7 @@ export default function Settings() {
                 <Button 
                   type="button"
                   onClick={() => {
-                    // TODO: Implementare salvataggio preferenze notifiche
+                    // TODO: Implement notification preferences save
                     console.log('Notification settings:', notificationSettings);
                     alert('Notification preferences updated!');
                   }}

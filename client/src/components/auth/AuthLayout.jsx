@@ -30,14 +30,14 @@ export default function AuthLayout({ children }) {
             Participium
           </h1>
           <p className="text-xl text-neutral-300 dark:text-neutral-400 leading-relaxed">
-            La tua voce conta.
+            Your voice matters.
           </p>
 
           <div className="w-24 h-[2px] bg-neutral-600 dark:bg-neutral-700 my-4"></div>
 
           <p className="text-l text-neutral-400 dark:text-neutral-500 leading-relaxed">
-            Segnala problemi nella tua città, monitora i progressi 
-            e contribuisci a rendere Torino un posto migliore per tutti.
+            Report problems in your city, monitor progress 
+            and contribute to making Turin a better place for everyone.
           </p>
           <div className="mt-8 flex items-center gap-2 text-sm text-neutral-400 dark:text-neutral-500">
           </div>
@@ -52,8 +52,8 @@ export default function AuthLayout({ children }) {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/" className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Torna a Participium</span>
-              <span className="sm:hidden">Indietro</span>
+              <span className="hidden sm:inline">Back to Participium</span>
+              <span className="sm:hidden">Back</span>
             </Link>
           </Button>
 
@@ -61,16 +61,16 @@ export default function AuthLayout({ children }) {
           {isLogin ? (
             <div className="flex items-center gap-2 sm:gap-3">
               <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">
-                Non hai un account?
+                Don't have an account?
               </span>
               <Button asChild variant="outline" size="sm">
-                <Link to="/register">Registrati</Link>
+                <Link to="/register">Sing in</Link>
               </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2 sm:gap-3">
               <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">
-                Hai già un account?
+                Already have an account?
               </span>
               <Button asChild variant="outline" size="sm">
                 <Link to="/login">Login</Link>

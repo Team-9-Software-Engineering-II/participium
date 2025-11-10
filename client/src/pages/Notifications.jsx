@@ -9,25 +9,25 @@ export default function Notifications() {
       
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Notifiche</h1>
+          <h1 className="text-3xl font-bold mb-2">Notifications</h1>
           <p className="text-muted-foreground">
-            Visualizza tutte le tue notifiche e aggiornamenti
+            View all your notifications and updates
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Centro Notifiche</CardTitle>
+            <CardTitle>Notification Center</CardTitle>
             <CardDescription>
-              Rimani aggiornato sulle tue segnalazioni
+              Stay updated on your reports
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-12 text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nessuna notifica</p>
+              <p>No notifications</p>
               <p className="text-sm mt-2">
-                Le notifiche sulle tue segnalazioni appariranno qui
+                Notifications about your reports will appear here
               </p>
             </div>
           </CardContent>

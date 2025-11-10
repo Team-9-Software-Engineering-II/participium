@@ -13,25 +13,25 @@ export default function Info() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
             <HelpCircle className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="text-4xl font-bold mb-4">Cos'è Participium?</h1>
+          <h1 className="text-4xl font-bold mb-4">What is Participium?</h1>
           <p className="text-xl text-muted-foreground">
-            Il portale di partecipazione civica del Comune di Torino
+            The civic participation portal of the City of Turin
           </p>
         </div>
 
-        {/* Introduzione */}
+        {/* Introduction */}
         <Card className="mb-8">
           <CardContent className="pt-6">
             <p className="text-lg leading-relaxed">
-              Participium è la piattaforma digitale che mette in contatto i cittadini di Torino 
-              con l'amministrazione comunale. Attraverso Participium puoi segnalare problemi, 
-              monitorare l'avanzamento delle riparazioni e contribuire attivamente a migliorare 
-              la tua città.
+              Participium is the digital platform that connects Turin citizens 
+              with the municipal administration. Through Participium you can report problems, 
+              monitor the progress of repairs and actively contribute to improving 
+              your city.
             </p>
           </CardContent>
         </Card>
 
-        {/* Funzionalità */}
+        {/* Features */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
@@ -39,13 +39,13 @@ export default function Info() {
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <MapPin className="h-5 w-5 text-blue-600" />
                 </div>
-                <CardTitle>Segnala Problemi</CardTitle>
+                <CardTitle>Report Problems</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Fotografa e geolocalizza problemi nel tuo quartiere: buche stradali, 
-                illuminazione pubblica, rifiuti, barriere architettoniche e molto altro.
+                Photograph and geolocate problems in your neighborhood: potholes, 
+                public lighting, waste, architectural barriers and much more.
               </p>
             </CardContent>
           </Card>
@@ -56,13 +56,13 @@ export default function Info() {
                 <div className="p-2 bg-green-100 rounded-lg">
                   <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
-                <CardTitle>Monitora i Progressi</CardTitle>
+                <CardTitle>Monitor Progress</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Segui in tempo reale lo stato delle tue segnalazioni: in attesa di approvazione, 
-                assegnata, in corso o risolta.
+                Track the status of your reports in real time: pending approval, 
+                assigned, in progress or resolved.
               </p>
             </CardContent>
           </Card>
@@ -73,13 +73,13 @@ export default function Info() {
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <Users className="h-5 w-5 text-purple-600" />
                 </div>
-                <CardTitle>Partecipazione Attiva</CardTitle>
+                <CardTitle>Active Participation</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Contribuisci a rendere Torino migliore. Ogni segnalazione aiuta 
-                l'amministrazione a intervenire dove serve.
+                Help make Turin better. Every report helps 
+                the administration to intervene where needed.
               </p>
             </CardContent>
           </Card>
@@ -90,22 +90,22 @@ export default function Info() {
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <Shield className="h-5 w-5 text-orange-600" />
                 </div>
-                <CardTitle>Trasparenza</CardTitle>
+                <CardTitle>Transparency</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Tutte le segnalazioni sono pubbliche e tracciabili, garantendo 
-                massima trasparenza nel processo di risoluzione.
+                All reports are public and traceable, ensuring 
+                maximum transparency in the resolution process.
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Come funziona */}
+        {/* How it works */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-2xl">Come funziona?</CardTitle>
+            <CardTitle className="text-2xl">How does it work?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-4">
@@ -113,9 +113,9 @@ export default function Info() {
                 1
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Registrati</h3>
+                <h3 className="font-semibold mb-1">Register</h3>
                 <p className="text-muted-foreground">
-                  Crea un account gratuito con la tua email per iniziare a segnalare.
+                  Create a free account with your email to start reporting.
                 </p>
               </div>
             </div>
@@ -125,9 +125,9 @@ export default function Info() {
                 2
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Segnala</h3>
+                <h3 className="font-semibold mb-1">Report</h3>
                 <p className="text-muted-foreground">
-                  Fotografa il problema, indica la posizione sulla mappa e seleziona la categoria appropriata.
+                  Photograph the problem, indicate the location on the map and select the appropriate category.
                 </p>
               </div>
             </div>
@@ -137,9 +137,9 @@ export default function Info() {
                 3
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Monitora</h3>
+                <h3 className="font-semibold mb-1">Monitor</h3>
                 <p className="text-muted-foreground">
-                  Ricevi aggiornamenti sullo stato della tua segnalazione fino alla risoluzione.
+                  Receive updates on the status of your report until it is resolved.
                 </p>
               </div>
             </div>
@@ -149,7 +149,7 @@ export default function Info() {
         {/* Footer */}
         <div className="text-center text-muted-foreground">
           <p>
-            Per ulteriori informazioni, contatta il Comune di Torino o visita il sito ufficiale.
+            For more information, contact the City of Turin or visit the official website.
           </p>
         </div>
       </div>

@@ -20,7 +20,12 @@ export default function Home() {
   const [showMyReports, setShowMyReports] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
-  // Rilevamento mobile/desktop
+  // Reports state
+  const [allReports, setAllReports] = useState([]);
+  const [myReports, setMyReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
   useEffect(() => {
@@ -32,12 +37,49 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Filtri
+  // Load reports from API
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch all reports
+        const allResponse = await fetch('http://localhost:3000/api/reports', {
+          credentials: 'include'
+        });
+        
+        if (allResponse.ok) {
+          const allData = await allResponse.json();
+          setAllReports(allData);
+        }
+        
+        // Fetch user's reports if authenticated
+        if (isAuthenticated) {
+          const myResponse = await fetch('http://localhost:3000/api/reports/my', {
+            credentials: 'include'
+          });
+          
+          if (myResponse.ok) {
+            const myData = await myResponse.json();
+            setMyReports(myData);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchReports();
+  }, [isAuthenticated]);
+  
+  // Filters
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
-  // Categorie disponibili
+  // Available categories
   const categories = [
     'Water Supply – Drinking Water',
     'Architectural Barriers',
@@ -50,39 +92,36 @@ export default function Home() {
     'Other'
   ];
 
-  // Stati disponibili
+  // Available statuses
   const statuses = [
-    { value: 'Pending Approval', label: 'Da assegnare' },
-    { value: 'Assigned', label: 'Assegnata' },
-    { value: 'In Progress', label: 'In lavorazione' },
-    { value: 'Suspended', label: 'Sospesa' },
-    { value: 'Rejected', label: 'Rifiutata' },
-    { value: 'Resolved', label: 'Chiusa' }
+    { value: 'Pending Approval', label: 'Pending Approval' },
+    { value: 'Assigned', label: 'Assigned' },
+    { value: 'In Progress', label: 'In Progress' },
+    { value: 'Suspended', label: 'Suspended' },
+    { value: 'Rejected', label: 'Rejected' },
+    { value: 'Resolved', label: 'Resolved' }
   ];
 
-  // Opzioni data
+  // Date options
   const dateOptions = [
-    { value: 'today', label: 'Oggi' },
-    { value: 'week', label: 'Ultima settimana' },
-    { value: 'month', label: 'Questo mese' },
-    { value: 'custom', label: 'Scegli date' }
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'Last week' },
+    { value: 'month', label: 'This month' },
+    { value: 'custom', label: 'Choose dates' }
   ];
 
-  // Mock data vuoto - verranno caricati i dati reali dall'API
-  const mockReports = [];
-  const mockMyReports = []; // Segnalazioni dell'utente loggato
-
-  const filteredReports = mockReports.filter(report =>
+  // Filter reports based on search query
+  const filteredReports = allReports.filter(report =>
     report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     report.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredMyReports = mockMyReports.filter(report =>
+  const filteredMyReports = myReports.filter(report =>
     report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     report.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Determina quale lista mostrare
+  // Determine which list to show
   const displayReports = showMyReports ? filteredMyReports : filteredReports;
   const totalResults = showMyReports ? filteredMyReports.length : filteredReports.length;
 
@@ -105,54 +144,72 @@ export default function Home() {
     setShowFilters(false);
   };
 
-  // Componente Lista Segnalazioni riutilizzabile
-  const ReportsList = () => (
-    <div className="space-y-3">
-      {displayReports.length === 0 ? (
+  // Reusable Reports List component
+  const ReportsList = () => {
+    if (loading) {
+      return (
         <div className="flex flex-col items-center justify-center h-full text-center py-12">
-          <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Nessuna segnalazione</h3>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            {showMyReports 
-              ? "Non hai ancora creato nessuna segnalazione"
-              : "Non ci sono ancora segnalazioni da visualizzare. Torna più tardi!"}
-          </p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground mt-4">Loading reports...</p>
         </div>
-      ) : (
-        displayReports.map((report) => (
-          <div
-            key={report.id}
-            className="p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors"
-            onClick={() => navigate(`/reports/${report.id}`)}
-          >
-            <h3 className="font-semibold mb-2">{report.title}</h3>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                <span>{report.location}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                <span>{report.date}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <User className="h-4 w-4" />
-                <span>{report.author}</span>
-              </div>
-            </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {displayReports.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-12">
+            <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No reports</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {showMyReports 
+                ? "You haven't created any reports yet"
+                : "No reports to display yet. Check back later!"}
+            </p>
           </div>
-        ))
-      )}
-    </div>
-  );
+        ) : (
+          displayReports.map((report) => (
+            <div
+              key={report.id}
+              className="p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors"
+              onClick={() => navigate(`/reports/${report.id}`)}
+            >
+              <h3 className="font-semibold mb-2">{report.title}</h3>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  <span>{report.address || report.location || 'Location not specified'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  <span>{new Date(report.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <User className="h-4 w-4" />
+                  <span>{report.User?.username || 'Anonymous'}</span>
+                </div>
+              </div>
+              {report.status && (
+                <div className="mt-2">
+                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                    {report.status}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <Navbar />
       
-      {/* Layout Desktop (md e superiori) - Con sidebar */}
+      {/* Desktop Layout (md and above) - With sidebar */}
       <div className="hidden md:flex flex-1 overflow-hidden">
-        {/* Sidebar Sinistra - Lista Segnalazioni */}
+        {/* Left Sidebar - Reports List */}
         <div className="w-96 border-r border-border bg-background flex flex-col relative">
           {/* Search Bar */}
           <div className="p-4">
@@ -160,7 +217,7 @@ export default function Home() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Cerca una segnalazione"
+                placeholder="Search for a report"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-10"
@@ -176,10 +233,10 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Switch Le mie segnalazioni */}
+          {/* My Reports Switch */}
           <div className="px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Le mie segnalazioni</span>
+              <span className="text-sm font-medium">My reports</span>
               <Switch
                 checked={showMyReports}
                 onCheckedChange={(checked) => {
@@ -194,12 +251,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Messaggio Login se non autenticato e switch attivo */}
+          {/* Login message if not authenticated and switch active */}
           {!isAuthenticated && showMyReports ? (
             <div className="px-4 pb-4">
               <div className="bg-background rounded-lg p-4 text-center space-y-3 border">
                 <p className="text-sm font-medium">
-                  Effettua il login per vedere le tue segnalazioni
+                  Log in to see your reports
                 </p>
                 <Button
                   onClick={() => navigate('/login')}
@@ -212,10 +269,10 @@ export default function Home() {
             </div>
           ) : (
             <>
-              {/* Conteggio risultati */}
+              {/* Results count */}
               <div className="px-4 py-4">
                 <p className="text-sm text-muted-foreground">
-                  {totalResults} risultati
+                  {totalResults} results
                 </p>
               </div>
 
@@ -226,7 +283,7 @@ export default function Home() {
             </>
           )}
 
-          {/* Pulsante Theme Toggle - Bottom Left (solo quando non loggato) */}
+          {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
           {!isAuthenticated && (
             <Button
               onClick={toggleTheme}
@@ -242,7 +299,7 @@ export default function Home() {
             </Button>
           )}
 
-          {/* Pulsante + in basso a destra */}
+          {/* + Button bottom right */}
           <Button
             onClick={handleNewReport}
             className="absolute bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
@@ -251,38 +308,38 @@ export default function Home() {
           </Button>
         </div>
 
-        {/* Destra - Mappa */}
+        {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center">
           <div className="text-center space-y-4 p-4">
             <MapPin className="h-16 w-16 mx-auto text-muted-foreground" />
             <div>
-              <h2 className="text-2xl font-bold mb-2">Mappa Interattiva</h2>
+              <h2 className="text-2xl font-bold mb-2">Interactive Map</h2>
               <p className="text-base text-muted-foreground">Work in Progress</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Qui verrà visualizzata la mappa con OpenStreetMap
+                The map will be displayed here with OpenStreetMap
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Layout Mobile (sotto md) - Con pulsanti in basso */}
+      {/* Mobile Layout (below md) - With bottom buttons */}
       <div className="md:hidden flex-1 relative">
-        {/* Area Mappa (Work in Progress) */}
+        {/* Map Area (Work in Progress) */}
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
           <div className="text-center space-y-4 p-4">
             <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
             <div>
-              <h2 className="text-xl font-bold mb-2">Mappa Interattiva</h2>
+              <h2 className="text-xl font-bold mb-2">Interactive Map</h2>
               <p className="text-sm text-muted-foreground">Work in Progress</p>
               <p className="text-xs text-muted-foreground mt-2">
-                Qui verrà visualizzata la mappa con OpenStreetMap
+                The map will be displayed here with OpenStreetMap
               </p>
             </div>
           </div>
         </div>
 
-        {/* Pulsante Theme Toggle - Bottom Left (solo quando non loggato) */}
+        {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
         {!isAuthenticated && (
           <Button
             onClick={toggleTheme}
@@ -298,12 +355,12 @@ export default function Home() {
           </Button>
         )}
 
-        {/* Pulsanti in basso */}
+        {/* Bottom buttons */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-between items-center px-4">
-          {/* Spazio vuoto a sinistra per bilanciare */}
+          {/* Empty space on the left for balance */}
           <div className="w-14"></div>
           
-          {/* Pulsante Lista Segnalazioni - Centro */}
+          {/* Reports List Button - Center */}
           <Sheet>
             <SheetTrigger asChild>
               <Button
@@ -312,14 +369,14 @@ export default function Home() {
                 className="shadow-lg gap-2 h-12 px-4"
               >
                 <List className="h-5 w-5" />
-                <span className="text-sm">Lista segnalazioni</span>
+                <span className="text-sm">Reports list</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[80vh]">
               <SheetHeader>
-                <SheetTitle>Segnalazioni</SheetTitle>
+                <SheetTitle>Reports</SheetTitle>
                 <SheetDescription>
-                  Visualizza e gestisci le segnalazioni
+                  View and manage reports
                 </SheetDescription>
               </SheetHeader>
               
@@ -328,7 +385,7 @@ export default function Home() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Cerca una segnalazione"
+                    placeholder="Search for a report"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 pr-10"
@@ -343,9 +400,9 @@ export default function Home() {
                   </Button>
                 </div>
 
-                {/* Switch Le mie segnalazioni */}
+                {/* My Reports Switch */}
                 <div className="flex items-center justify-between py-2">
-                  <span className="text-sm font-medium">Le mie segnalazioni</span>
+                  <span className="text-sm font-medium">My reports</span>
                   <Switch
                     checked={showMyReports}
                     onCheckedChange={(checked) => {
@@ -358,12 +415,12 @@ export default function Home() {
                   />
                 </div>
 
-                {/* Messaggio Login se non autenticato e switch attivo */}
+                {/* Login message if not authenticated and switch active */}
                 {!isAuthenticated && showMyReports ? (
                   <div className="py-2">
                     <div className="bg-background rounded-lg p-4 text-center space-y-3 border">
                       <p className="text-sm font-medium">
-                        Effettua il login per vedere le tue segnalazioni
+                        Log in to see your reports
                       </p>
                       <Button
                         onClick={() => navigate('/login')}
@@ -376,14 +433,14 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
-                    {/* Conteggio risultati */}
+                    {/* Results count */}
                     <div className="py-2">
                       <p className="text-sm text-muted-foreground">
-                        {totalResults} risultati
+                        {totalResults} results
                       </p>
                     </div>
 
-                    {/* Lista Report - Scrollabile */}
+                    {/* Reports List - Scrollable */}
                     <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 400px)' }}>
                       <ReportsList />
                     </div>
@@ -391,7 +448,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Pulsante + fisso in basso a destra dentro lo Sheet */}
+              {/* Fixed + button bottom right inside Sheet */}
               <Button
                 onClick={handleNewReport}
                 className="absolute bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
@@ -401,7 +458,7 @@ export default function Home() {
             </SheetContent>
           </Sheet>
 
-          {/* Pulsante Nuova Segnalazione - Destra */}
+          {/* New Report Button - Right */}
           <Button
             size="lg"
             onClick={handleNewReport}
@@ -412,26 +469,26 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Dialog Filtri - Desktop only */}
+      {/* Filters Dialog - Desktop only */}
       {!isMobile && (
         <Dialog open={showFilters} onOpenChange={setShowFilters}>
           <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Filtra i risultati</DialogTitle>
+            <DialogTitle>Filter results</DialogTitle>
             <DialogDescription>
-              Seleziona i criteri per filtrare le segnalazioni
+              Select criteria to filter reports
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            {/* Tipologia (Category) */}
+            {/* Category */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Tipologia</label>
+              <label className="text-sm font-medium text-muted-foreground">Category</label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <ListTree className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Seleziona tipologia" />
+                    <SelectValue placeholder="Select category" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -444,9 +501,9 @@ export default function Home() {
               </Select>
             </div>
 
-            {/* Stato segnalazione */}
+            {/* Report status */}
             <div className="space-y-3">
-              <label className="text-sm font-medium">Stato segnalazione</label>
+              <label className="text-sm font-medium">Report status</label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={selectedStatus === '' ? 'default' : 'outline'}
@@ -454,7 +511,7 @@ export default function Home() {
                   onClick={() => setSelectedStatus('')}
                   className="rounded-full"
                 >
-                  Nessun filtro
+                  No filter
                 </Button>
                 {statuses.map((status) => (
                   <Button
@@ -470,9 +527,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Data */}
+            {/* Date */}
             <div className="space-y-3">
-              <label className="text-sm font-medium">Data</label>
+              <label className="text-sm font-medium">Date</label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={selectedDate === '' ? 'default' : 'outline'}
@@ -480,7 +537,7 @@ export default function Home() {
                   onClick={() => setSelectedDate('')}
                   className="rounded-full"
                 >
-                  Nessun filtro
+                  No filter
                 </Button>
                 {dateOptions.map((option) => (
                   <Button
@@ -497,46 +554,46 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Footer con pulsanti */}
+          {/* Footer with buttons */}
           <div className="flex gap-3 pt-4 border-t">
             <Button
               variant="outline"
               onClick={handleResetFilters}
               className="flex-1"
             >
-              RIMUOVI FILTRO
+              CLEAR FILTERS
             </Button>
             <Button
               onClick={handleApplyFilters}
               className="flex-1"
             >
-              FILTRA
+              FILTER
             </Button>
           </div>
         </DialogContent>
       </Dialog>
       )}
 
-      {/* Filtri - Sheet per Mobile only */}
+      {/* Filters - Sheet for Mobile only */}
       {isMobile && (
         <Sheet open={showFilters} onOpenChange={setShowFilters}>
           <SheetContent side="bottom" className="h-[85vh]">
           <SheetHeader>
-            <SheetTitle>Filtra i risultati</SheetTitle>
+            <SheetTitle>Filter results</SheetTitle>
             <SheetDescription>
-              Seleziona i criteri per filtrare le segnalazioni
+              Select criteria to filter reports
             </SheetDescription>
           </SheetHeader>
 
           <div className="space-y-6 py-4 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 150px)' }}>
-            {/* Tipologia (Category) */}
+            {/* Category */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Tipologia</label>
+              <label className="text-sm font-medium text-muted-foreground">Category</label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <ListTree className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Seleziona tipologia" />
+                    <SelectValue placeholder="Select category" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -549,9 +606,9 @@ export default function Home() {
               </Select>
             </div>
 
-            {/* Stato segnalazione */}
+            {/* Report status */}
             <div className="space-y-3">
-              <label className="text-sm font-medium">Stato segnalazione</label>
+              <label className="text-sm font-medium">Report status</label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={selectedStatus === '' ? 'default' : 'outline'}
@@ -559,7 +616,7 @@ export default function Home() {
                   onClick={() => setSelectedStatus('')}
                   className="rounded-full"
                 >
-                  Nessun filtro
+                  No filter
                 </Button>
                 {statuses.map((status) => (
                   <Button
@@ -575,9 +632,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Data */}
+            {/* Date */}
             <div className="space-y-3">
-              <label className="text-sm font-medium">Data</label>
+              <label className="text-sm font-medium">Date</label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={selectedDate === '' ? 'default' : 'outline'}
@@ -585,7 +642,7 @@ export default function Home() {
                   onClick={() => setSelectedDate('')}
                   className="rounded-full"
                 >
-                  Nessun filtro
+                  No filter
                 </Button>
                 {dateOptions.map((option) => (
                   <Button
@@ -602,33 +659,33 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Footer con pulsanti */}
+          {/* Footer with buttons */}
           <div className="absolute bottom-0 left-0 right-0 p-6 bg-background border-t flex gap-3">
             <Button
               variant="outline"
               onClick={handleResetFilters}
               className="flex-1"
             >
-              RIMUOVI FILTRO
+              CLEAR FILTERS
             </Button>
             <Button
               onClick={handleApplyFilters}
               className="flex-1"
             >
-              FILTRA
+              FILTER
             </Button>
           </div>
         </SheetContent>
       </Sheet>
       )}
 
-      {/* Dialog per richiedere login */}
+      {/* Dialog to request login */}
       <Dialog open={showLoginPrompt} onOpenChange={setShowLoginPrompt}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Accesso richiesto</DialogTitle>
+            <DialogTitle>Login required</DialogTitle>
             <DialogDescription>
-              Devi effettuare il login per accedere a questa funzionalità.
+              You must log in to access this feature.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
@@ -637,13 +694,13 @@ export default function Home() {
               onClick={() => setShowLoginPrompt(false)}
               className="flex-1"
             >
-              Annulla
+              Cancel
             </Button>
             <Button
               onClick={() => navigate('/login')}
               className="flex-1"
             >
-              Vai al Login
+              Go to Login
             </Button>
           </div>
         </DialogContent>
