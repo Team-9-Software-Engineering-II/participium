@@ -12,10 +12,12 @@ const app = express();
  * Applies core middlewares required by the application.
  */
 function bootstrapExpress() {
-  app.use(cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  }));
+  app.use(
+    cors({
+      origin: "http://localhost:5173",
+      credentials: true,
+    })
+  );
   app.use(morgan("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -62,10 +64,10 @@ async function seedDatabase() {
     const roleCount = await db.Role.count();
     if (roleCount === 0) {
       await db.Role.bulkCreate([
-        { id: 1, name: 'citizen' },
-        { id: 2, name: 'admin' },
-        { id: 3, name: 'municipality_public_relations_officer' },
-        { id: 4, name: 'technical_staff' }
+        { id: 1, name: "citizen" },
+        { id: 2, name: "admin" },
+        { id: 3, name: "municipality_public_relations_officer" },
+        { id: 4, name: "technical_staff" },
       ]);
       console.log("Roles seeded successfully.");
     }
@@ -78,10 +80,10 @@ bootstrapExpress();
 registerErrorHandlers();
 
 db.sequelize
-  .sync({ alter: true })
+  .sync({ force: true })
   .then(async () => {
     console.log("Database synced successfully.");
-    
+
     // Seed initial data
     await seedDatabase();
 
@@ -96,4 +98,4 @@ db.sequelize
     console.error("Error syncing database:", err);
   });
 
-  export { app };
+export { app };
