@@ -1,16 +1,28 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Info from './pages/Info';
+import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
-          {/* Rotte pubbliche */}
+      <ThemeProvider>
+        <AuthProvider>
+          <Routes>
+          {/* Rotta pubblica - Home page */}
+          <Route path="/" element={<Home />} />
+          
+          {/* Pagina Info */}
+          <Route path="/info" element={<Info />} />
+          
+          {/* Rotte di autenticazione */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
@@ -23,14 +35,25 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          
-          {/* Redirect root to dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          
-          {/* 404 - Not Found */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/notifications" 
+            element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
-      </AuthProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }
