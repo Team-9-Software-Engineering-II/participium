@@ -126,8 +126,8 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Dark mode toggle - nascosto su mobile */}
-              <Button variant="ghost" size="icon" onClick={toggleDarkMode} className="hidden sm:flex">
+              {/* Dark mode toggle - visibile su mobile solo quando loggato */}
+              <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </Button>
 
