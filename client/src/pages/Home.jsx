@@ -2,10 +2,19 @@ import { useState } from 'react';
 import Navbar from '../components/common/Navbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MapPin, Search, Sun, Moon } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function Home() {
+  const { isAuthenticated } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
 
   // Mock data vuoto - verranno caricati i dati reali dall'API
   const mockReports = [];
@@ -74,6 +83,24 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Dark/Light Mode Toggle - Bottom Left (solo quando non loggato) */}
+      {!isAuthenticated && (
+        <div className="fixed bottom-8 left-8 z-50">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={toggleTheme}
+            className="rounded-full shadow-lg h-16 w-16"
+          >
+            {theme === 'light' ? (
+              <Moon style={{ width: '26px', height: '26px' }} />
+            ) : (
+              <Sun style={{ width: '26px', height: '26px' }} />
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
