@@ -85,11 +85,15 @@ db.sequelize
     // Seed initial data
     await seedDatabase();
 
-    // Start the Express server only after the DB connection is ready
-    app.listen(3000, () => {
-      console.log("Server listening on port 3000");
-    });
+    if (process.env.NODE_ENV !== "test") {
+      // Start the Express server only after the DB connection is ready
+      app.listen(3000, () => {
+        console.log("Server listening on port 3000");
+      });
+    }
   })
   .catch((err) => {
     console.error("Error syncing database:", err);
   });
+
+  export { app };

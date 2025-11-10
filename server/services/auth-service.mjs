@@ -20,6 +20,8 @@ export class AuthService {
   static async registerUser(userInput) {
     const { email, username, password, firstName, lastName, roleId } = userInput;
 
+    this.#validateEmailFormat(email);
+
     await this.#ensureEmailAvailable(email);
     await this.#ensureUsernameAvailable(username);
 
@@ -35,6 +37,21 @@ export class AuthService {
 
     const hydratedUser = await findUserByIdRepo(createdUser.id);
     return this.#sanitizeUser(hydratedUser ?? createdUser);
+  }
+
+  /** Validates the provided email format using a basic regex
+   * @param {string} email - Email to validate.
+   * @throws {Error} If the email format is invalid, with status 400.
+   * @private
+   */
+  static #validateEmailFormat(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
+    
+    if (!email || !emailRegex.test(email)) {
+      const error = new Error("Invalid email format.");
+      error.statusCode = 400; // <-- Error 400 Bad Request
+      throw error;
+    }
   }
 
   /**
