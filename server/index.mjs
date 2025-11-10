@@ -53,13 +53,37 @@ function registerErrorHandlers() {
   });
 }
 
+/**
+ * Seeds the database with initial data if tables are empty.
+ */
+async function seedDatabase() {
+  try {
+    // Seed roles if the table is empty
+    const roleCount = await db.Role.count();
+    if (roleCount === 0) {
+      await db.Role.bulkCreate([
+        { id: 1, name: 'citizen' },
+        { id: 2, name: 'admin' },
+        { id: 3, name: 'municipality_public_relations_officer' },
+        { id: 4, name: 'technical_staff' }
+      ]);
+      console.log("Roles seeded successfully.");
+    }
+  } catch (err) {
+    console.error("Error seeding database:", err);
+  }
+}
+
 bootstrapExpress();
 registerErrorHandlers();
 
 db.sequelize
   .sync({ alter: true })
-  .then(() => {
+  .then(async () => {
     console.log("Database synced successfully.");
+    
+    // Seed initial data
+    await seedDatabase();
 
     // Start the Express server only after the DB connection is ready
     app.listen(3000, () => {
