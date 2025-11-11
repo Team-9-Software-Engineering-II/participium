@@ -291,7 +291,7 @@ export default function MunicipalityUsers() {
               <DialogHeader>
                 <DialogTitle>Add municipality user</DialogTitle>
                 <DialogDescription>
-                  Provide the account details the administrative API requires. All fields are
+                  Provide the account details. All fields are
                   mandatory.
                 </DialogDescription>
               </DialogHeader>
