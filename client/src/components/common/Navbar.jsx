@@ -203,10 +203,10 @@ export default function Navbar() {
             <>
               {/* Login/Register buttons */}
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/login">Login</Link>
+                <Link to="/login">Log in</Link>
               </Button>
               <Button variant="default" size="sm" asChild>
-                <Link to="/register">Sign in</Link>
+                <Link to="/register">Sign out</Link>
               </Button>
 
               {/* Info button */}

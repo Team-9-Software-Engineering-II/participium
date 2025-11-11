@@ -263,7 +263,7 @@ export default function Home() {
                   className="w-full"
                   size="sm"
                 >
-                  Login
+                  Log in
                 </Button>
               </div>
             </div>
@@ -427,7 +427,7 @@ export default function Home() {
                         className="w-full"
                         size="sm"
                       >
-                        Login
+                        Log in
                       </Button>
                     </div>
                   </div>
@@ -700,7 +700,7 @@ export default function Home() {
               onClick={() => navigate('/login')}
               className="flex-1"
             >
-              Go to Login
+              Go to Log in
             </Button>
           </div>
         </DialogContent>
