@@ -333,15 +333,42 @@ paths:
           description: Invalid data (e.g. rejection without explanation)
 
   /admin/users:
-    post:
-      summary: (Admin) Create a new municipal user
+    get:
+      summary: (Admin) Ottiene la lista di tutti gli utenti municipali e cittadini
       tags: [Admin]
       security:
         - BearerAuth: []
-      # ... (requestBody with staff user data)
+      responses:
+        '200':
+          description: Lista di tutti gli utenti nel sistema
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
+    post:
+      summary: (Admin) Crea un nuovo utente municipale
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreate'
       responses:
         '201':
-          description: Staff user created
+          description: Utente staff creato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Dati non validi (es. ruolo non trovato)
+        '409':
+          description: Conflitto (es. email o username duplicati)
 
   /admin/users/{userId}/role:
     put:
@@ -367,6 +394,24 @@ paths:
       responses:
         '200':
           description: Role updated
+  
+  /admin/roles:
+    get:
+      summary: (Admin) Ottiene la lista di tutti i ruoli disponibili
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista di ruoli
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleSummary'
+        '403':
+          description: Accesso non autorizzato
 
   /statistics/public:
     get:
@@ -494,6 +539,27 @@ components:
     UserRole:
       type: string
       enum: [municipal public relations officer, municipal administrator, technical office staff member]
+    
+    AdminUserCreate:
+      type: object
+      required: [email, username, password, firstName, lastName, roleName]
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roleName:
+          type: string
+          description: Il nome del ruolo da assegnare (es. "municipal administrator")
+          $ref: '#/components/schemas/UserRole'
 
     ReportCreate:
       type: object
