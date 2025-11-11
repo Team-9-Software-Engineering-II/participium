@@ -4,6 +4,7 @@ import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
+import { seedDatabase } from "../../seeders/index.mjs";
 
 let cookie;
 
@@ -17,7 +18,10 @@ const testUser = {
   password: "Password123!",
 };
 
-beforeAll(async () => {});
+beforeAll(async () => {
+  await sequelize.sync({ force: true });
+  await seedDatabase();
+});
 
 afterAll(async () => {
   if (sequelize) {
@@ -56,7 +60,7 @@ describe("API Authentication E2E Flow", () => {
     });
 
     it("should fail to register if the request body is missing or empty (400)", async () => {
-      const res = await request(app).post("/auth/register"); 
+      const res = await request(app).post("/auth/register");
       expect(res.statusCode).toBe(400);
     });
   });
@@ -95,10 +99,9 @@ describe("API Authentication E2E Flow", () => {
       expect(res.body.user.username).toBe(testUser.username);
     });
 
-    it("should fail session check if no cookie is provided (200)", async () => {
+    it("should fail session check if no cookie is provided (401)", async () => {
       const res = await request(app).get("/auth/session");
-      expect(res.body).toHaveProperty("authenticated", false);
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(401);
     });
   });
 
@@ -109,10 +112,9 @@ describe("API Authentication E2E Flow", () => {
       expect(res.statusCode).toBe(204);
     });
 
-    it("should fail session check after logout (200)", async () => {
+    it("should fail session check after logout (401)", async () => {
       const res = await request(app).get("/auth/session").set("Cookie", cookie);
-      expect(res.body).toHaveProperty("authenticated", false);
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(401);
     });
   });
 });
