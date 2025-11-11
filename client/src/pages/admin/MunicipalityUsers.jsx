@@ -68,7 +68,7 @@ export default function MunicipalityUsers() {
     email: '',
     username: '',
     password: '',
-    roleName: '',
+    roleId: '',
   });
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,7 +143,7 @@ export default function MunicipalityUsers() {
         email: '',
         username: '',
         password: '',
-        roleName: '',
+        roleId: '',
       });
       setFormError(null);
       setRolesError(null);
@@ -184,7 +184,7 @@ export default function MunicipalityUsers() {
     event.preventDefault();
     setFormError(null);
 
-    const requiredFields = ['firstName', 'lastName', 'email', 'username', 'password', 'roleName'];
+    const requiredFields = ['firstName', 'lastName', 'email', 'username', 'password', 'roleId'];
     const missing = requiredFields.filter((field) => !formValues[field]?.trim());
 
     if (missing.length > 0) {
@@ -200,7 +200,7 @@ export default function MunicipalityUsers() {
         password: formValues.password,
         firstName: formValues.firstName.trim(),
         lastName: formValues.lastName.trim(),
-        roleName: formValues.roleName,
+        roleId: Number(formValues.roleId),
       });
 
       await fetchUsers();
@@ -353,13 +353,13 @@ export default function MunicipalityUsers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="roleName">Role</Label>
+                  <Label htmlFor="roleId">Role</Label>
                   <Select
-                    value={formValues.roleName}
-                    onValueChange={handleFormChange('roleName')}
+                    value={formValues.roleId}
+                    onValueChange={handleFormChange('roleId')}
                     disabled={isRolesLoading || !!rolesError}
                   >
-                    <SelectTrigger id="roleName">
+                    <SelectTrigger id="roleId">
                       <SelectValue
                         placeholder={
                           isRolesLoading ? 'Loading roles…' : rolesError ? 'Roles unavailable' : 'Select a role'
@@ -368,7 +368,7 @@ export default function MunicipalityUsers() {
                     </SelectTrigger>
                     <SelectContent>
                       {roleOptions.map((role) => (
-                        <SelectItem key={role.id ?? role.name} value={role.name}>
+                        <SelectItem key={role.id} value={String(role.id)}>
                           {role.name}
                         </SelectItem>
                       ))}
