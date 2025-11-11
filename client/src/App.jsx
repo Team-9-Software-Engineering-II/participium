@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Info from './pages/Info';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+import CreateReport from './pages/CreateReport';
 
 function App() {
   return (
@@ -48,6 +49,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Notifications />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/reports/new" 
+            element={
+              <ProtectedRoute>
+                <CreateReport />
               </ProtectedRoute>
             } 
           />
