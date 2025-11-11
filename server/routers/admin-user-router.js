@@ -2,20 +2,27 @@ import { Router } from "express";
 import {
   createMunicipalityUser,
   assignUserRole,
-  getMunicipalityUsers,
+  getAllUsers,
 } from "../controllers/user-admin-controller.js";
+import { isAdmin, isAuthenticated } from "../middlewares/auth.mjs";
 
 const router = Router();
 
 // middlewares
 
-// GET /admin/users
-router.get("/", getMunicipalityUsers);
+/**
+ * Allow an admin to get ALL users.
+ */
+router.get("/", isAuthenticated, isAdmin, getAllUsers);
 
-// POST /admin/users
-router.post("/", createMunicipalityUser);
+/**
+ * Allow an admin to create a municipality user
+ */
+router.post("/", isAuthenticated, isAdmin, createMunicipalityUser);
 
-// PUT /admin/users/:userId/role
-router.put("/:userId/role", assignUserRole);
+/**
+ * Allow an admin to assign a role to a municipality user
+ */
+router.put("/:userId/role", isAuthenticated, isAdmin, assignUserRole);
 
 export default router;

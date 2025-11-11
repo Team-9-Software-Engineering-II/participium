@@ -5,6 +5,7 @@ import {
   findUserById as findUserByIdRepo,
   findUserByUsername,
 } from "../repositories/user-repo.mjs";
+import { findRoleById } from "../repositories/role-repo.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -18,12 +19,20 @@ export class AuthService {
    * @returns {Promise<object>} A sanitized user representation without sensitive fields.
    */
   static async registerUser(userInput) {
-    const { email, username, password, firstName, lastName, roleId } = userInput;
+    const {
+      email,
+      username,
+      password,
+      firstName,
+      lastName,
+      roleId = 1,
+    } = userInput;
 
     this.#validateEmailFormat(email);
 
     await this.#ensureEmailAvailable(email);
     await this.#ensureUsernameAvailable(username);
+    await this.#ensureRoleExists(roleId);
 
     const hashedPassword = await this.#hashPassword(password);
     const createdUser = await createUser({
@@ -45,8 +54,8 @@ export class AuthService {
    * @private
    */
   static #validateEmailFormat(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
-    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!email || !emailRegex.test(email)) {
       const error = new Error("Invalid email format.");
       error.statusCode = 400; // <-- Error 400 Bad Request
@@ -55,15 +64,14 @@ export class AuthService {
   }
 
   /**
-   * Validates a username/password combination and returns the user if successful.
+   * Validates a username/password or email/password combination and returns the user if successful.
    * @param {string} username - Username provided by the client.
    * @param {string} password - Plain text password provided by the client.
    * @returns {Promise<object|null>} Sanitized user when credentials match, otherwise null.
    */
   static async validateCredentials(username, password) {
     const user =
-      (await findUserByUsername(username)) ||
-      (await findUserByEmail(username));
+      (await findUserByUsername(username)) || (await findUserByEmail(username));
     if (!user) {
       return null;
     }
@@ -116,6 +124,15 @@ export class AuthService {
     }
   }
 
+  static async #ensureRoleExists(roleId) {
+    const role = await findRoleById(roleId);
+    if (!role) {
+      const error = new Error(`Role with name "${roleId}" not found.`);
+      error.statusCode = 400; // Bad Request
+      throw error;
+    }
+  }
+
   /**
    * Hashes a plain text password using bcrypt with a configured salt factor.
    * @param {string} password - Plain text password to hash.
@@ -138,4 +155,3 @@ export class AuthService {
     return plainUser;
   }
 }
-

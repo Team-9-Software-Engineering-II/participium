@@ -7,19 +7,9 @@ import {
   updateUser,
 } from "../repositories/user-repo.mjs";
 import { findRoleByName } from "../repositories/role-repo.mjs";
+import { sanitizeUser } from "../shared/utils/userUtils.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
-
-/**
- * Sanitizes a user object by removing sensitive data.
- * @param {object} user - The user object (Sequelize instance or plain object).
- * @returns {object} A plain user object without the hashed password.
- */
-function _sanitizeUser(user) {
-  const plainUser = user.get ? user.get({ plain: true }) : { ...user };
-  delete plainUser.hashedPassword;
-  return plainUser;
-}
 
 export class UserAdminService {
   /**
@@ -27,7 +17,8 @@ export class UserAdminService {
    * Assumes roleName is provided and valid.
    */
   static async createMunicipalityUser(userData) {
-    const { email, username, password, firstName, lastName, roleName } = userData;
+    const { email, username, password, firstName, lastName, roleName } =
+      userData;
 
     // Check for existing users (come in auth-service)
     const existingEmail = await findUserByEmail(email);
@@ -65,7 +56,7 @@ export class UserAdminService {
       roleId: role.id,
     });
 
-    return _sanitizeUser(createdUser);
+    return sanitizeUser(createdUser);
   }
 
   /**
@@ -83,7 +74,9 @@ export class UserAdminService {
     // 2. Update the user with the new roleId
     const success = await updateUser(userId, { roleId: role.id });
     if (!success) {
-      const error = new Error(`User with ID ${userId} not found or not updated.`);
+      const error = new Error(
+        `User with ID ${userId} not found or not updated.`
+      );
       error.statusCode = 404; // Not Found
       throw error;
     }
@@ -93,18 +86,7 @@ export class UserAdminService {
   /**
    * Gets all municipality users (excluding citizens and admins).
    */
-  static async getMunicipalityUsers() {
-    const allUsers = await findAllUsers();
-
-    /*const municipalityUsers = allUsers.filter((user) => {
-      const roleName = user.role?.name;
-      return (
-        roleName &&
-        roleName.toLowerCase() !== "citizen" &&
-        roleName.toLowerCase() !== "admin"
-      );
-    });*/
-
-    return allUsers.map(_sanitizeUser);
+  static async getUsers() {
+    return (await findAllUsers()).map(sanitizeUser);
   }
 }
