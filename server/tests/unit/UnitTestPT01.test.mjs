@@ -82,6 +82,7 @@ describe("AuthService", () => {
         firstName: "Test",
         lastName: "User",
         hashedPassword: "hashed-password-123",
+        roleId: 1,
       });
       expect(mockSequelizeUser.get).toHaveBeenCalledWith({ plain: true });
       expect(result).toEqual(expectedSanitizedUser);
