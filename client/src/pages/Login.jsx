@@ -44,7 +44,15 @@ export default function Login() {
     const result = await login(formData);
     
     if (result.success) {
-      navigate('/');
+      const roleValue = String(result.user?.role?.name ?? result.user?.role ?? '')
+        .trim()
+        .toLowerCase();
+
+      if (roleValue.includes('admin')) {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } else {
       // Backend always returns "Invalid credentials" for security reasons
       // We can't distinguish between wrong username or wrong password
