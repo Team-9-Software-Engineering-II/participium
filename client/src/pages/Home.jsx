@@ -357,7 +357,7 @@ export default function Home() {
 
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
-          <div className="absolute inset-0 h-full">
+          <div className="absolute inset-0 h-full z-0">
             <MapView />
           </div>
         </div>

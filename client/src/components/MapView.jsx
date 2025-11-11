@@ -32,7 +32,16 @@ export function MapView() {
       setMarkerPosition([lat, lng]);
     });
 
+    mapRef.current.mapInstance = map;
+    mapRef.current.markerInstance = marker;
+
     return () => map.remove();
+  }, []);
+
+  useEffect(() => {
+    if (mapRef.current?.markerInstance) {
+      mapRef.current.markerInstance.setLatLng(markerPosition);
+    }
   }, [markerPosition]);
 
   return (
