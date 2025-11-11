@@ -542,7 +542,7 @@ components:
     
     AdminUserCreate:
       type: object
-      required: [email, username, password, firstName, lastName, roleName]
+      required: [email, username, password, firstName, lastName, roleId]
       properties:
         email:
           type: string
@@ -556,10 +556,10 @@ components:
           type: string
         lastName:
           type: string
-        roleName:
-          type: string
-          description: Il nome del ruolo da assegnare (es. "municipal administrator")
-          $ref: '#/components/schemas/UserRole'
+        roleId:
+          type: integer
+          minimum: 1
+          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
 
     ReportCreate:
       type: object
