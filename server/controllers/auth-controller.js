@@ -1,6 +1,6 @@
 import { AuthService } from "../services/auth-service.mjs";
 import { passport } from "../services/passport-service.mjs";
-
+import { validateRegistrationInput } from "../shared/validators/user-registration-validator.mjs";
 /**
  * Sends a JSON response containing sanitized user data and session metadata.
  * @param {import("express").Request} req - Express request object with session.
@@ -26,41 +26,13 @@ function sendSessionResponse(req, res, user, statusCode = 200) {
  */
 export async function register(req, res, next) {
   try {
-    const {
-      email,
-      username,
-      firstName,
-      lastName,
-      password,
-      roleId: requestedRoleId,
-    } = req.body ?? {};
+    const validatedInput = validateRegistrationInput(req, res);
 
-    if (!email || !username || !firstName || !lastName || !password) {
-      return res.status(400).json({
-        message:
-          "Missing required fields: email, username, firstName, lastName, password.",
-      });
+    if (!validatedInput) {
+      return;
     }
 
-    let roleId;
-    if (requestedRoleId !== undefined) {
-      const parsedRoleId = Number(requestedRoleId);
-      if (!Number.isInteger(parsedRoleId) || parsedRoleId <= 0) {
-        return res.status(400).json({
-          message: "roleId must be a positive integer when provided.",
-        });
-      }
-      roleId = parsedRoleId;
-    }
-
-    const user = await AuthService.registerUser({
-      email,
-      username,
-      firstName,
-      lastName,
-      password,
-      roleId,
-    });
+    const user = await AuthService.registerUser(validatedInput);
 
     req.login(user, (loginError) => {
       if (loginError) {
