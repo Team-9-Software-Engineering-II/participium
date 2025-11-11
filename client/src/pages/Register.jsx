@@ -210,7 +210,7 @@ export default function Register() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Signing out...' : 'Sign out'}
+            {loading ? 'Signing up...' : 'Sign up'}
           </Button>
         </form>
       </div>

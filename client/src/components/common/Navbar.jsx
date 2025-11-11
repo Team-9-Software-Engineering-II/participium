@@ -206,7 +206,7 @@ export default function Navbar() {
                 <Link to="/login">Log in</Link>
               </Button>
               <Button variant="default" size="sm" asChild>
-                <Link to="/register">Sign out</Link>
+                <Link to="/register">Sign up</Link>
               </Button>
 
               {/* Info button */}

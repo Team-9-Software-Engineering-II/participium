@@ -64,7 +64,7 @@ export default function AuthLayout({ children }) {
                 Don't have an account?
               </span>
               <Button asChild variant="outline" size="sm">
-                <Link to="/register">Sign out</Link>
+                <Link to="/register">Sign up</Link>
               </Button>
             </div>
           ) : (
