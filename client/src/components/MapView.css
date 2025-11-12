@@ -1,0 +1,87 @@
+/* Custom styles for Leaflet map markers and popups */
+
+/* Dark mode map filter */
+.dark-map .leaflet-container {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+
+/* Invert back the markers and controls so they look normal */
+.dark-map .leaflet-marker-icon,
+.dark-map .leaflet-control-zoom,
+.dark-map .leaflet-control-attribution {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Remove filter from popup and apply manual dark styles */
+.dark-map .leaflet-popup {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Force black background for popup in dark mode */
+.dark-map .leaflet-popup-content-wrapper {
+  background-color: #000000 !important;
+}
+
+.dark-map .leaflet-popup-tip {
+  background-color: #000000 !important;
+}
+
+.custom-user-marker,
+.custom-report-marker,
+.custom-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 200px;
+}
+
+.custom-popup .leaflet-popup-tip-container {
+  display: block;
+}
+
+/* Smooth transitions for cluster icons */
+.custom-cluster-icon {
+  transition: transform 0.2s ease-in-out;
+}
+
+.custom-cluster-icon:hover {
+  transform: scale(1.1);
+}
+
+/* Position zoom controls */
+/* Desktop - bottom right */
+.leaflet-bottom.leaflet-right {
+  bottom: 80px !important;
+  right: 10px !important;
+}
+
+/* Mobile - bottom left above info button */
+.leaflet-bottom.leaflet-left {
+  bottom: 190px !important;
+  left: 12px !important;
+}
+
+.leaflet-control-zoom {
+  margin: 5 !important;
+}
+
+/* Attribution positioning */
+.leaflet-control-attribution {
+  margin-bottom: 0 !important;
+}
+
+/* Mobile - move attribution below the buttons */
+@media (max-width: 768px) {
+  .leaflet-control-attribution {
+    margin-bottom: -17px !important;
+  }
+}
