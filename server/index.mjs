@@ -65,7 +65,12 @@ db.sequelize
     console.log("Database synced successfully.");
 
     // Seed initial data
-    await seedDatabase();
+    // <-- INIZIA LA MODIFICA
+    if (process.env.NODE_ENV !== "test") {
+      console.log("Running database seeder for non-test environment...");
+      await seedDatabase();
+    }
+    // <-- FINE MODIFICA
 
     if (process.env.NODE_ENV !== "test") {
       // Start the Express server only after the DB connection is ready
