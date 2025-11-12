@@ -1,0 +1,79 @@
+import {
+  createReport,
+  findAllReports,
+  findReportById,
+  findReportsByUserId,
+} from "../repositories/report-repo.mjs";
+import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
+import { sanitizeReport, sanitizeReports } from "../shared/utils/report-utils.mjs";
+
+/**
+ * Encapsulates report business logic and orchestrates repository calls.
+ */
+export class ReportService {
+  /**
+   * Creates a new report for the provided user.
+   * @param {number} userId - Identifier of the citizen opening the report.
+   * @param {object} payload - Validated report data.
+   * @returns {Promise<object>} Sanitized report.
+   */
+  static async createCitizenReport(userId, payload) {
+    await this.#ensureCategoryExists(payload.categoryId);
+
+    const createdReport = await createReport({
+      title: payload.title,
+      description: payload.description,
+      status: "Pending Approval",
+      rejection_reason: null,
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      anonymous: payload.anonymous,
+      photosLinks: payload.photos,
+      userId,
+      categoryId: payload.categoryId,
+    });
+
+    const hydratedReport = await findReportById(createdReport.id);
+    return sanitizeReport(hydratedReport ?? createdReport);
+  }
+
+  /**
+   * Retrieves all reports ordered by creation date.
+   * @returns {Promise<object[]>} Sanitized reports collection.
+   */
+  static async getAllReports() {
+    const reports = await findAllReports();
+    return sanitizeReports(reports);
+  }
+
+  /**
+   * Retrieves a report by its identifier.
+   * @param {number} reportId - Identifier of the report to retrieve.
+   * @returns {Promise<object | null>} Sanitized report or null when not found.
+   */
+  static async getReportById(reportId) {
+    const report = await findReportById(reportId);
+    return sanitizeReport(report);
+  }
+
+  /**
+   * Retrieves the reports created by the selected user.
+   * @param {number} userId - Identifier of the report owner.
+   * @returns {Promise<object[]>} Sanitized reports collection.
+   */
+  static async getReportsByUserId(userId) {
+    const reports = await findReportsByUserId(userId);
+    return sanitizeReports(reports);
+  }
+
+  static async #ensureCategoryExists(categoryId) {
+    const category = await findProblemCategoryById(categoryId);
+    if (!category) {
+      const error = new Error(`Category with id "${categoryId}" not found.`);
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+}
+
+
