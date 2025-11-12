@@ -131,3 +131,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Leaflet zoom control and attribution positioning - must be after tailwind layers */
+.leaflet-container .leaflet-bottom.leaflet-right {
+  bottom: 2px !important;
+  right: 2px !important;
+}
+
+.leaflet-container .leaflet-bottom.leaflet-right .leaflet-control-zoom {
+  margin-bottom: 5px !important;
+  margin-right: 5px !important;
+}
+
+.leaflet-container .leaflet-bottom.leaflet-left {
+  bottom: 2px !important;
+  left: 2px !important;
+}
+
+.leaflet-container .leaflet-control-attribution {
+  margin: 0 !important;
+}

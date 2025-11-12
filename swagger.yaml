@@ -201,6 +201,111 @@ paths:
         '404':
           description: Report not found
 
+  /upload/photo:
+    post:
+      summary: Upload a single photo for a report
+      description: Allows an authenticated user to upload a single photo file. The photo will be stored on the server and a URL will be returned.
+      tags: [Upload]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+                  description: Image file (JPEG, PNG, GIF, or WebP). Maximum size 5MB.
+      responses:
+        '200':
+          description: Photo uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "File uploaded successfully."
+                  url:
+                    type: string
+                    format: uri
+                    example: "/uploads/reports/photo-1234567890-987654321.jpg"
+                  filename:
+                    type: string
+                    example: "photo-1234567890-987654321.jpg"
+        '400':
+          description: Invalid file type, file too large, or no file provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Authentication required
+
+  /upload/photos:
+    post:
+      summary: Upload multiple photos for a report
+      description: Allows an authenticated user to upload up to 3 photo files. The photos will be stored on the server and URLs will be returned.
+      tags: [Upload]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photos]
+              properties:
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Image files (JPEG, PNG, GIF, or WebP). Maximum 3 files, 5MB each.
+      responses:
+        '200':
+          description: Photos uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Files uploaded successfully."
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          format: uri
+                          example: "/uploads/reports/photo-1234567890-987654321.jpg"
+                        filename:
+                          type: string
+                          example: "photo-1234567890-987654321.jpg"
+        '400':
+          description: Invalid file type, file too large, too many files, or no files provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Authentication required
+
   /admin/users:
     get:
       summary: (Admin) Ottiene la lista di tutti gli utenti municipali e cittadini

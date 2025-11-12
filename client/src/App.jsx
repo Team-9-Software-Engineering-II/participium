@@ -13,6 +13,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 import Overview from './pages/admin/Overview';
 import MunicipalityUsers from './pages/admin/MunicipalityUsers';
 import Reports from './pages/admin/Reports';
+import CreateReport from './pages/CreateReport';
 
 function App() {
   return (
@@ -63,6 +64,14 @@ function App() {
             <Route path="municipality-users" element={<MunicipalityUsers />} />
             <Route path="reports" element={<Reports />} />
           </Route>
+          <Route 
+            path="/reports/new" 
+            element={
+              <ProtectedRoute>
+                <CreateReport />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
         </AuthProvider>
       </ThemeProvider>
