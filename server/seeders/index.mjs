@@ -21,6 +21,6 @@ export const seedDatabase = async () => {
   } catch (err) {
     console.error("A critical error occurred during database seeding:", err);
 
-    process.exit(1);
+    throw err;
   }
 };
