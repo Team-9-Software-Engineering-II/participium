@@ -376,7 +376,7 @@ export default function Home() {
             onClick={toggleTheme}
             variant="outline"
             size="icon"
-            className="absolute bottom-4 left-4 z-10 h-12 w-12 rounded-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+            className="absolute bottom-4 left-4 z-10 h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border"
           >
             {theme === "dark" ? (
               <Sun style={{ width: "20px", height: "20px" }} />
