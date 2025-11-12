@@ -6,8 +6,13 @@ import router from "./routers/index.js";
 import { passport } from "./services/passport-service.mjs";
 import cors from "cors";
 import { seedDatabase } from "./seeders/index.mjs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Applies core middlewares required by the application.
@@ -22,6 +27,10 @@ function bootstrapExpress() {
   app.use(morgan("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  
+  // Serve static files from uploads directory
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "participium-session-secret",

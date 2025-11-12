@@ -19,6 +19,7 @@
     "express-session": "^1.17.3",
     "jest": "^30.2.0",
     "morgan": "^1.10.1",
+    "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "sequelize": "^6.37.7",
