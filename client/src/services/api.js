@@ -147,6 +147,11 @@ export const urpAPI = {
 // ==================== ADMIN ====================
 
 export const adminAPI = {
+  // Recupera tutti gli utenti per l'area amministrativa
+  getUsers: () => api.get('/admin/users'),
+  // Recupera i ruoli disponibili per gli utenti municipali
+  getRoles: () => api.get('/admin/roles'),
+  
   // Crea un nuovo utente municipale
   createUser: (userData) => api.post('/admin/users', userData),
   

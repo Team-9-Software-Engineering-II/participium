@@ -9,6 +9,10 @@ import Dashboard from './pages/Dashboard';
 import Info from './pages/Info';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+import AdminLayout from './pages/admin/AdminLayout';
+import Overview from './pages/admin/Overview';
+import MunicipalityUsers from './pages/admin/MunicipalityUsers';
+import Reports from './pages/admin/Reports';
 import CreateReport from './pages/CreateReport';
 
 function App() {
@@ -52,6 +56,14 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/admin/*" 
+            element={<AdminLayout />}
+          >
+            <Route index element={<Overview />} />
+            <Route path="municipality-users" element={<MunicipalityUsers />} />
+            <Route path="reports" element={<Reports />} />
+          </Route>
           <Route 
             path="/reports/new" 
             element={
