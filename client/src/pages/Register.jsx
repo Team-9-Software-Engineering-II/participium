@@ -177,7 +177,13 @@ export default function Register() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className="pr-10"
+                className={`pr-10 ${
+                  formData.confirmPassword && formData.password !== formData.confirmPassword
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : formData.confirmPassword && formData.password === formData.confirmPassword
+                    ? 'border-green-500 focus-visible:ring-green-500'
+                    : ''
+                }`}
               />
               <button
                 type="button"
@@ -191,6 +197,12 @@ export default function Register() {
                 )}
               </button>
             </div>
+            {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+              <p className="text-sm text-destructive">Passwords do not match</p>
+            )}
+            {formData.confirmPassword && formData.password === formData.confirmPassword && (
+              <p className="text-sm text-green-600 dark:text-green-500">Passwords match</p>
+            )}
           </div>
 
           <Button 
@@ -198,7 +210,7 @@ export default function Register() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Signing up...' : 'Sign up'}
           </Button>
         </form>
       </div>

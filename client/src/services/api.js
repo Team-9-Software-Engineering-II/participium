@@ -19,7 +19,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Sessione scaduta o non valida
-      window.location.href = '/login';
+      // Non fare redirect se siamo già nella pagina di login o register
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/register') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

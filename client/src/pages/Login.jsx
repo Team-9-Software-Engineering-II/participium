@@ -17,6 +17,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -24,15 +25,18 @@ export default function Login() {
       [e.target.name]: e.target.value,
     });
     if (error) setError('');
+    if (hasError) setHasError(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setHasError(false);
     setLoading(true);
 
     if (!formData.username || !formData.password) {
       setError('All fields are required');
+      setHasError(true);
       setLoading(false);
       return;
     }
@@ -42,7 +46,12 @@ export default function Login() {
     if (result.success) {
       navigate('/');
     } else {
-      setError(result.error || 'Invalid credentials');
+      // Backend always returns "Invalid credentials" for security reasons
+      // We can't distinguish between wrong username or wrong password
+      setHasError(true);
+      setError('Invalid credentials. Please check your username and password.');
+      // Keep username for convenience, clear password
+      setFormData({ ...formData, password: '' });
     }
     
     setLoading(false);
@@ -75,6 +84,12 @@ export default function Login() {
               value={formData.username}
               onChange={handleChange}
               required
+              className={
+                hasError
+                  ? 'border-destructive focus-visible:ring-destructive' 
+                  : ''
+              }
+              autoComplete="username"
             />
           </div>
 
@@ -89,7 +104,13 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="pr-10"
+                className={`pr-10 ${
+                  hasError
+                    ? 'border-destructive focus-visible:ring-destructive' 
+                    : ''
+                }`}
+                autoComplete="current-password"
+                autoFocus={hasError}
               />
               <button
                 type="button"
