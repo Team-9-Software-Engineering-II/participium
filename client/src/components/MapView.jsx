@@ -105,64 +105,111 @@ const createClusterCustomIcon = (cluster) => {
 // Component to position zoom control in bottom right
 function ZoomControl() {
   const map = useMap();
-  const controlRef = useRef(null);
-  const currentPositionRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   useEffect(() => {
-    // Remove any existing zoom control first
-    if (controlRef.current) {
-      try {
-        map.removeControl(controlRef.current);
-      } catch (e) {
-        // Control might already be removed
-      }
-    }
-    
-    // Determine position based on screen size
-    const isMobile = window.innerWidth <= 768;
-    const position = isMobile ? 'bottomleft' : 'bottomright';
-    currentPositionRef.current = position;
-    
-    // Add new zoom control
-    controlRef.current = L.control.zoom({ position });
-    controlRef.current.addTo(map);
-    
-    // Handle window resize
     const handleResize = () => {
-      const newIsMobile = window.innerWidth <= 768;
-      const newPosition = newIsMobile ? 'bottomleft' : 'bottomright';
-      
-      if (currentPositionRef.current !== newPosition && controlRef.current) {
-        try {
-          map.removeControl(controlRef.current);
-        } catch (e) {
-          // Control might already be removed
-        }
-        controlRef.current = L.control.zoom({ position: newPosition });
-        controlRef.current.addTo(map);
-        currentPositionRef.current = newPosition;
-      }
+      setIsMobile(window.innerWidth <= 768);
     };
     
     window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (controlRef.current) {
-        try {
-          map.removeControl(controlRef.current);
-        } catch (e) {
-          // Control might already be removed
-        }
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Custom zoom buttons for both mobile and desktop
+  return (
+    <div 
+      className="absolute z-[1000] shadow-md"
+      style={isMobile 
+        ? { bottom: '150px', left: '21px' }
+        : { bottom: '80px', right: '10px' }
       }
-    };
-  }, [map]);
+    >
+      {/* Custom Zoom In button */}
+      <button
+        onClick={() => map.zoomIn()}
+        className="bg-white border border-gray-300
+                   w-[30px] h-[30px] flex items-center justify-center text-[18px] font-normal
+                   hover:bg-gray-50 transition-colors
+                   cursor-pointer rounded-t"
+        title="Zoom in"
+        style={{
+          lineHeight: '26px',
+          textAlign: 'center',
+          textDecoration: 'none',
+          color: '#000',
+        }}
+      >
+        +
+      </button>
+      
+      {/* Custom Zoom Out button */}
+      <button
+        onClick={() => map.zoomOut()}
+        className="bg-white border border-gray-300 border-t-0
+                   w-[30px] h-[30px] flex items-center justify-center text-[18px] font-normal
+                   hover:bg-gray-50 transition-colors
+                   cursor-pointer rounded-b"
+        title="Zoom out"
+        style={{
+          lineHeight: '26px',
+          textAlign: 'center',
+          textDecoration: 'none',
+          color: '#000',
+        }}
+      >
+        −
+      </button>
+    </div>
+  );
+}
+
+// Component to fly to position when it changes
+function MapUpdater({ position }) {
+  const map = useMap();
+  const prevPosition = useRef(null);
+  
+  useEffect(() => {
+    // Check if position actually changed
+    if (!position || !Array.isArray(position) || position.length !== 2) {
+      return;
+    }
+    
+    // Validate coordinates
+    if (isNaN(position[0]) || isNaN(position[1]) || 
+        position[0] === null || position[1] === null) {
+      console.error('Invalid position in MapUpdater:', position);
+      return;
+    }
+    
+    // Check if this is a real position change
+    const posKey = `${position[0]},${position[1]}`;
+    const prevKey = prevPosition.current ? `${prevPosition.current[0]},${prevPosition.current[1]}` : null;
+    
+    if (posKey === prevKey) {
+      return; // Position hasn't changed, skip update
+    }
+    
+    prevPosition.current = position;
+    
+    try {
+      // Use setView with slower animation - more stable than flyTo
+      if (map && map.setView) {
+        map.setView(position, 15, {
+          animate: true,
+          duration: 1.5 // Slower, smoother animation
+        });
+      }
+    } catch (error) {
+      console.error('Error in setView:', error, 'position:', position);
+    }
+  }, [position, map]);
   
   return null;
 }
 
 // Component to handle map clicks
-function LocationMarker({ position, setPosition, setAddress, address }) {
+function LocationMarker({ position, setPosition, setAddress, address, setSearchQuery, setSearchResults, setShowSearchResults }) {
   const navigate = useNavigate();
   const markerRef = useRef(null);
   
@@ -170,6 +217,12 @@ function LocationMarker({ position, setPosition, setAddress, address }) {
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng]);
       fetchAddress(e.latlng.lat, e.latlng.lng, setAddress);
+      
+      // Pulisce la barra di ricerca quando si clicca sulla mappa
+      if (setSearchQuery) setSearchQuery('');
+      if (setSearchResults) setSearchResults([]);
+      if (setShowSearchResults) setShowSearchResults(false);
+      
       // Open popup automatically after a short delay
       setTimeout(() => {
         if (markerRef.current) {
@@ -282,11 +335,18 @@ export function MapView() {
       );
       const results = await res.json();
       
-      if (results.length > 0) {
-        const { lat, lon } = results[0];
-        setPosition([parseFloat(lat), parseFloat(lon)]);
-        setAddress(results[0].display_name);
-        setShowSearchResults(false);
+      if (results.length > 0 && results[0].lat && results[0].lon) {
+        const lat = parseFloat(results[0].lat);
+        const lon = parseFloat(results[0].lon);
+        
+        // Validate coordinates before setting position
+        if (!isNaN(lat) && !isNaN(lon) && lat !== null && lon !== null) {
+          setPosition([lat, lon]);
+          setAddress(results[0].display_name);
+          setShowSearchResults(false);
+        } else {
+          console.error('Invalid coordinates from search:', { lat, lon });
+        }
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -379,10 +439,23 @@ export function MapView() {
 
   const selectSearchResult = (result) => {
     const { lat, lon, display_name } = result;
-    setPosition([parseFloat(lat), parseFloat(lon)]);
-    setAddress(display_name);
-    setSearchQuery(display_name);
-    setShowSearchResults(false);
+    
+    // Validate coordinates before setting position
+    if (lat && lon) {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lon);
+      
+      if (!isNaN(latitude) && !isNaN(longitude) && latitude !== null && longitude !== null) {
+        setPosition([latitude, longitude]);
+        setAddress(display_name);
+        setSearchQuery(display_name);
+        setShowSearchResults(false);
+      } else {
+        console.error('Invalid coordinates from search result:', { lat, lon, latitude, longitude });
+      }
+    } else {
+      console.error('Missing lat/lon in search result:', result);
+    }
   };
 
   return (
@@ -425,9 +498,18 @@ export function MapView() {
               if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                   (pos) => {
-                    const newPos = [pos.coords.latitude, pos.coords.longitude];
-                    setPosition(newPos);
-                    fetchAddress(pos.coords.latitude, pos.coords.longitude, setAddress);
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    
+                    // Validate coordinates
+                    if (!isNaN(lat) && !isNaN(lng) && lat !== null && lng !== null) {
+                      const newPos = [lat, lng];
+                      setPosition(newPos);
+                      fetchAddress(lat, lng, setAddress);
+                    } else {
+                      console.error('Invalid geolocation coordinates:', { lat, lng });
+                      alert('Unable to get valid coordinates.');
+                    }
                   },
                   (error) => {
                     console.error('Geolocation error:', error);
@@ -467,9 +549,18 @@ export function MapView() {
           if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
               (pos) => {
-                const newPos = [pos.coords.latitude, pos.coords.longitude];
-                setPosition(newPos);
-                fetchAddress(pos.coords.latitude, pos.coords.longitude, setAddress);
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                
+                // Validate coordinates
+                if (!isNaN(lat) && !isNaN(lng) && lat !== null && lng !== null) {
+                  const newPos = [lat, lng];
+                  setPosition(newPos);
+                  fetchAddress(lat, lng, setAddress);
+                } else {
+                  console.error('Invalid geolocation coordinates:', { lat, lng });
+                  alert('Unable to get valid coordinates.');
+                }
               },
               (error) => {
                 console.error('Geolocation error:', error);
@@ -487,11 +578,11 @@ export function MapView() {
         <Crosshair className="h-6 w-6" />
       </button>
 
-      {/* Info Button - Bottom Left, above zoom control */}
+      {/* Info Button - Bottom Left, below zoom control */}
       <button
         onClick={() => setShowLegend(true)}
         className="absolute bottom-6 left-6 z-[1000] bg-background/95 backdrop-blur-md border border-border
-                rounded-full p-3 shadow-lg hover:bg-accent transition-colors max-md:bottom-[80px] max-md:left-[16px]"
+                rounded-full p-3 shadow-lg hover:bg-accent transition-colors max-md:bottom-[60px] max-md:left-4"
         title="Show legend"
       >
         <Info className="h-6 w-6 max-md:h-5 max-md:w-5" />
@@ -536,7 +627,7 @@ export function MapView() {
       {/* Map */}
       <div className={`w-full h-screen ${theme === 'dark' ? 'dark-map' : ''}`}>
         <MapContainer
-          center={position}
+          center={[45.0703, 7.6869]}
           zoom={13}
           className="w-full h-full"
           zoomControl={false}
@@ -548,8 +639,17 @@ export function MapView() {
         />
         
         <ZoomControl />
+        <MapUpdater position={position} />
         
-        <LocationMarker position={position} setPosition={setPosition} setAddress={setAddress} address={address} />
+        <LocationMarker 
+          position={position} 
+          setPosition={setPosition} 
+          setAddress={setAddress} 
+          address={address}
+          setSearchQuery={setSearchQuery}
+          setSearchResults={setSearchResults}
+          setShowSearchResults={setShowSearchResults}
+        />
         
         <MarkerClusterGroup
           chunkedLoading

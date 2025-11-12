@@ -373,10 +373,13 @@ export default function Home() {
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
         {!isAuthenticated && (
           <Button
-            onClick={toggleTheme}
+            onClick={() => {
+              console.log('Toggle theme clicked, current theme:', theme);
+              toggleTheme();
+            }}
             variant="outline"
             size="icon"
-            className="absolute bottom-4 left-4 z-10 h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border"
+            className="absolute bottom-1 left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border"
           >
             {theme === "dark" ? (
               <Sun style={{ width: "20px", height: "20px" }} />
@@ -387,7 +390,7 @@ export default function Home() {
         )}
 
         {/* Bottom buttons */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-between items-center px-4">
+        <div className="absolute bottom-2 left-0 right-0 flex justify-between items-center px-4 z-10">
           {/* Empty space on the left for balance */}
           <div className="w-14"></div>
 

@@ -60,14 +60,16 @@
 /* Position zoom controls */
 /* Desktop - bottom right */
 .leaflet-bottom.leaflet-right {
-  bottom: 80px !important;
+  bottom: 120px !important;
   right: 10px !important;
 }
 
 /* Mobile - bottom left above info button */
-.leaflet-bottom.leaflet-left {
-  bottom: 190px !important;
-  left: 12px !important;
+@media (max-width: 768px) {
+  .leaflet-bottom.leaflet-left {
+    bottom: 200px !important;
+    left: 16px !important;
+  }
 }
 
 .leaflet-control-zoom {
