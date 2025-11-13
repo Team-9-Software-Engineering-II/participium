@@ -299,7 +299,23 @@ const fetchAddress = async (lat, lng, setAddress) => {
   }
 };
 
-export function MapView({ reports = [] }) {
+// Component to center map on selected report
+function CenterOnReport({ selectedReport }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (selectedReport && selectedReport.latitude && selectedReport.longitude) {
+      map.setView([selectedReport.latitude, selectedReport.longitude], 16, {
+        animate: true,
+        duration: 1
+      });
+    }
+  }, [selectedReport, map]);
+  
+  return null;
+}
+
+export function MapView({ reports = [], selectedReport = null }) {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [position, setPosition] = useState([45.0703, 7.6869]); // Turin
@@ -628,6 +644,7 @@ export function MapView({ reports = [] }) {
         
         <ZoomControl />
         <MapUpdater position={position} />
+        <CenterOnReport selectedReport={selectedReport} />
         
         <LocationMarker 
           position={position} 

@@ -59,6 +59,7 @@ export default function Home() {
   const [allReports, setAllReports] = useState([]);
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedReport, setSelectedReport] = useState(null);
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -176,6 +177,15 @@ export default function Home() {
     setShowFilters(false);
   };
 
+  const handleViewInMap = (report, e) => {
+    e.stopPropagation(); // Prevent navigation to report detail
+    setSelectedReport(report);
+    // On mobile, close the sheet to show the map
+    if (isMobile) {
+      // Will be handled by the sheet state
+    }
+  };
+
   // Reusable Reports List component
   const ReportsList = () => {
     if (loading) {
@@ -215,7 +225,9 @@ export default function Home() {
                   <span>
                     {report.address ||
                       report.location ||
-                      "Location not specified"}
+                      (report.latitude && report.longitude
+                        ? `${report.latitude.toFixed(6)}, ${report.longitude.toFixed(6)}`
+                        : "Location not specified")}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -224,16 +236,27 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-1">
                   <User className="h-4 w-4" />
-                  <span>{report.User?.username || "Anonymous"}</span>
+                  <span>{report.reporterName || "Anonymous"}</span>
                 </div>
               </div>
-              {report.status && (
-                <div className="mt-2">
-                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                    {report.status}
-                  </span>
+              <div className="mt-2 flex items-center justify-between">
+                <div>
+                  {report.status && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                      {report.status}
+                    </span>
+                  )}
                 </div>
-              )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => handleViewInMap(report, e)}
+                  className="text-xs"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  View in map
+                </Button>
+              </div>
             </div>
           ))
         )}
@@ -349,7 +372,7 @@ export default function Home() {
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
-            <MapView reports={filteredReports} />
+            <MapView reports={filteredReports} selectedReport={selectedReport} />
           </div>
         </div>
       </div>
@@ -358,7 +381,7 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0">
-          <MapView reports={filteredReports} />
+          <MapView reports={filteredReports} selectedReport={selectedReport} />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
