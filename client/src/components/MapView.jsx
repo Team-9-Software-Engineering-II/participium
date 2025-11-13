@@ -106,6 +106,7 @@ const createClusterCustomIcon = (cluster) => {
 function ZoomControl() {
   const map = useMap();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const containerRef = useRef(null);
   
   useEffect(() => {
     const handleResize = () => {
@@ -115,19 +116,43 @@ function ZoomControl() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    // Disable all Leaflet map events on the zoom control container
+    if (containerRef.current) {
+      L.DomEvent.disableClickPropagation(containerRef.current);
+      L.DomEvent.disableScrollPropagation(containerRef.current);
+    }
+  }, []);
   
   // Custom zoom buttons for both mobile and desktop
   return (
     <div 
+      ref={containerRef}
       className="absolute z-[1000] shadow-md"
       style={isMobile 
         ? { bottom: '150px', left: '21px' }
         : { bottom: '80px', right: '10px' }
       }
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
     >
       {/* Custom Zoom In button */}
       <button
-        onClick={() => map.zoomIn()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          map.zoomIn();
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         className="bg-white border border-gray-300
                    w-[30px] h-[30px] flex items-center justify-center text-[18px] font-normal
                    hover:bg-gray-50 transition-colors
@@ -145,7 +170,19 @@ function ZoomControl() {
       
       {/* Custom Zoom Out button */}
       <button
-        onClick={() => map.zoomOut()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          map.zoomOut();
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         className="bg-white border border-gray-300 border-t-0
                    w-[30px] h-[30px] flex items-center justify-center text-[18px] font-normal
                    hover:bg-gray-50 transition-colors
