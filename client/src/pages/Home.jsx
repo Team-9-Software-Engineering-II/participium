@@ -40,6 +40,7 @@ import {
   SlidersHorizontal,
   Building2,
   ListTree,
+  Info,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -54,6 +55,7 @@ export default function Home() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showMyReports, setShowMyReports] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
 
   // Reports state
   const [allReports, setAllReports] = useState([]);
@@ -353,12 +355,11 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <div>
-                  {report.status && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                      {report.status}
-                    </span>
-                  )}
+                <div
+                  className={
+                    `fixed left-0 w-full flex justify-center items-end z-[1001] bottom-0 pointer-events-none md:static md:w-auto md:justify-end md:items-end md:pb-0`
+                  }
+                >
                 </div>
                 <Button
                   variant="outline"
@@ -493,7 +494,7 @@ export default function Home() {
       {/* Mobile Layout (below md) - With bottom buttons */}
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 pointer-events-auto">
           <MapView reports={filteredReports} selectedReport={selectedReport} />
         </div>
 
@@ -506,7 +507,7 @@ export default function Home() {
             }}
             variant="outline"
             size="icon"
-            className="absolute bottom-1 left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border"
+            className="absolute bottom-2 left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border"
           >
             {theme === "dark" ? (
               <Sun style={{ width: "20px", height: "20px" }} />
@@ -516,8 +517,23 @@ export default function Home() {
           </Button>
         )}
 
+        {/* Legend Button - Bottom Left (always visible on mobile) */}
+        <Button
+          onClick={() => {
+            console.log('Legend button clicked on Home');
+            setShowLegend(true);
+          }}
+          variant="outline"
+          size="icon"
+          className={`absolute left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border ${
+            !isAuthenticated ? 'bottom-[76px]' : 'bottom-6'
+          }`}
+        >
+          <Info style={{ width: "20px", height: "20px" }} />
+        </Button>
+
         {/* Bottom buttons */}
-        <div className="absolute bottom-2 left-0 right-0 flex justify-between items-center px-4 z-10">
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between items-center px-4 pb-2 z-10">
           {/* Empty space on the left for balance */}
           <div className="w-14"></div>
 
@@ -879,6 +895,49 @@ export default function Home() {
             >
               Go to Log in
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Legend Dialog */}
+      <Dialog open={showLegend} onOpenChange={setShowLegend}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Legend</DialogTitle>
+            <DialogDescription>
+              Report status legend
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <h3 className="font-semibold mb-3 text-sm">How to select a point on the map</h3>
+              <p className="text-sm text-muted-foreground">
+                Move the cursor or click on a point on the map
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-3 text-sm">Report status legend</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#3B82F6' }} />
+                  <span className="text-sm">To Assign</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#F59E0B' }} />
+                  <span className="text-sm">Assigned</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#EAB308' }} />
+                  <span className="text-sm">In Progress</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#10B981' }} />
+                  <span className="text-sm">Completed</span>
+                </div>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

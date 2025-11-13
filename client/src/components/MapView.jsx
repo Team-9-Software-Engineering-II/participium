@@ -131,8 +131,8 @@ function ZoomControl() {
       ref={containerRef}
       className="absolute z-[1000] shadow-md"
       style={isMobile 
-        ? { bottom: '150px', left: '21px' }
-        : { bottom: '80px', right: '10px' }
+        ? { bottom: '200px', left: '21px' }
+        : { bottom: '130px', right: '10px' }
       }
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -619,19 +619,28 @@ export function MapView({ reports = [], selectedReport = null }) {
         <Crosshair className="h-6 w-6" />
       </button>
 
-      {/* Info Button - Bottom Left, below zoom control */}
+      {/* Info Button - Bottom Left, below zoom control - Hidden on mobile */}
       <button
-        onClick={() => setShowLegend(true)}
-        className="absolute bottom-6 left-6 z-[1000] bg-background/95 backdrop-blur-md border border-border
-                rounded-full p-3 shadow-lg hover:bg-accent transition-colors max-md:bottom-[60px] max-md:left-4"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('Legend button clicked, current showLegend:', showLegend);
+          setShowLegend(true);
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className="absolute bottom-6 left-6 z-[2000] bg-background/95 backdrop-blur-md border border-border
+                rounded-full p-3 shadow-lg hover:bg-accent transition-colors pointer-events-auto cursor-pointer max-md:hidden"
         title="Show legend"
       >
-        <Info className="h-6 w-6 max-md:h-5 max-md:w-5" />
+        <Info className="h-6 w-6" />
       </button>
 
       {/* Legend Dialog */}
       <Dialog open={showLegend} onOpenChange={setShowLegend}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md z-[9999]">
           <DialogHeader>
             <DialogTitle>Legend</DialogTitle>
             <DialogDescription>
