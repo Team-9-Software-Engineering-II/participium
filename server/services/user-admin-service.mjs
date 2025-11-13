@@ -13,53 +13,6 @@ const PASSWORD_SALT_ROUNDS = 10;
 
 export class UserAdminService {
   /**
-   * Creates a new municipality user.
-   * Assumes roleName is provided and valid.
-   */
-  static async createMunicipalityUser(userData) {
-    const { email, username, password, firstName, lastName, roleName } =
-      userData;
-
-    // Check for existing users (come in auth-service)
-    const existingEmail = await findUserByEmail(email);
-    if (existingEmail) {
-      const error = new Error("Email is already registered.");
-      error.statusCode = 409; // Conflict
-      throw error;
-    }
-
-    const existingUsername = await findUserByUsername(username);
-    if (existingUsername) {
-      const error = new Error("Username is already registered.");
-      error.statusCode = 409; // Conflict
-      throw error;
-    }
-
-    // Find the Role ID from its name
-    const role = await findRoleByName(roleName);
-    if (!role) {
-      const error = new Error(`Role with name "${roleName}" not found.`);
-      error.statusCode = 400; // Bad Request
-      throw error;
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
-
-    // Create user
-    const createdUser = await createUser({
-      email,
-      username,
-      firstName,
-      lastName,
-      hashedPassword,
-      roleId: role.id,
-    });
-
-    return sanitizeUser(createdUser);
-  }
-
-  /**
    * Assigns a new role to a user by user ID and role name.
    */
   static async assignUserRole(userId, roleName) {
