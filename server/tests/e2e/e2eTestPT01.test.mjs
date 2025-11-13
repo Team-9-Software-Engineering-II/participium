@@ -1,3 +1,5 @@
+import {seedDatabase} from "../../seeders/index.mjs";
+
 process.env.NODE_ENV = "test";
 
 import request from "supertest";
@@ -110,7 +112,7 @@ describe("API Authentication E2E Flow", () => {
       expect(res.body.user.username).toBe(adminLogin.username);
     });
 
-    it("should fail session check if no cookie is provided (200)", async () => {
+    it("should fail session check if no cookie is provided (401)", async () => {
       const res = await request(app).get("/auth/session");
       expect(res.statusCode).toBe(401);
       expect(res.body.error).toBe("User not authenticated");

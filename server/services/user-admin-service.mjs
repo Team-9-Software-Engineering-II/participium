@@ -1,15 +1,9 @@
-import bcrypt from "bcrypt";
 import {
-  createUser,
-  findAllUsers,
-  findUserByEmail,
-  findUserByUsername,
-  updateUser,
+    findAllUsers,
+    updateUser,
 } from "../repositories/user-repo.mjs";
-import { findRoleByName } from "../repositories/role-repo.mjs";
-import { sanitizeUser } from "../shared/utils/userUtils.mjs";
-
-const PASSWORD_SALT_ROUNDS = 10;
+import {findRoleByName} from "../repositories/role-repo.mjs";
+import {sanitizeUser} from "../shared/utils/userUtils.mjs";
 
 export class UserAdminService {
   /**
@@ -24,22 +18,22 @@ export class UserAdminService {
       throw error;
     }
 
-    // 2. Update the user with the new roleId
-    const success = await updateUser(userId, { roleId: role.id });
-    if (!success) {
-      const error = new Error(
-        `User with ID ${userId} not found or not updated.`
-      );
-      error.statusCode = 404; // Not Found
-      throw error;
+        // 2. Update the user with the new roleId
+        const success = await updateUser(userId, {roleId: role.id});
+        if (!success) {
+            const error = new Error(
+                `User with ID ${userId} not found or not updated.`
+            );
+            error.statusCode = 404; // Not Found
+            throw error;
+        }
+        return success;
     }
-    return success;
-  }
 
-  /**
-   * Gets all municipality users (excluding citizens and admins).
-   */
-  static async getUsers() {
-    return (await findAllUsers()).map(sanitizeUser);
-  }
+    /**
+     * Gets all municipality users (excluding citizens and admins).
+     */
+    static async getUsers() {
+        return (await findAllUsers()).map(sanitizeUser);
+    }
 }
