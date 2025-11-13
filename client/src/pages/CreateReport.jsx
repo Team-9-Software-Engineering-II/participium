@@ -43,7 +43,7 @@ const CATEGORIES = [
   'Public Lighting',
   'Waste',
   'Road Signs',
-  'Roads',
+  'Roads and Urban Furnishings',
   'Public Green Areas',
   'Other'
 ];
@@ -56,7 +56,7 @@ const CATEGORY_TO_ID = {
   'Public Lighting': 4,
   'Waste': 5,
   'Road Signs': 6,
-  'Roads': 7,
+  'Roads and Urban Furnishings': 7,
   'Public Green Areas': 8,
   'Other': 9
 };
