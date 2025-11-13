@@ -172,18 +172,90 @@ export default function Home() {
     { value: "custom", label: "Choose dates" },
   ];
 
-  // Filter reports based on search query
-  const filteredReports = allReports.filter(
-    (report) =>
-      report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.address?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Helper function to check if a date matches the filter
+  const matchesDateFilter = (reportDate) => {
+    if (!selectedDate) return true;
 
-  const filteredMyReports = myReports.filter(
-    (report) =>
+    const now = new Date();
+    const reportDateTime = new Date(reportDate);
+
+    switch (selectedDate) {
+      case "today":
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const reportDay = new Date(reportDateTime.getFullYear(), reportDateTime.getMonth(), reportDateTime.getDate());
+        return reportDay.getTime() === today.getTime();
+      
+      case "week":
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return reportDateTime >= weekAgo;
+      
+      case "month":
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        return reportDateTime >= monthStart;
+      
+      default:
+        return true;
+    }
+  };
+
+  // Helper function to get category name from categoryId
+  const getCategoryName = (categoryId) => {
+    const categoryMap = {
+      1: "Water Supply – Drinking Water",
+      2: "Architectural Barriers",
+      3: "Sewer System",
+      4: "Public Lighting",
+      5: "Waste",
+      6: "Road Signs and Traffic Lights",
+      7: "Roads and Urban Furnishings",
+      8: "Public Green Areas and Playgrounds",
+      9: "Other",
+    };
+    return categoryMap[categoryId] || "";
+  };
+
+  // Filter reports based on search query, category, status, and date
+  const filteredReports = allReports.filter((report) => {
+    // Search query filter
+    const matchesSearch =
+      !searchQuery ||
       report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.address?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Category filter
+    const matchesCategory =
+      !selectedCategory || getCategoryName(report.categoryId) === selectedCategory;
+
+    // Status filter
+    const matchesStatus = !selectedStatus || report.status === selectedStatus;
+
+    // Date filter
+    const matchesDate = matchesDateFilter(report.createdAt);
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
+  });
+
+  const filteredMyReports = myReports.filter((report) => {
+    // Search query filter
+    const matchesSearch =
+      !searchQuery ||
+      report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Category filter
+    const matchesCategory =
+      !selectedCategory || getCategoryName(report.categoryId) === selectedCategory;
+
+    // Status filter
+    const matchesStatus = !selectedStatus || report.status === selectedStatus;
+
+    // Date filter
+    const matchesDate = matchesDateFilter(report.createdAt);
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
+  });
 
   // Determine which list to show
   const displayReports = showMyReports ? filteredMyReports : filteredReports;
