@@ -34,6 +34,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "re
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../components/MapView.css"; // Import MapView CSS for dark theme support
+import { reportAPI, uploadAPI } from '../services/api';
 
 const CATEGORIES = [
   'Water Supply',
@@ -46,6 +47,19 @@ const CATEGORIES = [
   'Public Green Areas',
   'Other'
 ];
+
+// Mappa le categorie agli ID (basato sullo swagger)
+const CATEGORY_TO_ID = {
+  'Water Supply': 1,
+  'Architectural Barriers': 2,
+  'Sewer System': 3,
+  'Public Lighting': 4,
+  'Waste': 5,
+  'Road Signs': 6,
+  'Roads': 7,
+  'Public Green Areas': 8,
+  'Other': 9
+};
 
 // Create custom user icon (pin) for the report location
 const createUserIcon = () => {
@@ -217,10 +231,14 @@ const fetchAddress = async (lat, lng, setAddress) => {
 };
 
 export default function CreateReport() {
+  console.log('CreateReport component rendering...');
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  
+  console.log('User:', user);
+  console.log('Location state:', location.state);
   
   // State for map and location
   const [mapPosition, setMapPosition] = useState([45.0703, 7.6869]); // Turin default position
@@ -265,31 +283,42 @@ export default function CreateReport() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Redirect if not authenticated
+  // Initialize email from user data
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    } else {
-      // Initialize email from user data
+    if (user) {
       setFormData((prev) => ({
         ...prev,
         email: user.email || '',
       }));
     }
-  }, [user, navigate]);
+  }, [user]);
 
   // Get coordinates from navigation state (if coming from Home page pin click)
   useEffect(() => {
+    console.log('Checking location.state:', location.state);
     if (location.state?.coordinates) {
       const coords = location.state.coordinates;
-      setMapPosition([coords.lat, coords.lng]);
-      fetchAddress(coords.lat, coords.lng, (address) => {
+      console.log('Received coordinates:', coords);
+      
+      // Check if coordinates is an array [lat, lng] or object {lat, lng}
+      let lat, lng;
+      if (Array.isArray(coords)) {
+        [lat, lng] = coords;
+      } else {
+        lat = coords.lat;
+        lng = coords.lng;
+      }
+      
+      console.log('Parsed coordinates:', { lat, lng });
+      
+      setMapPosition([lat, lng]);
+      fetchAddress(lat, lng, (address) => {
         setFormData(prev => ({ 
           ...prev, 
           address,
           location: address,
-          latitude: coords.lat,
-          longitude: coords.lng
+          latitude: lat,
+          longitude: lng
         }));
       });
     } else {
@@ -644,12 +673,76 @@ export default function CreateReport() {
     }
   };
 
-  const submitReport = () => {
-    // TODO: Implement API call to submit report
-    console.log('Submitting report:', formData);
-    // For now, just log and show alert
-    alert('Report submission not yet implemented');
-    setShowAnonymousDialog(false);
+  const submitReport = async () => {
+    try {
+      console.log('Starting report submission...');
+      console.log('Form data:', formData);
+      
+      // Validazione base
+      if (!formData.title || !formData.category || !formData.latitude || !formData.longitude) {
+        alert('Please fill in all required fields (location, category, title)');
+        return;
+      }
+      
+      // Il backend richiede una descrizione obbligatoria
+      if (!formData.description || !formData.description.trim()) {
+        alert('Description is required');
+        return;
+      }
+
+      // 1. Prima carica le foto (se presenti)
+      let photoUrls = [];
+      if (formData.photos && formData.photos.length > 0) {
+        console.log('Uploading photos...');
+        const uploadResponse = await uploadAPI.uploadPhotos(formData.photos);
+        photoUrls = uploadResponse.data.files.map(file => file.url);
+        console.log('Photos uploaded:', photoUrls);
+      } else {
+        // Il backend richiede almeno 1 foto
+        alert('At least one photo is required');
+        return;
+      }
+
+      // 2. Converti la categoria in categoryId
+      const categoryId = CATEGORY_TO_ID[formData.category];
+      if (!categoryId) {
+        throw new Error('Invalid category selected');
+      }
+      console.log('Category:', formData.category, '-> ID:', categoryId);
+
+      // 3. Prepara i dati del report con gli URL delle foto
+      const reportData = {
+        title: formData.title,
+        description: formData.description,
+        categoryId: categoryId,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        anonymous: formData.anonymous || false,
+        photos: photoUrls,
+      };
+      
+      console.log('Sending report data to backend:', reportData);
+
+      // 4. Chiama l'API per creare il report
+      const response = await reportAPI.create(reportData);
+      
+      console.log('Report created successfully:', response.data);
+      
+      // Show success message
+      alert('Report submitted successfully!');
+      
+      // Close dialog if open
+      setShowAnonymousDialog(false);
+      
+      // Navigate to home or dashboard
+      navigate('/');
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to submit report. Please try again.';
+      alert(errorMessage);
+      setShowAnonymousDialog(false);
+    }
   };
 
   const handleAnonymousConfirm = () => {
@@ -713,10 +806,6 @@ export default function CreateReport() {
       Add Photo
     </Button>
   );
-
-  if (!user) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -913,7 +1002,7 @@ export default function CreateReport() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -923,6 +1012,7 @@ export default function CreateReport() {
                   value={formData.description}
                   onChange={handleChange}
                   className="resize-none"
+                  required
                 />
               </div>
             </div>

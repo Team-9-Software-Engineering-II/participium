@@ -44,6 +44,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MapView } from "@/components/MapView";
+import { reportAPI } from "@/services/api";
 
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
@@ -58,6 +59,8 @@ export default function Home() {
   const [allReports, setAllReports] = useState([]);
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [addresses, setAddresses] = useState({});
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -71,45 +74,67 @@ export default function Home() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Fetch address from coordinates
+  const fetchAddress = async (lat, lng) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
+      );
+      const data = await res.json();
+      const road = data.address?.road || data.address?.pedestrian || "";
+      const houseNumber = data.address?.house_number || "";
+      return `${road} ${houseNumber}`.trim() || "Address not available";
+    } catch (error) {
+      console.error("Error fetching address:", error);
+      return "Address not available";
+    }
+  };
+
   // Load reports from API
   useEffect(() => {
     const fetchReports = async () => {
       try {
         setLoading(true);
 
-        // Fetch all reports
-        const allResponse = await fetch("http://localhost:3000/api/reports", {
-          credentials: "include",
-        });
-
-        if (allResponse.ok) {
-          const allData = await allResponse.json();
-          setAllReports(allData);
-        }
+        // Fetch all reports using our API
+        const allResponse = await reportAPI.getAll();
+        setAllReports(allResponse.data);
 
         // Fetch user's reports if authenticated
-        if (isAuthenticated) {
-          const myResponse = await fetch(
-            "http://localhost:3000/api/reports/my",
-            {
-              credentials: "include",
-            }
-          );
-
-          if (myResponse.ok) {
-            const myData = await myResponse.json();
-            setMyReports(myData);
-          }
+        if (isAuthenticated && user) {
+          const myResponse = await reportAPI.getAll(); // Temporary - will filter by user later
+          // Filter to get only the user's reports
+          const userReports = myResponse.data.filter(report => report.userId === user.id);
+          setMyReports(userReports);
         }
+
+        // Fetch addresses for all reports
+        const addressPromises = allResponse.data.map(async (report) => {
+          if (report.latitude && report.longitude) {
+            const address = await fetchAddress(report.latitude, report.longitude);
+            return { id: report.id, address };
+          }
+          return { id: report.id, address: null };
+        });
+
+        const fetchedAddresses = await Promise.all(addressPromises);
+        const addressMap = {};
+        fetchedAddresses.forEach(({ id, address }) => {
+          addressMap[id] = address;
+        });
+        setAddresses(addressMap);
       } catch (error) {
         console.error("Error fetching reports:", error);
+        // Don't fail if we can't load reports - just show empty
+        setAllReports([]);
+        setMyReports([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchReports();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -185,6 +210,15 @@ export default function Home() {
     setShowFilters(false);
   };
 
+  const handleViewInMap = (report, e) => {
+    e.stopPropagation(); // Prevent navigation to report detail
+    setSelectedReport(report);
+    // On mobile, close the sheet to show the map
+    if (isMobile) {
+      // Will be handled by the sheet state
+    }
+  };
+
   // Reusable Reports List component
   const ReportsList = () => {
     if (loading) {
@@ -219,30 +253,51 @@ export default function Home() {
             >
               <h3 className="font-semibold mb-2">{report.title}</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>
-                    {report.address ||
-                      report.location ||
-                      "Location not specified"}
-                  </span>
-                </div>
+                {/* Street Address */}
+                {addresses[report.id] && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    <span className="font-medium">{addresses[report.id]}</span>
+                  </div>
+                )}
+                
+                {/* Coordinates */}
+                {report.latitude && report.longitude && (
+                  <div className="flex items-center gap-1 text-xs">
+                    <MapPin className="h-3 w-3 opacity-50" />
+                    <span className="opacity-70">
+                      {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
+                    </span>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>{new Date(report.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <User className="h-4 w-4" />
-                  <span>{report.User?.username || "Anonymous"}</span>
+                  <span>{report.reporterName || "Anonymous"}</span>
                 </div>
               </div>
-              {report.status && (
-                <div className="mt-2">
-                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                    {report.status}
-                  </span>
+              <div className="mt-2 flex items-center justify-between">
+                <div>
+                  {report.status && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                      {report.status}
+                    </span>
+                  )}
                 </div>
-              )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => handleViewInMap(report, e)}
+                  className="text-xs"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  View in map
+                </Button>
+              </div>
             </div>
           ))
         )}
@@ -358,7 +413,7 @@ export default function Home() {
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
-            <MapView />
+            <MapView reports={filteredReports} selectedReport={selectedReport} />
           </div>
         </div>
       </div>
@@ -367,7 +422,7 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0">
-          <MapView />
+          <MapView reports={filteredReports} selectedReport={selectedReport} />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}

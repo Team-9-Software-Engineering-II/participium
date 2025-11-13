@@ -19,9 +19,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Sessione scaduta o non valida
-      // Non fare redirect se siamo già nella pagina di login o register
+      // Non fare redirect se siamo già nella pagina di login, register o home
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/register') {
+      if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') {
         window.location.href = '/login';
       }
     }
@@ -53,27 +53,15 @@ export const userAPI = {
 export const reportAPI = {
   // Crea una nuova segnalazione
   create: (reportData) => {
-    const formData = new FormData();
-    
-    // Aggiungi i campi testuali
-    formData.append('title', reportData.title);
-    formData.append('description', reportData.description);
-    formData.append('category', reportData.category);
-    formData.append('latitude', reportData.latitude);
-    formData.append('longitude', reportData.longitude);
-    formData.append('anonymous', reportData.anonymous || false);
-    
-    // Aggiungi le foto
-    if (reportData.photos && reportData.photos.length > 0) {
-      reportData.photos.forEach((photo) => {
-        formData.append('photos', photo);
-      });
-    }
-    
-    return api.post('/reports', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    // Invia i dati come JSON con gli URL delle foto già caricate
+    return api.post('/reports', {
+      title: reportData.title,
+      description: reportData.description,
+      categoryId: reportData.categoryId,
+      latitude: reportData.latitude,
+      longitude: reportData.longitude,
+      anonymous: reportData.anonymous || false,
+      photos: reportData.photos || [], // Array di URL
     });
   },
   
@@ -110,6 +98,36 @@ export const reportAPI = {
   // Invia un messaggio su una segnalazione
   sendMessage: (reportId, message) => 
     api.post(`/reports/${reportId}/messages`, { message }),
+};
+
+// ==================== UPLOAD ====================
+
+export const uploadAPI = {
+  // Upload singola foto
+  uploadPhoto: (photoFile) => {
+    const formData = new FormData();
+    formData.append('photo', photoFile);
+    
+    return api.post('/upload/photo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // Upload multiple foto (fino a 3)
+  uploadPhotos: (photoFiles) => {
+    const formData = new FormData();
+    photoFiles.forEach((file) => {
+      formData.append('photos', file);
+    });
+    
+    return api.post('/upload/photos', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };
 
 // ==================== STATISTICS ====================
