@@ -299,7 +299,7 @@ const fetchAddress = async (lat, lng, setAddress) => {
   }
 };
 
-export function MapView() {
+export function MapView({ reports = [] }) {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [position, setPosition] = useState([45.0703, 7.6869]); // Turin
@@ -309,18 +309,6 @@ export function MapView() {
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchTimeoutRef = useRef(null);
-
-  // Mock reports data
-  const mockReports = [
-    { id: 1, lat: 45.0705, lng: 7.6900, status: 'TO_ASSIGN', title: 'Broken light' },
-    { id: 2, lat: 45.0720, lng: 7.6880, status: 'ASSIGNED', title: 'Pothole' },
-    { id: 3, lat: 45.0690, lng: 7.6850, status: 'IN_PROGRESS', title: 'Graffiti' },
-    { id: 4, lat: 45.0710, lng: 7.6870, status: 'COMPLETED', title: 'Fixed bench' },
-    { id: 5, lat: 45.0708, lng: 7.6895, status: 'TO_ASSIGN', title: 'Street sign damaged' },
-    { id: 6, lat: 45.0715, lng: 7.6875, status: 'ASSIGNED', title: 'Trash bin full' },
-    { id: 7, lat: 45.0700, lng: 7.6860, status: 'IN_PROGRESS', title: 'Road repair' },
-    { id: 8, lat: 45.0725, lng: 7.6885, status: 'TO_ASSIGN', title: 'Park maintenance' },
-  ];
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -658,18 +646,18 @@ export function MapView() {
           spiderfyOnMaxZoom={true}
           showCoverageOnHover={false}
         >
-          {mockReports.map((report) => (
+          {reports.map((report) => (
             <Marker
               key={report.id}
-              position={[report.lat, report.lng]}
+              position={[report.latitude, report.longitude]}
               icon={createReportIcon(report.status)}
             >
               <Popup className="custom-popup">
                 <div className="bg-white rounded-lg p-3">
                   <h3 className="font-semibold text-sm mb-2">{report.title}</h3>
                   <p className="text-xs text-muted-foreground">
-                    Status: <span style={{ color: REPORT_STATUS[report.status].color }} className="font-medium">
-                      {REPORT_STATUS[report.status].label}
+                    Status: <span style={{ color: REPORT_STATUS[report.status]?.color || '#666' }} className="font-medium">
+                      {REPORT_STATUS[report.status]?.label || report.status}
                     </span>
                   </p>
                 </div>

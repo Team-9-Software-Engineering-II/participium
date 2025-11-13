@@ -44,6 +44,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MapView } from "@/components/MapView";
+import { reportAPI } from "@/services/api";
 
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
@@ -77,39 +78,29 @@ export default function Home() {
       try {
         setLoading(true);
 
-        // Fetch all reports
-        const allResponse = await fetch("http://localhost:3000/api/reports", {
-          credentials: "include",
-        });
-
-        if (allResponse.ok) {
-          const allData = await allResponse.json();
-          setAllReports(allData);
-        }
+        // Fetch all reports using our API
+        const allResponse = await reportAPI.getAll();
+        setAllReports(allResponse.data);
 
         // Fetch user's reports if authenticated
-        if (isAuthenticated) {
-          const myResponse = await fetch(
-            "http://localhost:3000/api/reports/my",
-            {
-              credentials: "include",
-            }
-          );
-
-          if (myResponse.ok) {
-            const myData = await myResponse.json();
-            setMyReports(myData);
-          }
+        if (isAuthenticated && user) {
+          const myResponse = await reportAPI.getAll(); // Temporary - will filter by user later
+          // Filter to get only the user's reports
+          const userReports = myResponse.data.filter(report => report.userId === user.id);
+          setMyReports(userReports);
         }
       } catch (error) {
         console.error("Error fetching reports:", error);
+        // Don't fail if we can't load reports - just show empty
+        setAllReports([]);
+        setMyReports([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchReports();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -358,7 +349,7 @@ export default function Home() {
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
-            <MapView />
+            <MapView reports={filteredReports} />
           </div>
         </div>
       </div>
@@ -367,7 +358,7 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0">
-          <MapView />
+          <MapView reports={filteredReports} />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
