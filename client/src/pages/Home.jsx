@@ -60,6 +60,7 @@ export default function Home() {
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [addresses, setAddresses] = useState({});
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -72,6 +73,22 @@ export default function Home() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Fetch address from coordinates
+  const fetchAddress = async (lat, lng) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
+      );
+      const data = await res.json();
+      const road = data.address?.road || data.address?.pedestrian || "";
+      const houseNumber = data.address?.house_number || "";
+      return `${road} ${houseNumber}`.trim() || "Address not available";
+    } catch (error) {
+      console.error("Error fetching address:", error);
+      return "Address not available";
+    }
+  };
 
   // Load reports from API
   useEffect(() => {
@@ -90,6 +107,22 @@ export default function Home() {
           const userReports = myResponse.data.filter(report => report.userId === user.id);
           setMyReports(userReports);
         }
+
+        // Fetch addresses for all reports
+        const addressPromises = allResponse.data.map(async (report) => {
+          if (report.latitude && report.longitude) {
+            const address = await fetchAddress(report.latitude, report.longitude);
+            return { id: report.id, address };
+          }
+          return { id: report.id, address: null };
+        });
+
+        const fetchedAddresses = await Promise.all(addressPromises);
+        const addressMap = {};
+        fetchedAddresses.forEach(({ id, address }) => {
+          addressMap[id] = address;
+        });
+        setAddresses(addressMap);
       } catch (error) {
         console.error("Error fetching reports:", error);
         // Don't fail if we can't load reports - just show empty
@@ -220,16 +253,24 @@ export default function Home() {
             >
               <h3 className="font-semibold mb-2">{report.title}</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>
-                    {report.address ||
-                      report.location ||
-                      (report.latitude && report.longitude
-                        ? `${report.latitude.toFixed(6)}, ${report.longitude.toFixed(6)}`
-                        : "Location not specified")}
-                  </span>
-                </div>
+                {/* Street Address */}
+                {addresses[report.id] && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    <span className="font-medium">{addresses[report.id]}</span>
+                  </div>
+                )}
+                
+                {/* Coordinates */}
+                {report.latitude && report.longitude && (
+                  <div className="flex items-center gap-1 text-xs">
+                    <MapPin className="h-3 w-3 opacity-50" />
+                    <span className="opacity-70">
+                      {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
+                    </span>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>{new Date(report.createdAt).toLocaleDateString()}</span>
