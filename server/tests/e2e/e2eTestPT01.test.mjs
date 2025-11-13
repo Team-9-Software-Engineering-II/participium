@@ -1,5 +1,3 @@
-import {seedDatabase} from "../../seeders/index.mjs";
-
 process.env.NODE_ENV = "test";
 
 import request from "supertest";
