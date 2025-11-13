@@ -6,7 +6,7 @@ import {
   findUserByUsername,
 } from "../repositories/user-repo.mjs";
 import { findRoleById } from "../repositories/role-repo.mjs";
-
+import { findRoleByName } from "../repositories/role-repo.mjs"; // added for refactoring
 const PASSWORD_SALT_ROUNDS = 10;
 
 /**
@@ -34,6 +34,19 @@ export class AuthService {
     await this.#ensureUsernameAvailable(username);
     await this.#ensureRoleExists(roleId);
 
+    // start added for refactoring
+    let assignedRoleId = roleId;
+    if (!assignedRoleId) {
+      const citizenRole = await findRoleByName("citizen");
+      if (!citizenRole) {
+        const error = new Error("Default citizen role not found in database.");
+        error.statusCode = 500;
+        throw error;
+      }
+      assignedRoleId = citizenRole.id;
+    }
+  // end added for refactoring
+
     const hashedPassword = await this.#hashPassword(password);
     const createdUser = await createUser({
       email,
@@ -41,7 +54,7 @@ export class AuthService {
       firstName,
       lastName,
       hashedPassword,
-      roleId: roleId ?? 1,
+      roleId: assignedRoleId, //mod refactoring, prev -> roleId: roleId ?? 1,
     });
 
     const hydratedUser = await findUserByIdRepo(createdUser.id);

@@ -106,103 +106,77 @@ paths:
 
   /reports:
     post:
-      summary: Submit a new report
+      summary: Citizen submits a new report
+      description: Allows an authenticated citizen to file a new report with full classification details.
       tags: [Reports]
       security:
         - BearerAuth: []
       requestBody:
         required: true
         content:
-          multipart/form-data: # Required for photo upload
+          application/json:
             schema:
               $ref: '#/components/schemas/ReportCreate'
       responses:
         '201':
-          description: Report created (status Pending Approval)
+          description: Report successfully created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Report'
+        '400':
+          description: Validation error on payload
+        '401':
+          description: Authentication required
     get:
-      summary: Get public list of reports for the table
+      summary: Retrieve all reports
+      description: Returns the complete list of reports stored in the platform, ordered by creation date.
       tags: [Reports]
-      parameters:
-        - in: query
-          name: category
-          schema:
-            $ref: '#/components/schemas/ReportCategory'
-        - in: query
-          name: status
-          schema:
-            $ref: '#/components/schemas/ReportStatus'
-        - in: query
-          name: startDate
-          schema:
-            type: string
-            format: date
-        - in: query
-          name: endDate
-          schema:
-            type: string
-            format: date
+      security:
+        - BearerAuth: []
       responses:
         '200':
-          description: List of filtered reports
+          description: List of reports
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ReportSummary'
+                  $ref: '#/components/schemas/Report'
+        '401':
+          description: Authentication required
 
-  /reports/map:
+  /reports/user/{userId}:
     get:
-      summary: Get report data for the interactive map
+      summary: Retrieve reports created by a specific user
       tags: [Reports]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: Geolocated data of approved reports
+          description: List of reports created by the selected user
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ReportMapItem'
-
-  /reports/download:
-    get:
-      summary: Download report data in CSV format
-      tags: [Reports]
-      parameters:
-        - in: query
-          name: category
-          schema:
-            $ref: '#/components/schemas/ReportCategory'
-        - in: query
-          name: status
-          schema:
-            $ref: '#/components/schemas/ReportStatus'
-        - in: query
-          name: startDate
-          schema:
-            type: string
-            format: date
-        - in: query
-          name: endDate
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: CSV file with report data
-          content:
-            text/csv:
-              schema:
-                type: string
+                  $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid userId supplied
+        '401':
+          description: Authentication required
 
   /reports/{reportId}:
     get:
-      summary: Get details of a single report
+      summary: Retrieve a single report by id
+      description: Provides the full details of a single report.
       tags: [Reports]
       parameters:
         - in: path
@@ -210,6 +184,9 @@ paths:
           required: true
           schema:
             type: integer
+            minimum: 1
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Report details
@@ -217,120 +194,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId supplied
+        '401':
+          description: Authentication required
         '404':
           description: Report not found
 
-  /reports/{reportId}/messages:
+  /upload/photo:
     post:
-      summary: Send a message related to a report (Citizen)
-      tags: [Reports]
+      summary: Upload a single photo for a report
+      description: Allows an authenticated user to upload a single photo file. The photo will be stored on the server and a URL will be returned.
+      tags: [Upload]
       security:
         - BearerAuth: []
-      parameters:
-        - in: path
-          name: reportId
-          required: true
-          schema:
-            type: integer
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
+              required: [photo]
               properties:
-                message:
+                photo:
                   type: string
-      responses:
-        '201':
-          description: Message sent
-
-  /staff/reports/assigned:
-    get:
-      summary: (Technical Staff) Get list of assigned reports
-      tags: [Staff]
-      security:
-        - BearerAuth: []
+                  format: binary
+                  description: Image file (JPEG, PNG, GIF, or WebP). Maximum size 5MB.
       responses:
         '200':
-          description: List of reports for the relevant technical office
+          description: Photo uploaded successfully
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Report'
-        '403':
-          description: Unauthorized access
-
-  /staff/reports/{reportId}/status:
-    put:
-      summary: (Technical Staff) Update report status
-      tags: [Staff]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: reportId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  $ref: '#/components/schemas/ReportStatus'
-                comment:
-                  type: string
-      responses:
-        '200':
-          description: Status updated
-
-  /urp/reports/review:
-    get:
-      summary: (URP) Get list of reports in "Pending Approval"
-      tags: [URP]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: List of reports to review
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Report'
-        '403':
-          description: Unauthorized access
-
-  /urp/reports/{reportId}/review:
-    put:
-      summary: (URP) Approve or reject a report
-      tags: [URP]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: reportId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReportReview'
-      responses:
-        '200':
-          description: Review completed
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "File uploaded successfully."
+                  url:
+                    type: string
+                    format: uri
+                    example: "/uploads/reports/photo-1234567890-987654321.jpg"
+                  filename:
+                    type: string
+                    example: "photo-1234567890-987654321.jpg"
         '400':
-          description: Invalid data (e.g. rejection without explanation)
+          description: Invalid file type, file too large, or no file provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Authentication required
+
+  /upload/photos:
+    post:
+      summary: Upload multiple photos for a report
+      description: Allows an authenticated user to upload up to 3 photo files. The photos will be stored on the server and URLs will be returned.
+      tags: [Upload]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photos]
+              properties:
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Image files (JPEG, PNG, GIF, or WebP). Maximum 3 files, 5MB each.
+      responses:
+        '200':
+          description: Photos uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Files uploaded successfully."
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          format: uri
+                          example: "/uploads/reports/photo-1234567890-987654321.jpg"
+                        filename:
+                          type: string
+                          example: "photo-1234567890-987654321.jpg"
+        '400':
+          description: Invalid file type, file too large, too many files, or no files provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Authentication required
 
   /admin/users:
     get:
@@ -528,13 +502,14 @@ components:
         emailNotificationsEnabled:
           type: boolean
     
-    ReportCategory:
-      type: string
-      enum: [Water Supply, Architectural Barriers, Sewer System, Public Lighting, Waste, Road Signs, Roads, Public Green Areas, Other]
-
     ReportStatus:
       type: string
       enum: [Pending Approval, Assigned, In Progress, Suspended, Rejected, Resolved]
+
+    ReportCategory:
+      type: string
+      description: Human readable category label kept for legacy endpoints.
+      enum: [Water Supply, Architectural Barriers, Sewer System, Public Lighting, Waste, Road Signs, Roads, Public Green Areas, Other]
 
     UserRole:
       type: string
@@ -563,14 +538,15 @@ components:
 
     ReportCreate:
       type: object
-      required: [title, description, category, latitude, longitude, photos]
+      required: [title, description, categoryId, latitude, longitude, photos]
       properties:
         title:
           type: string
         description:
           type: string
-        category:
-          $ref: '#/components/schemas/ReportCategory'
+        categoryId:
+          type: integer
+          minimum: 1
         latitude:
           type: number
           format: double
@@ -584,7 +560,7 @@ components:
           type: array
           items:
             type: string
-            format: binary
+            format: uri
           minItems: 1
           maxItems: 3
 
@@ -597,10 +573,17 @@ components:
           type: string
         description:
           type: string
+        categoryId:
+          type: integer
         category:
-          $ref: '#/components/schemas/ReportCategory'
+          $ref: '#/components/schemas/ReportCategoryDetails'
         status:
           $ref: '#/components/schemas/ReportStatus'
+        anonymous:
+          type: boolean
+        rejectionReason:
+          type: string
+          nullable: true
         latitude:
           type: number
           format: double
@@ -614,6 +597,8 @@ components:
           items:
             type: string
             format: uri
+        user:
+          $ref: '#/components/schemas/ReportAuthor'
         createdAt:
           type: string
           format: date-time
@@ -670,3 +655,30 @@ components:
           type: integer
         name:
           type: string
+
+    ReportAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoURL:
+          type: string
+          format: uri
+          nullable: true
+
+    ReportCategoryDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
