@@ -97,3 +97,18 @@ export async function deleteUser(id) {
   });
   return deletedRows > 0;
 }
+
+/**
+ * Retrieves the number of currently active reports assigned to a staff member
+ * based on their user ID.
+ * * @param {number} id - The ID of the staff member (User).
+ * @returns {Promise<number|null>} The count of active reports, or null if the user is not found.
+ */
+export async function getNumberOfCurrentActiveReportsByStaffMemberId(id) {
+  const user = await db.User.findByPk(id);
+
+  if (!user) {
+    return null;
+  }
+  return user.counterActiveReports;
+}
