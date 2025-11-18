@@ -1,5 +1,14 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+} from "@jest/globals";
+import { sequelize } from "../../config/db/db-config.mjs";
+import { seedDatabase } from "../../seeders/index.mjs";
 const mockCreateUser = jest.fn();
 const mockFindUserByEmail = jest.fn();
 const mockFindUserByUsername = jest.fn();
@@ -22,6 +31,21 @@ jest.unstable_mockModule("bcrypt", () => ({
     compare: mockCompare,
   },
 }));
+
+// --- Test Hooks (Setup & Teardown) ---
+
+beforeAll(async () => {
+  // Reset the test database and run seeders
+  await sequelize.sync({ force: true });
+  await seedDatabase();
+});
+
+afterAll(async () => {
+  // Close the database connection after all tests
+  if (sequelize) {
+    await sequelize.close();
+  }
+});
 
 let AuthService;
 
@@ -82,6 +106,7 @@ describe("AuthService", () => {
         firstName: "Test",
         lastName: "User",
         hashedPassword: "hashed-password-123",
+        roleId: 1,
       });
       expect(mockSequelizeUser.get).toHaveBeenCalledWith({ plain: true });
       expect(result).toEqual(expectedSanitizedUser);
@@ -91,11 +116,13 @@ describe("AuthService", () => {
       mockFindUserByEmail.mockResolvedValue(mockSequelizeUser);
       mockFindUserByUsername.mockResolvedValue(null);
 
-      await expect(AuthService.registerUser(mockUserInput))
-        .rejects.toThrow("Email is already registered.");
+      await expect(AuthService.registerUser(mockUserInput)).rejects.toThrow(
+        "Email is already registered."
+      );
 
-      await expect(AuthService.registerUser(mockUserInput))
-        .rejects.toHaveProperty("statusCode", 409);
+      await expect(
+        AuthService.registerUser(mockUserInput)
+      ).rejects.toHaveProperty("statusCode", 409);
 
       expect(mockFindUserByUsername).not.toHaveBeenCalled();
       expect(mockCreateUser).not.toHaveBeenCalled();
@@ -105,11 +132,13 @@ describe("AuthService", () => {
       mockFindUserByEmail.mockResolvedValue(null);
       mockFindUserByUsername.mockResolvedValue(mockSequelizeUser);
 
-      await expect(AuthService.registerUser(mockUserInput))
-        .rejects.toThrow("Username is already registered.");
+      await expect(AuthService.registerUser(mockUserInput)).rejects.toThrow(
+        "Username is already registered."
+      );
 
-      await expect(AuthService.registerUser(mockUserInput))
-        .rejects.toHaveProperty("statusCode", 409);
+      await expect(
+        AuthService.registerUser(mockUserInput)
+      ).rejects.toHaveProperty("statusCode", 409);
 
       expect(mockFindUserByEmail).toHaveBeenCalled();
       expect(mockCreateUser).not.toHaveBeenCalled();
@@ -123,10 +152,16 @@ describe("AuthService", () => {
       mockCompare.mockResolvedValue(true);
       mockSequelizeUser.get.mockReturnValue(mockPlainUser);
 
-      const result = await AuthService.validateCredentials("testuser", "password123");
+      const result = await AuthService.validateCredentials(
+        "testuser",
+        "password123"
+      );
 
       expect(mockFindUserByUsername).toHaveBeenCalledWith("testuser");
-      expect(mockCompare).toHaveBeenCalledWith("password123", "hashed-password-123");
+      expect(mockCompare).toHaveBeenCalledWith(
+        "password123",
+        "hashed-password-123"
+      );
       expect(mockSequelizeUser.get).toHaveBeenCalledWith({ plain: true });
       expect(result).toEqual(expectedSanitizedUser);
     });
@@ -134,7 +169,10 @@ describe("AuthService", () => {
     it("should return null if user is not found", async () => {
       mockFindUserByUsername.mockResolvedValue(null);
 
-      const result = await AuthService.validateCredentials("wronguser", "password123");
+      const result = await AuthService.validateCredentials(
+        "wronguser",
+        "password123"
+      );
 
       expect(mockFindUserByUsername).toHaveBeenCalledWith("wronguser");
       expect(mockCompare).not.toHaveBeenCalled();
@@ -145,10 +183,16 @@ describe("AuthService", () => {
       mockFindUserByUsername.mockResolvedValue(mockSequelizeUser);
       mockCompare.mockResolvedValue(false);
 
-      const result = await AuthService.validateCredentials("testuser", "wrongpassword");
+      const result = await AuthService.validateCredentials(
+        "testuser",
+        "wrongpassword"
+      );
 
       expect(mockFindUserByUsername).toHaveBeenCalledWith("testuser");
-      expect(mockCompare).toHaveBeenCalledWith("wrongpassword", "hashed-password-123");
+      expect(mockCompare).toHaveBeenCalledWith(
+        "wrongpassword",
+        "hashed-password-123"
+      );
       expect(mockSequelizeUser.get).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });

@@ -5,6 +5,7 @@ import {
   logout,
   register,
 } from "../controllers/auth-controller.js";
+import { isAdmin, isAuthenticated } from "../middlewares/auth.mjs";
 
 const router = Router();
 
@@ -13,8 +14,7 @@ const router = Router();
  */
 router.post("/register", register);
 router.post("/login", login);
-router.post("/logout", logout);
-router.get("/session", currentSession);
+router.post("/logout", isAuthenticated, logout);
+router.get("/session", isAuthenticated, currentSession);
 
 export default router;
-
