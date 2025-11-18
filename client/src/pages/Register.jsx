@@ -80,7 +80,7 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+            <div data-cy="error-message" className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
               {error}
             </div>
           )}
@@ -207,6 +207,7 @@ export default function Register() {
 
           <Button 
             type="submit" 
+            data-cy="submit-button"
             className="w-full"
             disabled={loading}
           >

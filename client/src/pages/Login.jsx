@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AuthLayout from '../components/auth/AuthLayout';
-import { Eye, EyeOff } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import AuthLayout from "../components/auth/AuthLayout";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
+    username: "",
+    password: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -24,44 +24,46 @@ export default function Login() {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    if (error) setError('');
+    if (error) setError("");
     if (hasError) setHasError(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setHasError(false);
     setLoading(true);
 
     if (!formData.username || !formData.password) {
-      setError('All fields are required');
+      setError("All fields are required");
       setHasError(true);
       setLoading(false);
       return;
     }
 
     const result = await login(formData);
-    
+
     if (result.success) {
-      const roleValue = String(result.user?.role?.name ?? result.user?.role ?? '')
+      const roleValue = String(
+        result.user?.role?.name ?? result.user?.role ?? ""
+      )
         .trim()
         .toLowerCase();
 
-      if (roleValue.includes('admin')) {
-        navigate('/admin');
+      if (roleValue.includes("admin")) {
+        navigate("/admin");
       } else {
-        navigate('/');
+        navigate("/");
       }
     } else {
       // Backend always returns "Invalid credentials" for security reasons
       // We can't distinguish between wrong username or wrong password
       setHasError(true);
-      setError('Invalid credentials. Please check your username and password.');
+      setError("Invalid credentials. Please check your username and password.");
       // Keep username for convenience, clear password
-      setFormData({ ...formData, password: '' });
+      setFormData({ ...formData, password: "" });
     }
-    
+
     setLoading(false);
   };
 
@@ -77,11 +79,14 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+            <div
+              className="bg-destructive/10 text-destructive text-sm p-3 rounded-md"
+              data-cy="error-message"
+            >
               {error}
             </div>
           )}
-          
+
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
             <Input
@@ -94,8 +99,8 @@ export default function Login() {
               required
               className={
                 hasError
-                  ? 'border-destructive focus-visible:ring-destructive' 
-                  : ''
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
               }
               autoComplete="username"
             />
@@ -107,21 +112,22 @@ export default function Login() {
               <Input
                 id="password"
                 name="password"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
                 required
                 className={`pr-10 ${
                   hasError
-                    ? 'border-destructive focus-visible:ring-destructive' 
-                    : ''
+                    ? "border-destructive focus-visible:ring-destructive"
+                    : ""
                 }`}
                 autoComplete="current-password"
                 autoFocus={hasError}
               />
               <button
                 type="button"
+                data-cy="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -134,12 +140,13 @@ export default function Login() {
             </div>
           </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full"
             disabled={loading}
+            data-cy="submit-button"
           >
-            {loading ? 'Logging in...' : 'Log in'}
+            {loading ? "Logging in..." : "Log in"}
           </Button>
         </form>
       </div>
