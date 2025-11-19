@@ -1,4 +1,4 @@
-import { jest, describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // --- MOCKING REPORT SERVICE DEPENDENCIES ---
 
@@ -32,7 +32,6 @@ jest.unstable_mockModule("../../../shared/utils/report-utils.mjs", () => ({
 }));
 
 // Dynamic import of the Report Service
-let ReportServiceModule;
 let ReportService;
 
 // --- COMMON MOCK DATA ---
@@ -56,15 +55,15 @@ const mockHydratedReport = { id: 10, title: 'Pothole', user: { name: 'John Doe' 
 const mockSanitizedReport = { id: 10, title: 'Pothole', reporterName: 'John Doe' };
 
 
-describe("ReportService", () => {
+describe("ReportService (Unit)", () => {
     beforeEach(async () => {
         jest.clearAllMocks();
 
         // Import the module under test
-        ReportServiceModule = await import("../../../services/report-service.mjs");
+        const ReportServiceModule = await import("../../../services/report-service.mjs");
         ReportService = ReportServiceModule.ReportService;
 
-        // Default mock behavior for sanitization (to return the expected clean structure)
+        // Default mock behavior for sanitization
         mockSanitizeReport.mockReturnValue(mockSanitizedReport);
         mockSanitizeReports.mockImplementation(reports => reports.map(() => mockSanitizedReport));
     });
@@ -99,7 +98,7 @@ describe("ReportService", () => {
                 categoryId: mockPayload.categoryId,
             });
 
-            // 3. Verify Hydration (fetching the report immediately after creation)
+            // 3. Verify Hydration
             expect(mockFindReportById).toHaveBeenCalledWith(mockCreatedReport.id);
 
             // 4. Verify Sanitization
@@ -177,7 +176,6 @@ describe("ReportService", () => {
         });
 
         it("should call sanitizeReport with null and return sanitized null if not found", async () => {
-            // SanitizeReport should be called with null, and we mocked it to return mockSanitizedReport
             mockSanitizeReport.mockReturnValue(null);
             mockFindReportById.mockResolvedValue(null);
 

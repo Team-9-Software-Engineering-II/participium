@@ -42,7 +42,7 @@ const includeUserAndCategory = [
 const orderDesc = [["createdAt", "DESC"]];
 
 
-describe("Report Repository", () => {
+describe("Report Repository (Unit)", () => {
     beforeEach(async () => {
         jest.clearAllMocks();
         // Import the repository after defining the mocks

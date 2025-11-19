@@ -25,27 +25,14 @@ export class AuthService {
       password,
       firstName,
       lastName,
-      roleId = 1,
+      roleId,
     } = userInput;
 
     this.#validateEmailFormat(email);
 
     await this.#ensureEmailAvailable(email);
     await this.#ensureUsernameAvailable(username);
-    await this.#ensureRoleExists(roleId);
-
-    // start added for refactoring
-    let assignedRoleId = roleId;
-    if (!assignedRoleId) {
-      const citizenRole = await findRoleByName("citizen");
-      if (!citizenRole) {
-        const error = new Error("Default citizen role not found in database.");
-        error.statusCode = 500;
-        throw error;
-      }
-      assignedRoleId = citizenRole.id;
-    }
-  // end added for refactoring
+    const assignedRoleId = await this.#ensureRoleExists(roleId);
 
     const hashedPassword = await this.#hashPassword(password);
     const createdUser = await createUser({
@@ -138,12 +125,24 @@ export class AuthService {
   }
 
   static async #ensureRoleExists(roleId) {
-    const role = await findRoleById(roleId);
-    if (!role) {
-      const error = new Error(`Role with name "${roleId}" not found.`);
-      error.statusCode = 400; // Bad Request
-      throw error;
+    let assignedRoleId = roleId;
+    if (!assignedRoleId) {
+      const citizenRole = await findRoleByName("citizen");
+      if (!citizenRole) {
+        const error = new Error("Default citizen role not found in database.");
+        error.statusCode = 500;
+        throw error;
+      }
+      assignedRoleId = citizenRole.id;
+    } else {
+      const role = await findRoleById(assignedRoleId);
+      if (!role) {
+        const error = new Error(`Role with name "${roleId}" not found.`);
+        error.statusCode = 400; // Bad Request
+        throw error;
+      }
     }
+    return assignedRoleId;
   }
 
   /**

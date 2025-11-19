@@ -64,7 +64,7 @@ const createMockResponse = () => {
     return res;
 };
 
-describe("Upload Controller and Middleware", () => {
+describe("Upload Controller and Middleware (Unit)", () => {
     beforeEach(async () => {
         jest.clearAllMocks();
 
@@ -111,6 +111,20 @@ describe("Upload Controller and Middleware", () => {
                 expect(mockRes.status).toHaveBeenCalledWith(400);
                 expect(mockRes.json).toHaveBeenCalledWith({message: "No file uploaded."});
                 expect(mockNext).not.toHaveBeenCalled();
+            });
+
+            it("should call next(error) if an unexpected error occurs", async () => {
+                // Setup: Simuliamo un file valido ma una risposta che esplode
+                const mockFile = {filename: 'test.jpg'};
+                mockReq = {file: mockFile};
+                
+                // Sabotiamo res.status per lanciare un errore
+                const error = new Error("Unexpected failure");
+                mockRes.status.mockImplementation(() => { throw error; });
+
+                await UploadControllers.uploadPhoto(mockReq, mockRes, mockNext);
+
+                expect(mockNext).toHaveBeenCalledWith(error);
             });
         });
 
@@ -165,6 +179,51 @@ describe("Upload Controller and Middleware", () => {
                 expect(mockRes.status).toHaveBeenCalledWith(400);
                 expect(mockRes.json).toHaveBeenCalledWith({message: "Maximum 3 files allowed."});
                 expect(mockFsApi.unlinkSync).toHaveBeenCalledTimes(4);
+            });
+
+            it("should call next(error) if an unexpected error occurs", async () => {
+                // Setup: Simuliamo files validi ma una risposta che esplode
+                const mockFiles = [{filename: 'test.jpg'}];
+                mockReq = {files: mockFiles};
+                
+                // Sabotiamo res.status per lanciare un errore
+                const error = new Error("Unexpected failure");
+                mockRes.status.mockImplementation(() => { throw error; });
+
+                await UploadControllers.uploadPhotos(mockReq, mockRes, mockNext);
+
+                expect(mockNext).toHaveBeenCalledWith(error);
+            });
+
+            it("should handle cleanup gracefully if files do not exist on disk", async () => {
+                // Setup: Troppi file (triggera il blocco di pulizia)
+                const tooManyFiles = [
+                    {filename: 'a.jpg'}, {filename: 'b.jpg'},
+                    {filename: 'c.jpg'}, {filename: 'd.jpg'}
+                ];
+                mockReq = {files: tooManyFiles};
+
+                // Setup: Simuliamo che i file NON esistano su disco
+                mockFsApi.existsSync.mockReturnValue(false); 
+
+                await UploadControllers.uploadPhotos(mockReq, mockRes, mockNext);
+
+                expect(mockRes.status).toHaveBeenCalledWith(400);
+                expect(mockRes.json).toHaveBeenCalledWith({message: "Maximum 3 files allowed."});
+                
+                // Verifica cruciale: unlinkSync NON deve essere stato chiamato
+                // perché existsSync ha restituito false.
+                expect(mockFsApi.unlinkSync).not.toHaveBeenCalled();
+            });
+
+            it("should return 400 if req.files is undefined", async () => {
+                // Setup: req.files non esiste proprio (diverso da array vuoto)
+                mockReq = { files: undefined };
+
+                await UploadControllers.uploadPhotos(mockReq, mockRes, mockNext);
+
+                expect(mockRes.status).toHaveBeenCalledWith(400);
+                expect(mockRes.json).toHaveBeenCalledWith({message: "No files uploaded."});
             });
         });
     });
