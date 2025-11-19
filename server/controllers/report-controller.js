@@ -1,4 +1,5 @@
 import { ReportService } from "../services/report-service.mjs";
+import { REPORT } from "../shared/constants/models.mjs";
 import { validateCreateReportInput } from "../shared/validators/report-validator.mjs";
 
 /**
@@ -11,7 +12,10 @@ export async function createReport(req, res, next) {
       return;
     }
 
-    const report = await ReportService.createCitizenReport(req.user.id, payload);
+    const report = await ReportService.createCitizenReport(
+      req.user.id,
+      payload
+    );
     return res.status(201).json(report);
   } catch (error) {
     return next(error);
@@ -31,13 +35,29 @@ export async function getAllReports(req, res, next) {
 }
 
 /**
+ * Returns every report in the Pending Approval status stored in the system.
+ */
+export async function getPendingApprovalReports(req, res, next) {
+  try {
+    const reports = await ReportService.getAllReportsFilteredByStatus(
+      REPORT.STATUS.PENDING_APPROVAL
+    );
+    return res.status(200).json(reports);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
  * Returns a single report identified by its id.
  */
 export async function getReportById(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res.status(400).json({ message: "reportId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "reportId must be a positive integer." });
     }
 
     const report = await ReportService.getReportById(reportId);
@@ -58,7 +78,9 @@ export async function getReportsByUser(req, res, next) {
   try {
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) {
-      return res.status(400).json({ message: "userId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "userId must be a positive integer." });
     }
 
     const reports = await ReportService.getReportsByUserId(userId);
@@ -67,5 +89,3 @@ export async function getReportsByUser(req, res, next) {
     return next(error);
   }
 }
-
-

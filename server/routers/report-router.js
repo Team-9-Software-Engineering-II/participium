@@ -2,10 +2,15 @@ import { Router } from "express";
 import {
   createReport,
   getAllReports,
+  getPendingApprovalReports,
   getReportById,
   getReportsByUser,
 } from "../controllers/report-controller.js";
-import { isAuthenticated, isCitizen } from "../middlewares/auth.mjs";
+import {
+  isAuthenticated,
+  isCitizen,
+  isPublicRelationsOfficer,
+} from "../middlewares/auth.mjs";
 
 const router = Router();
 
@@ -33,5 +38,3 @@ router.get("/user/:userId", isAuthenticated, getReportsByUser);
 router.get("/:reportId", getReportById);
 
 export default router;
-
-

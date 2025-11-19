@@ -1,3 +1,5 @@
+import { ROLE } from "../shared/constants/models.mjs";
+
 export function isAuthenticated(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
@@ -24,4 +26,13 @@ export function isTechnicalStaff(req, res, next) {
     return next();
   }
   return res.status(403).json({ error: "Forbidden: technical staff only" });
+}
+
+export function isPublicRelationsOfficer(req, res, next) {
+  if (req.user?.role.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER) {
+    return next();
+  }
+  return res
+    .status(403)
+    .json({ error: "Forbidden: municipality public relations officer only" });
 }
