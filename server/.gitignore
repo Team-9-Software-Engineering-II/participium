@@ -140,7 +140,4 @@ vite.config.ts.timestamp-*
 
 
 # database
-server/data/database.sqlite
-
-#uploaded files
-uploads/
+data/database.sqlite

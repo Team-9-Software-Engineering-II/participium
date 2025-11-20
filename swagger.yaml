@@ -1,16 +1,17 @@
 openapi: 3.0.0
 info:
   title: Participium API
-  description: API per l'applicazione di partecipazione cittadina "Participium" del Comune di Torino.
+  description: API for the citizen participation application "Participium" of the Municipality of Turin.
   version: "1.0.0"
 servers:
   - url: https://api.participium.comune.torino.it/v1
-    description: Server di produzione
+    description: Production server
 
 paths:
   /auth/register:
     post:
-      summary: Registra un nuovo cittadino
+      summary: Register a new citizen
+      description: Se non specificato, l'utente ottiene automaticamente il ruolo di cittadino (roleId = 1).
       tags: [Auth]
       requestBody:
         required: true
@@ -20,17 +21,20 @@ paths:
               $ref: '#/components/schemas/UserRegister'
       responses:
         '201':
-          description: Utente registrato con successo
+          description: User successfully registered
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: '#/components/schemas/AuthSessionResponse'
         '400':
-          description: Dati di input non validi (es. email duplicata)
+          description: Invalid input data (e.g. incorrect email format)
+        '409':
+          description: Email or username already exists
+
 
   /auth/login:
     post:
-      summary: Effettua il login per cittadini o staff
+      summary: Login for citizens or staff and start a session
       tags: [Auth]
       requestBody:
         required: true
@@ -40,32 +44,49 @@ paths:
               $ref: '#/components/schemas/UserLogin'
       responses:
         '200':
-          description: Login riuscito, restituisce un token JWT
+          description: Login successful, returns active session details
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
+                $ref: '#/components/schemas/AuthSessionResponse'
         '401':
-          description: Credenziali non valide
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      summary: Close the authenticated user's session
+      tags: [Auth]
+      responses:
+        '204':
+          description: Logout successful
+
+  /auth/session:
+    get:
+      summary: Returns the authenticated session status
+      tags: [Auth]
+      responses:
+        '200':
+          description: Current session status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
 
   /users/me:
     get:
-      summary: Ottiene il profilo dell'utente loggato
+      summary: Get logged in user's profile
       tags: [Users]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Dati del profilo utente
+          description: User profile data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
     put:
-      summary: Aggiorna il profilo dell'utente loggato
+      summary: Update logged in user's profile
       tags: [Users]
       security:
         - BearerAuth: []
@@ -77,7 +98,7 @@ paths:
               $ref: '#/components/schemas/UserProfileUpdate'
       responses:
         '200':
-          description: Profilo aggiornato
+          description: Profile updated
           content:
             application/json:
               schema:
@@ -85,103 +106,77 @@ paths:
 
   /reports:
     post:
-      summary: Invia una nuova segnalazione
+      summary: Citizen submits a new report
+      description: Allows an authenticated citizen to file a new report with full classification details.
       tags: [Reports]
       security:
         - BearerAuth: []
       requestBody:
         required: true
         content:
-          multipart/form-data: # Necessario per upload foto
+          application/json:
             schema:
               $ref: '#/components/schemas/ReportCreate'
       responses:
         '201':
-          description: Segnalazione creata (stato Pending Approval)
+          description: Report successfully created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Report'
+        '400':
+          description: Validation error on payload
+        '401':
+          description: Authentication required
     get:
-      summary: Ottiene la lista pubblica delle segnalazioni per la tabella
+      summary: Retrieve all reports
+      description: Returns the complete list of reports stored in the platform, ordered by creation date.
       tags: [Reports]
-      parameters:
-        - in: query
-          name: category
-          schema:
-            $ref: '#/components/schemas/ReportCategory'
-        - in: query
-          name: status
-          schema:
-            $ref: '#/components/schemas/ReportStatus'
-        - in: query
-          name: startDate
-          schema:
-            type: string
-            format: date
-        - in: query
-          name: endDate
-          schema:
-            type: string
-            format: date
+      security:
+        - BearerAuth: []
       responses:
         '200':
-          description: Lista di segnalazioni filtrate
+          description: List of reports
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ReportSummary'
+                  $ref: '#/components/schemas/Report'
+        '401':
+          description: Authentication required
 
-  /reports/map:
+  /reports/user/{userId}:
     get:
-      summary: Ottiene i dati delle segnalazioni per la mappa interattiva
+      summary: Retrieve reports created by a specific user
       tags: [Reports]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: Dati geolocalizzati delle segnalazioni approvate
+          description: List of reports created by the selected user
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ReportMapItem'
-
-  /reports/download:
-    get:
-      summary: Scarica i dati delle segnalazioni in formato CSV
-      tags: [Reports]
-      parameters:
-        - in: query
-          name: category
-          schema:
-            $ref: '#/components/schemas/ReportCategory'
-        - in: query
-          name: status
-          schema:
-            $ref: '#/components/schemas/ReportStatus'
-        - in: query
-          name: startDate
-          schema:
-            type: string
-            format: date
-        - in: query
-          name: endDate
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: File CSV con i dati delle segnalazioni
-          content:
-            text/csv:
-              schema:
-                type: string
+                  $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid userId supplied
+        '401':
+          description: Authentication required
 
   /reports/{reportId}:
     get:
-      summary: Ottiene i dettagli di una singola segnalazione
+      summary: Retrieve a single report by id
+      description: Provides the full details of a single report.
       tags: [Reports]
       parameters:
         - in: path
@@ -189,142 +184,169 @@ paths:
           required: true
           schema:
             type: integer
+            minimum: 1
+      security:
+        - BearerAuth: []
       responses:
         '200':
-          description: Dettagli della segnalazione
+          description: Report details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Report'
-        '404':
-          description: Segnalazione non trovata
-
-  /reports/{reportId}/messages:
-    post:
-      summary: Invia un messaggio relativo a una segnalazione (Cittadino)
-      tags: [Reports]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: reportId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                message:
-                  type: string
-      responses:
-        '201':
-          description: Messaggio inviato
-
-  /staff/reports/assigned:
-    get:
-      summary: (Staff Tecnico) Ottiene la lista delle segnalazioni assegnate
-      tags: [Staff]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Lista delle segnalazioni per l'ufficio tecnico competente
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Report'
-        '403':
-          description: Accesso non autorizzato
-
-  /staff/reports/{reportId}/status:
-    put:
-      summary: (Staff Tecnico) Aggiorna lo stato di una segnalazione
-      tags: [Staff]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: reportId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  $ref: '#/components/schemas/ReportStatus'
-                comment:
-                  type: string
-      responses:
-        '200':
-          description: Stato aggiornato
-
-  /urp/reports/review:
-    get:
-      summary: (URP) Ottiene la lista delle segnalazioni in "Pending Approval"
-      tags: [URP]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Lista segnalazioni da revisionare
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Report'
-        '403':
-          description: Accesso non autorizzato
-
-  /urp/reports/{reportId}/review:
-    put:
-      summary: (URP) Approva o rifiuta una segnalazione
-      tags: [URP]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: reportId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReportReview'
-      responses:
-        '200':
-          description: Revisione completata
         '400':
-          description: Dati non validi (es. rifiuto senza spiegazione)
+          description: Invalid reportId supplied
+        '401':
+          description: Authentication required
+        '404':
+          description: Report not found
+
+  /upload/photo:
+    post:
+      summary: Upload a single photo for a report
+      description: Allows an authenticated user to upload a single photo file. The photo will be stored on the server and a URL will be returned.
+      tags: [Upload]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+                  description: Image file (JPEG, PNG, GIF, or WebP). Maximum size 5MB.
+      responses:
+        '200':
+          description: Photo uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "File uploaded successfully."
+                  url:
+                    type: string
+                    format: uri
+                    example: "/uploads/reports/photo-1234567890-987654321.jpg"
+                  filename:
+                    type: string
+                    example: "photo-1234567890-987654321.jpg"
+        '400':
+          description: Invalid file type, file too large, or no file provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Authentication required
+
+  /upload/photos:
+    post:
+      summary: Upload multiple photos for a report
+      description: Allows an authenticated user to upload up to 3 photo files. The photos will be stored on the server and URLs will be returned.
+      tags: [Upload]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photos]
+              properties:
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Image files (JPEG, PNG, GIF, or WebP). Maximum 3 files, 5MB each.
+      responses:
+        '200':
+          description: Photos uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Files uploaded successfully."
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          format: uri
+                          example: "/uploads/reports/photo-1234567890-987654321.jpg"
+                        filename:
+                          type: string
+                          example: "photo-1234567890-987654321.jpg"
+        '400':
+          description: Invalid file type, file too large, too many files, or no files provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Authentication required
 
   /admin/users:
+    get:
+      summary: (Admin) Ottiene la lista di tutti gli utenti municipali e cittadini
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista di tutti gli utenti nel sistema
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
     post:
       summary: (Admin) Crea un nuovo utente municipale
       tags: [Admin]
       security:
         - BearerAuth: []
-      # ... (requestBody con dati utente staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreate'
       responses:
         '201':
           description: Utente staff creato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Dati non validi (es. ruolo non trovato)
+        '409':
+          description: Conflitto (es. email o username duplicati)
 
   /admin/users/{userId}/role:
     put:
-      summary: (Admin) Assegna un ruolo a un utente municipale
+      summary: (Admin) Assign a role to a municipal user
       tags: [Admin]
       security:
         - BearerAuth: []
@@ -345,27 +367,45 @@ paths:
                   $ref: '#/components/schemas/UserRole'
       responses:
         '200':
-          description: Ruolo aggiornato
+          description: Role updated
+  
+  /admin/roles:
+    get:
+      summary: (Admin) Ottiene la lista di tutti i ruoli disponibili
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista di ruoli
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleSummary'
+        '403':
+          description: Accesso non autorizzato
 
   /statistics/public:
     get:
-      summary: Ottiene le statistiche pubbliche
+      summary: Get public statistics
       tags: [Statistics]
       responses:
         '200':
-          description: Dati statistici pubblici
+          description: Public statistical data
 
   /statistics/private:
     get:
-      summary: Ottiene le statistiche private (solo Admin)
+      summary: Get private statistics (Admin only)
       tags: [Statistics]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Dati statistici privati
+          description: Private statistical data
         '403':
-          description: Accesso non autorizzato
+          description: Unauthorized access
 
 components:
   securitySchemes:
@@ -391,6 +431,30 @@ components:
         password:
           type: string
           format: password
+        roleId:
+          type: integer
+          minimum: 1
+          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
+    AuthSessionResponse:
+      type: object
+      required: [authenticated]
+      properties:
+        authenticated:
+          type: boolean
+          description: Indicates whether the user has an active session
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        session:
+          type: object
+          properties:
+            id:
+              type: string
+            cookie:
+              type: object
+              properties:
+                expiresAt:
+                  type: string
+                  format: date-time
     UserLogin:
       type: object
       required: [username, password]
@@ -414,6 +478,11 @@ components:
           type: string
         lastName:
           type: string
+        roleId:
+          type: integer
+          description: Identifier of the role assigned to the user
+        role:
+          $ref: '#/components/schemas/RoleSummary'
         photoUrl:
           type: string
           format: uri
@@ -433,28 +502,51 @@ components:
         emailNotificationsEnabled:
           type: boolean
     
-    ReportCategory:
-      type: string
-      enum: [Water Supply, Architectural Barriers, Sewer System, Public Lighting, Waste, Road Signs, Roads, Public Green Areas, Other]
-
     ReportStatus:
       type: string
       enum: [Pending Approval, Assigned, In Progress, Suspended, Rejected, Resolved]
 
+    ReportCategory:
+      type: string
+      description: Human readable category label kept for legacy endpoints.
+      enum: [Water Supply, Architectural Barriers, Sewer System, Public Lighting, Waste, Road Signs, Roads, Public Green Areas, Other]
+
     UserRole:
       type: string
       enum: [municipal public relations officer, municipal administrator, technical office staff member]
+    
+    AdminUserCreate:
+      type: object
+      required: [email, username, password, firstName, lastName, roleId]
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roleId:
+          type: integer
+          minimum: 1
+          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
 
     ReportCreate:
       type: object
-      required: [title, description, category, latitude, longitude, photos]
+      required: [title, description, categoryId, latitude, longitude, photos]
       properties:
         title:
           type: string
         description:
           type: string
-        category:
-          $ref: '#/components/schemas/ReportCategory'
+        categoryId:
+          type: integer
+          minimum: 1
         latitude:
           type: number
           format: double
@@ -468,7 +560,7 @@ components:
           type: array
           items:
             type: string
-            format: binary
+            format: uri
           minItems: 1
           maxItems: 3
 
@@ -481,23 +573,32 @@ components:
           type: string
         description:
           type: string
+        categoryId:
+          type: integer
         category:
-          $ref: '#/components/schemas/ReportCategory'
+          $ref: '#/components/schemas/ReportCategoryDetails'
         status:
           $ref: '#/components/schemas/ReportStatus'
+        anonymous:
+          type: boolean
+        rejectionReason:
+          type: string
+          nullable: true
         latitude:
           type: number
           format: double
         longitude:
           type: number
           format: double
-        reporterName: # "anonymous" se flaggato
+        reporterName: # "anonymous" if flagged
           type: string
         photos:
           type: array
           items:
             type: string
             format: uri
+        user:
+          $ref: '#/components/schemas/ReportAuthor'
         createdAt:
           type: string
           format: date-time
@@ -545,5 +646,39 @@ components:
         action:
           type: string
           enum: [accepted, rejected]
-        rejectionReason: # Obbligatorio se action = rejected
+        rejectionReason: # Required if action = rejected
           type: string
+    RoleSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    ReportAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoURL:
+          type: string
+          format: uri
+          nullable: true
+
+    ReportCategoryDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
