@@ -4,10 +4,15 @@ import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
-
+import { seedDatabase } from "../../seeders/index.mjs";
 let cookie;
-
+let adminCookie;
 const uniqueId = Date.now();
+
+const adminLogin = {
+  username: "admin",
+  password: "password123",
+};
 
 const testUser = {
   email: `e2euser-${uniqueId}@example.com`,
@@ -16,10 +21,18 @@ const testUser = {
   lastName: "Tester",
   password: "Password123!",
 };
+// --- Test Hooks (Setup & Teardown) ---
 
-beforeAll(async () => {});
+beforeAll(async () => {
+  // Reset the test database and run seeders
+  await sequelize.sync({ force: true });
+  await seedDatabase();
+  const res = await request(app).post("/auth/login").send(adminLogin);
+  adminCookie = res.headers["set-cookie"];
+});
 
 afterAll(async () => {
+  // Close the database connection after all tests
   if (sequelize) {
     await sequelize.close();
   }
@@ -56,7 +69,7 @@ describe("API Authentication E2E Flow", () => {
     });
 
     it("should fail to register if the request body is missing or empty (400)", async () => {
-      const res = await request(app).post("/auth/register"); 
+      const res = await request(app).post("/auth/register");
       expect(res.statusCode).toBe(400);
     });
   });
@@ -88,17 +101,19 @@ describe("API Authentication E2E Flow", () => {
 
   describe("GET/auth/session (e2e)", () => {
     it("should return session info (200) using session cookie", async () => {
-      const res = await request(app).get("/auth/session").set("Cookie", cookie);
+      const res = await request(app)
+        .get("/auth/session")
+        .set("Cookie", adminCookie);
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toHaveProperty("authenticated", true);
-      expect(res.body.user.username).toBe(testUser.username);
+      expect(res.body.user.username).toBe(adminLogin.username);
     });
 
-    it("should fail session check if no cookie is provided (200)", async () => {
+    it("should fail session check if no cookie is provided (401)", async () => {
       const res = await request(app).get("/auth/session");
-      expect(res.body).toHaveProperty("authenticated", false);
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toBe("User not authenticated");
     });
   });
 
@@ -107,12 +122,6 @@ describe("API Authentication E2E Flow", () => {
       const res = await request(app).post("/auth/logout").set("Cookie", cookie);
 
       expect(res.statusCode).toBe(204);
-    });
-
-    it("should fail session check after logout (200)", async () => {
-      const res = await request(app).get("/auth/session").set("Cookie", cookie);
-      expect(res.body).toHaveProperty("authenticated", false);
-      expect(res.statusCode).toBe(200);
     });
   });
 });

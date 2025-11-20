@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data.user);
       }
       
-      return { success: true };
+      return { success: true, user: response.data.user };
     } catch (error) {
       console.error('Errore durante il login:', error);
       return { 

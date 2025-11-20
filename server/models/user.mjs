@@ -47,6 +47,11 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      counterActiveReports: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: null,
+      },
     },
     {
       tableName: "users",
