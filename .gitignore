@@ -144,6 +144,3 @@ server/data/database.sqlite
 
 #uploaded files
 uploads/
-
-#sonar cloud
-.github/
