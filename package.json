@@ -1,8 +1,7 @@
 {
+  "name": "participium",
+  "private": true,
   "devDependencies": {
     "cypress": "^15.6.0"
-  },
-  "dependencies": {
-    "yarn": "^1.22.22"
   }
 }
