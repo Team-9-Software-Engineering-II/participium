@@ -7,12 +7,14 @@ const mockCreateReport = jest.fn();
 const mockFindAllReports = jest.fn();
 const mockFindReportById = jest.fn();
 const mockFindReportsByUserId = jest.fn();
+const mockfindAllReportsFilteredByStatus = jest.fn();
 
 jest.unstable_mockModule("../../../repositories/report-repo.mjs", () => ({
     createReport: mockCreateReport,
     findAllReports: mockFindAllReports,
     findReportById: mockFindReportById,
     findReportsByUserId: mockFindReportsByUserId,
+    findAllReportsFilteredByStatus: mockfindAllReportsFilteredByStatus,
 }));
 
 // Mocking the Problem Category Repository function
