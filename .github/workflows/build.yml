@@ -42,62 +42,38 @@ jobs:
         run: yarn test
         continue-on-error: true
 
-  sonarqube-client:
-    name: SonarQube Client
+  sonarqube:
+    name: SonarQube Analysis
     needs: test
     runs-on: ubuntu-latest
-    defaults:
-      run:
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install client dependencies
         working-directory: ./client
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: client/yarn.lock
-      - name: Install dependencies
         run: yarn install
-      - name: Test and coverage
-        run: yarn test --coverage
-        continue-on-error: true
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: client
-
-  sonarqube-server:
-    name: SonarQube Server
-    needs: test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+          
+      - name: Install server dependencies
         working-directory: ./server
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: server/yarn.lock
-      - name: Install dependencies
         run: yarn install
-      - name: Test and coverage
+          
+      - name: Test client with coverage
+        working-directory: ./client
         run: yarn test --coverage
         continue-on-error: true
+        
+      - name: Test server with coverage
+        working-directory: ./server
+        run: yarn test --coverage
+        continue-on-error: true
+        
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: server
