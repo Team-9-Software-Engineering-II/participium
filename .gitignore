@@ -141,3 +141,6 @@ vite.config.ts.timestamp-*
 
 # database
 ./server/data/*
+
+#sonar cloud
+.github/
