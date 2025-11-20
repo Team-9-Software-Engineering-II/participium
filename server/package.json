@@ -23,7 +23,8 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "yarn": "^1.22.22"
   },
   "devDependencies": {
     "supertest": "^7.1.4"
