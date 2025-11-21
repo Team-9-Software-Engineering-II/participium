@@ -79,13 +79,25 @@ const createUserIcon = () => {
 };
 
 // Component to handle map clicks and update position
-function LocationMarker({ position, setPosition, setAddress, address, setSearchQuery, setSearchResults }) {
+// FIX: Aggiunto setFormData alle props per aggiornamento immediato coordinate
+function LocationMarker({ position, setPosition, setAddress, setFormData, address, setSearchQuery, setSearchResults }) {
   const markerRef = useRef(null);
   
   useMapEvents({
     click(e) {
       const newPos = [e.latlng.lat, e.latlng.lng];
       setPosition(newPos);
+      
+      // FIX: Aggiorna immediatamente latitude/longitude nel form
+      // Risolve il problema delle coordinate "vecchie" (Piazza Castello)
+      if (setFormData) {
+        setFormData(prev => ({
+          ...prev,
+          latitude: e.latlng.lat,
+          longitude: e.latlng.lng
+        }));
+      }
+
       fetchAddress(e.latlng.lat, e.latlng.lng, setAddress);
       
       // Pulisce la barra di ricerca quando si clicca sulla mappa
@@ -113,6 +125,16 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
           const pos = marker.getLatLng();
           const newPos = [pos.lat, pos.lng];
           setPosition(newPos);
+          
+          // FIX: Aggiorna immediatamente latitude/longitude nel form anche al drag
+          if (setFormData) {
+            setFormData(prev => ({
+              ...prev,
+              latitude: pos.lat,
+              longitude: pos.lng
+            }));
+          }
+          
           fetchAddress(pos.lat, pos.lng, setAddress);
           marker.openPopup();
         },
@@ -863,15 +885,17 @@ export default function CreateReport() {
                       />
                       <ZoomControl />
                       <MapUpdater position={mapPosition} />
+                      
+                      {/* FIX: Passo setFormData per aggiornamento diretto */}
                       <LocationMarker 
                         position={mapPosition} 
                         setPosition={setMapPosition}
+                        setFormData={setFormData} 
                         setAddress={(address) => setFormData(prev => ({ 
                           ...prev, 
                           address,
-                          location: address,
-                          latitude: mapPosition[0],
-                          longitude: mapPosition[1]
+                          location: address
+                          // Non aggiorno più latitude/longitude qui per evitare dati "stale"
                         }))}
                         address={formData.address}
                         setSearchQuery={setSearchQuery}
@@ -1326,15 +1350,16 @@ export default function CreateReport() {
                   />
                   <ZoomControl />
                   <MapUpdater position={mapPosition} />
+                  {/* FIX: Anche qui passato setFormData per il mobile */}
                   <LocationMarker 
                     position={mapPosition} 
                     setPosition={setMapPosition}
+                    setFormData={setFormData}
                     setAddress={(address) => setFormData(prev => ({ 
                       ...prev, 
                       address,
-                      location: address,
-                      latitude: mapPosition[0],
-                      longitude: mapPosition[1]
+                      location: address
+                      // Anche qui non aggiorno più latitude/longitude per evitare dati stale
                     }))}
                     address={formData.address}
                     setSearchQuery={setSearchQuery}
