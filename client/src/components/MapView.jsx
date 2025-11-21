@@ -8,8 +8,13 @@ import "./MapView.css";
 import { Search, Info, MapPin, Crosshair, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-// Importa la nuova funzione fetch
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
 
 const REPORT_STATUS = {
@@ -108,25 +113,39 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
   const markerRef = useRef(null);
   const [isInsideBoundary, setIsInsideBoundary] = useState(true);
   
-  const handleMapInteraction = (lat, lng) => {
-    const inside = isPointInTurin(lat, lng, turinGeoJSON);
-    setIsInsideBoundary(inside);
-    setPosition([lat, lng]);
-    if (inside) {
-      fetchAddress(lat, lng, setAddress);
-    } else {
-      setAddress("Area not supported");
+  // FIX: useEffect per ricalcolare 'isInsideBoundary' ogni volta che la posizione cambia
+  // (ad esempio tramite Geolocation o Ricerca, non solo Click)
+  useEffect(() => {
+    if (position && turinGeoJSON) {
+      const inside = isPointInTurin(position[0], position[1], turinGeoJSON);
+      setIsInsideBoundary(inside);
+      
+      // Se è dentro, aggiorna l'indirizzo
+      if (inside) {
+        fetchAddress(position[0], position[1], setAddress);
+      } else {
+        setAddress("Area not supported");
+      }
     }
+  }, [position, turinGeoJSON, setAddress]);
+
+  const handleMapClick = (lat, lng) => {
+    setPosition([lat, lng]);
     if (setSearchQuery) setSearchQuery('');
     if (setSearchResults) setSearchResults([]);
     if (setShowSearchResults) setShowSearchResults(false);
-    setTimeout(() => { if (markerRef.current) markerRef.current.openPopup(); }, 100);
+    
+    setTimeout(() => {
+      if (markerRef.current) {
+        markerRef.current.openPopup();
+      }
+    }, 100);
   };
 
-  useMapEvents({ click(e) { handleMapInteraction(e.latlng.lat, e.latlng.lng); } });
+  useMapEvents({ click(e) { handleMapClick(e.latlng.lat, e.latlng.lng); } });
 
   return position === null ? null : (
-    <Marker position={position} icon={createUserIcon()} draggable={true} ref={markerRef} eventHandlers={{ dragend: (e) => { const marker = e.target; const pos = marker.getLatLng(); handleMapInteraction(pos.lat, pos.lng); marker.openPopup(); } }}>
+    <Marker position={position} icon={createUserIcon()} draggable={true} ref={markerRef} eventHandlers={{ dragend: (e) => { const marker = e.target; const pos = marker.getLatLng(); setPosition([pos.lat, pos.lng]); marker.openPopup(); } }}>
       <Popup className="custom-popup" maxWidth={220}>
         <div className="bg-white dark:bg-black rounded-lg p-2.5 shadow-lg" style={{ minWidth: '200px' }}>
           {isInsideBoundary ? (
@@ -166,7 +185,6 @@ export function MapView({ reports = [], selectedReport = null }) {
   const searchTimeoutRef = useRef(null);
   const [turinGeoJSON, setTurinGeoJSON] = useState(null);
 
-  // MODIFICATO: Usa fetchTurinBoundary da geoUtils
   useEffect(() => {
     const loadData = async () => {
       const data = await fetchTurinBoundary();
@@ -174,6 +192,26 @@ export function MapView({ reports = [], selectedReport = null }) {
     };
     loadData();
   }, []);
+
+  // FIX: Funzione Geolocation reintrodotta
+  const handleUseMyLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          // Aggiornando 'position', il LocationMarker (grazie allo useEffect) farà il controllo confini
+          setPosition([lat, lng]);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          alert("Unable to retrieve your location. Please check permissions.");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+    }
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -213,13 +251,18 @@ export function MapView({ reports = [], selectedReport = null }) {
     setShowSearchResults(false);
   };
 
+  const clearSearch = () => { setSearchQuery(""); setSearchResults([]); setShowSearchResults(false); };
+
   return (
     <div className="relative w-full h-full">
       <div className="absolute top-6 right-6 z-[1000] w-[450px] max-md:left-4 max-md:right-4 max-md:w-auto max-md:top-4">
         <form onSubmit={handleSearch} className="bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-lg px-6 py-3 flex items-center gap-3 transition-all focus-within:ring-2 focus-within:ring-primary max-md:px-4 max-md:py-2">
           <Search className="h-6 w-6 text-muted-foreground flex-shrink-0" />
           <input type="text" value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} placeholder="Search address..." className="bg-transparent outline-none flex-1 text-sm" />
-          {searchQuery && <button type="button" onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="text-muted-foreground"><X className="h-5 w-5" /></button>}
+          {searchQuery && <button type="button" onClick={clearSearch} className="text-muted-foreground hover:text-foreground transition-colors max-md:hidden" title="Clear search"><X className="h-5 w-5" /></button>}
+          
+          {/* FIX: Aggiunto onClick al pulsante Mobile */}
+          <button type="button" onClick={handleUseMyLocation} className="text-muted-foreground hover:text-foreground transition-colors md:hidden" title="Use my location"><Crosshair className="h-5 w-5" /></button>
         </form>
         {showSearchResults && searchResults.length > 0 && (
           <div className="mt-2 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden">
@@ -230,6 +273,9 @@ export function MapView({ reports = [], selectedReport = null }) {
         )}
       </div>
 
+      {/* FIX: Aggiunto onClick al pulsante Desktop */}
+      <button onClick={handleUseMyLocation} className="absolute top-6 left-6 z-[1000] bg-background/95 backdrop-blur-md border border-border rounded-full p-3 shadow-lg hover:bg-accent transition-colors max-md:hidden" title="Use my location"><Crosshair className="h-6 w-6" /></button>
+      
       <button onClick={() => setShowLegend(true)} className="absolute bottom-6 left-6 z-[2000] bg-background/95 backdrop-blur-md border border-border rounded-full p-3 shadow-lg hover:bg-accent max-md:hidden"><Info className="h-6 w-6" /></button>
 
       <Dialog open={showLegend} onOpenChange={setShowLegend}>
@@ -246,7 +292,6 @@ export function MapView({ reports = [], selectedReport = null }) {
         <MapContainer center={[45.0703, 7.6869]} zoom={13} className="w-full h-full" zoomControl={false} preferCanvas={true}>
           <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           
-          {/* GeoJSON Layer */}
           {turinGeoJSON && <GeoJSON data={turinGeoJSON} style={turinBoundaryStyle} />}
 
           <ZoomControl />
