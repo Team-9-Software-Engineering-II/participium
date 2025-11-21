@@ -28,7 +28,7 @@ const turinBoundaryStyle = {
   color: "#3B82F6",
   weight: 3,
   fillColor: "#3B82F6",
-  fillOpacity: 0.05,
+  fillOpacity: 0.15,
   dashArray: '5, 5'
 };
 
