@@ -279,6 +279,7 @@ export default function MunicipalityUsers() {
           <Dialog open={isAddDialogOpen} onOpenChange={handleDialogChange}>
             <DialogTrigger asChild>
               <Button
+              data-cy="open-create-user"
                 type="button"
                 variant="outline"
                 className="inline-flex items-center gap-2 border border-primary/40 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20"
@@ -295,11 +296,12 @@ export default function MunicipalityUsers() {
                   mandatory.
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-5" onSubmit={handleCreateUser}>
+              <form className="space-y-5" onSubmit={handleCreateUser} data-cy="create-user-modal">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First name</Label>
                     <Input
+                      data-cy="first-name"
                       id="firstName"
                       autoComplete="given-name"
                       value={formValues.firstName}
@@ -310,6 +312,7 @@ export default function MunicipalityUsers() {
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last name</Label>
                     <Input
+                      data-cy="last-name"
                       id="lastName"
                       autoComplete="family-name"
                       value={formValues.lastName}
@@ -322,6 +325,7 @@ export default function MunicipalityUsers() {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
+                      data-cy="email"
                       id="email"
                       type="email"
                       autoComplete="email"
@@ -333,6 +337,7 @@ export default function MunicipalityUsers() {
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
                     <Input
+                      data-cy="username"
                       id="username"
                       autoComplete="username"
                       value={formValues.username}
@@ -344,6 +349,7 @@ export default function MunicipalityUsers() {
                 <div className="space-y-2">
                   <Label htmlFor="password">Temporary password</Label>
                   <Input
+                    data-cy="password"
                     id="password"
                     type="password"
                     autoComplete="new-password"
@@ -359,7 +365,7 @@ export default function MunicipalityUsers() {
                     onValueChange={handleFormChange('roleId')}
                     disabled={isRolesLoading || !!rolesError}
                   >
-                    <SelectTrigger id="roleId">
+                    <SelectTrigger id="roleId" data-cy="select-role">
                       <SelectValue
                         placeholder={
                           isRolesLoading ? 'Loading roles…' : rolesError ? 'Roles unavailable' : 'Select a role'
@@ -368,7 +374,7 @@ export default function MunicipalityUsers() {
                     </SelectTrigger>
                     <SelectContent>
                       {roleOptions.map((role) => (
-                        <SelectItem key={role.id} value={String(role.id)}>
+                        <SelectItem key={role.id} value={String(role.id)} data-cy="role">
                           {role.name}
                         </SelectItem>
                       ))}
@@ -387,11 +393,11 @@ export default function MunicipalityUsers() {
                 )}
                 <DialogFooter className="pt-2">
                   <DialogClose asChild>
-                    <Button type="button" variant="ghost" disabled={isSubmitting}>
+                    <Button data-cy="cancel" ype="button" variant="ghost" disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </DialogClose>
-                  <Button type="submit" disabled={isSubmitting || isRolesLoading}>
+                  <Button data-cy="submit" type="submit" disabled={isSubmitting || isRolesLoading}>
                     {isSubmitting ? 'Creating...' : 'Create user'}
                   </Button>
                 </DialogFooter>
@@ -406,6 +412,7 @@ export default function MunicipalityUsers() {
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
+              data-cy="search-users"
               type="search"
               placeholder="Search users"
               className="w-full rounded-md border border-border bg-background py-2 pl-10 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -469,6 +476,7 @@ export default function MunicipalityUsers() {
                     </td>
                     <td className="px-4 py-4">
                       <Button
+                        data-cy={`edit-user`}
                         type="button"
                         variant="outline"
                         size="sm"
@@ -512,7 +520,7 @@ export default function MunicipalityUsers() {
                 onValueChange={(value) => setEditRoleValue(value)}
                 disabled={isRolesLoading || !!rolesError}
               >
-                <SelectTrigger id="editRole">
+                <SelectTrigger d="editRole" data-cy="select-edit-role">
                   <SelectValue
                     placeholder={
                       isRolesLoading ? 'Loading roles…' : rolesError ? 'Roles unavailable' : 'Select a role'
@@ -521,7 +529,7 @@ export default function MunicipalityUsers() {
                 </SelectTrigger>
                 <SelectContent>
                   {roleOptions.map((role) => (
-                    <SelectItem key={role.id} value={role.name}>
+                    <SelectItem key={role.id} value={role.name} data-cy="edit-role">
                       {role.name}
                     </SelectItem>
                   ))}
@@ -540,11 +548,11 @@ export default function MunicipalityUsers() {
             )}
             <DialogFooter className="pt-2">
               <DialogClose asChild>
-                <Button type="button" variant="ghost" disabled={isUpdatingRole}>
+                <Button data-cy="cancel-edit-role" type="button" variant="ghost" disabled={isUpdatingRole}>
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={isUpdatingRole || isRolesLoading}>
+              <Button data-cy="submit-edit-role" ype="submit" disabled={isUpdatingRole || isRolesLoading}>
                 {isUpdatingRole ? 'Saving...' : 'Save changes'}
               </Button>
             </DialogFooter>
