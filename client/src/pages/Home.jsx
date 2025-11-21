@@ -74,16 +74,24 @@ export default function Home() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch address from coordinates
+  // Fetch address from coordinates (FIXED LOGIC)
   const fetchAddress = async (lat, lng) => {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
       );
       const data = await res.json();
-      const road = data.address?.road || data.address?.pedestrian || "";
+      
+      // Logica migliorata: prova via+civico, altrimenti usa display_name completo
+      const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
       const houseNumber = data.address?.house_number || "";
-      return `${road} ${houseNumber}`.trim() || "Address not available";
+      let formattedAddress = `${road} ${houseNumber}`.trim();
+
+      if (!formattedAddress) {
+        formattedAddress = data.name || data.display_name || "Address not available";
+      }
+      
+      return formattedAddress;
     } catch (error) {
       console.error("Error fetching address:", error);
       return "Address not available";
@@ -93,7 +101,7 @@ export default function Home() {
   // Load reports from API
   useEffect(() => {
     const fetchReports = async () => {
-      // MODIFICA: Se non autenticato, non caricare nulla
+      // Se non autenticato, non caricare nulla e ferma il loading
       if (!isAuthenticated) {
         setAllReports([]);
         setMyReports([]);
@@ -110,7 +118,7 @@ export default function Home() {
 
         // Fetch user's reports if authenticated
         if (user) {
-          const myResponse = await reportAPI.getAll(); // Temporary - will filter by user later
+          const myResponse = await reportAPI.getAll();
           // Filter to get only the user's reports
           const userReports = myResponse.data.filter(report => report.userId === user.id);
           setMyReports(userReports);
@@ -133,7 +141,6 @@ export default function Home() {
         setAddresses(addressMap);
       } catch (error) {
         console.error("Error fetching reports:", error);
-        // Don't fail if we can't load reports - just show empty
         setAllReports([]);
         setMyReports([]);
       } finally {
@@ -290,12 +297,31 @@ export default function Home() {
   };
 
   const handleViewInMap = (report, e) => {
-    e.stopPropagation(); // Prevent navigation to report detail
+    e.stopPropagation(); 
     setSelectedReport(report);
   };
 
   // Reusable Reports List component
   const ReportsList = () => {
+    // Se non autenticato, mostra il box di login
+    if (!isAuthenticated) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No reports</h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                    Log in to view and manage reports in your area.
+                </p>
+                <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
+                    <p className="text-sm font-medium">Log in to see reports</p>
+                    <Button onClick={() => navigate("/login")} className="w-full" size="sm">
+                        Log in
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     if (loading) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -313,24 +339,11 @@ export default function Home() {
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No reports</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mb-6">
-               {/* MODIFICA: Messaggio generico se non loggato */}
-              {!isAuthenticated 
-                ? "Log in to view and manage reports in your area." 
-                : showMyReports
-                  ? "You haven't created any reports yet"
-                  : "No reports to display yet. Check back later!"}
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {showMyReports
+                ? "You haven't created any reports yet"
+                : "No reports to display yet. Check back later!"}
             </p>
-            
-            {/* MODIFICA: Aggiunto box login se non autenticato direttamente nel listato vuoto */}
-            {!isAuthenticated && (
-               <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
-                  <p className="text-sm font-medium">Log in to see reports</p>
-                  <Button onClick={() => navigate("/login")} className="w-full" size="sm">
-                    Log in
-                  </Button>
-               </div>
-            )}
           </div>
         ) : (
           displayReports.map((report) => (
@@ -345,7 +358,9 @@ export default function Home() {
                 {addresses[report.id] && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    <span className="font-medium">{addresses[report.id]}</span>
+                    <span className="font-medium truncate" title={addresses[report.id]}>
+                      {addresses[report.id]}
+                    </span>
                   </div>
                 )}
                 
@@ -369,11 +384,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <div
-                  className={
-                    `fixed left-0 w-full flex justify-center items-end z-[1001] bottom-0 pointer-events-none md:static md:w-auto md:justify-end md:items-end md:pb-0`
-                  }
-                >
+                <div className="fixed left-0 w-full flex justify-center items-end z-[1001] bottom-0 pointer-events-none md:static md:w-auto md:justify-end md:items-end md:pb-0">
                 </div>
                 <Button
                   variant="outline"
@@ -401,7 +412,7 @@ export default function Home() {
         {/* Left Sidebar - Reports List */}
         <div className="w-96 border-r border-border bg-background flex flex-col relative">
           
-          {/* MODIFICA: Mostra Search Bar solo se autenticato */}
+          {/* Mostra Search Bar solo se autenticato */}
           {isAuthenticated && (
             <div className="p-4">
               <div className="relative">
@@ -425,7 +436,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* MODIFICA: Mostra Toggle "My reports" solo se autenticato */}
+          {/* Mostra Toggle "My reports" solo se autenticato */}
           {isAuthenticated && (
             <div className="px-4 py-3">
               <div className="flex items-center justify-between">
@@ -438,7 +449,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Reports List Area */}
+          {/* Reports List Area or Login Prompt */}
           {isAuthenticated ? (
             <>
               <div className="px-4 py-4">
@@ -451,14 +462,13 @@ export default function Home() {
               </div>
             </>
           ) : (
-            /* MODIFICA: Vista Unauthenticated (Sostituisce Search + Toggle + List) */
+            /* Vista Unauthenticated: ReportsList gestisce il box login */
             <div className="flex-1 overflow-y-auto px-4">
               <ReportsList /> 
-              {/* ReportsList gestisce internamente lo stato vuoto con il box login aggiunto */}
             </div>
           )}
 
-          {/* Theme Toggle Button */}
+          {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
           {!isAuthenticated && (
             <Button
               onClick={toggleTheme}
@@ -498,7 +508,7 @@ export default function Home() {
           <MapView reports={filteredReports} selectedReport={selectedReport} />
         </div>
 
-        {/* Theme Toggle Button */}
+        {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
         {!isAuthenticated && (
           <Button
             onClick={() => toggleTheme()}
@@ -514,7 +524,7 @@ export default function Home() {
           </Button>
         )}
 
-        {/* Legend Button */}
+        {/* Legend Button - Bottom Left (always visible on mobile) */}
         <Button
           onClick={() => setShowLegend(true)}
           variant="outline"
@@ -528,6 +538,7 @@ export default function Home() {
 
         {/* Bottom buttons */}
         <div className="absolute bottom-0 left-0 right-0 flex justify-between items-center px-4 pb-2 z-10">
+          {/* Empty space on the left for balance */}
           <div className="w-14"></div>
 
           {/* Reports List Button - Center */}
@@ -549,7 +560,7 @@ export default function Home() {
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
-                {/* MODIFICA: Search e Toggle visibili solo se autenticato */}
+                {/* Search bar e Toggle visibili solo se autenticato */}
                 {isAuthenticated && (
                   <>
                     <div className="relative">
@@ -580,7 +591,7 @@ export default function Home() {
                   </>
                 )}
 
-                {/* MODIFICA: Logica visualizzazione lista Mobile */}
+                {/* Logica visualizzazione lista Mobile */}
                 {isAuthenticated ? (
                   <>
                     <div className="py-2">
