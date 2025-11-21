@@ -11,13 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
-import { Camera, Image as ImageIcon, File, X, Upload, ChevronLeft, ChevronRight, MapPin, Search, Crosshair, AlertTriangle } from 'lucide-react';
+import { Camera, Image as ImageIcon, File, X, Upload, ChevronLeft, ChevronRight, MapPin, Search, Crosshair, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../components/MapView.css"; 
 import { reportAPI, uploadAPI } from '../services/api';
-// Importa fetchTurinBoundary
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
 
 const CATEGORIES = ['Water Supply', 'Architectural Barriers', 'Sewer System', 'Public Lighting', 'Waste', 'Road Signs', 'Roads and Urban Furnishings', 'Public Green Areas', 'Other'];
@@ -59,7 +58,8 @@ function LocationMarker({ position, setPosition, setFormData, address, setSearch
   const handleLocationUpdate = (lat, lng) => {
     const inside = isPointInTurin(lat, lng, turinGeoJSON);
     setIsInsideBoundary(inside);
-    setPosition([lat, lng]);
+    const newPos = [lat, lng];
+    setPosition(newPos);
 
     if (inside) {
       if (setFormData) { setFormData(prev => ({ ...prev, latitude: lat, longitude: lng })); }
@@ -69,7 +69,14 @@ function LocationMarker({ position, setPosition, setFormData, address, setSearch
     }
   };
 
-  useMapEvents({ click(e) { handleLocationUpdate(e.latlng.lat, e.latlng.lng); if (setSearchQuery) setSearchQuery(''); if (setSearchResults) setSearchResults([]); setTimeout(() => { if (markerRef.current) markerRef.current.openPopup(); }, 100); } });
+  useMapEvents({
+    click(e) {
+      handleLocationUpdate(e.latlng.lat, e.latlng.lng);
+      if (setSearchQuery) setSearchQuery('');
+      if (setSearchResults) setSearchResults([]);
+      setTimeout(() => { if (markerRef.current) markerRef.current.openPopup(); }, 100);
+    },
+  });
 
   return position ? (
     <Marker position={position} icon={createUserIcon()} draggable={true} ref={markerRef} eventHandlers={{ dragend: (e) => { const marker = e.target; const pos = marker.getLatLng(); handleLocationUpdate(pos.lat, pos.lng); marker.openPopup(); } }}>
@@ -96,7 +103,12 @@ function LocationMarker({ position, setPosition, setFormData, address, setSearch
 function ZoomControl() {
   const map = useMapEvents({});
   const controlRef = useRef(null);
-  useEffect(() => { if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {} } controlRef.current = L.control.zoom({ position: 'bottomright' }); controlRef.current.addTo(map); return () => { if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {} } }; }, [map]);
+  useEffect(() => {
+    if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {} }
+    controlRef.current = L.control.zoom({ position: 'bottomright' });
+    controlRef.current.addTo(map);
+    return () => { if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {} } };
+  }, [map]);
   return null;
 }
 
@@ -139,15 +151,18 @@ export default function CreateReport() {
   const [turinGeoJSON, setTurinGeoJSON] = useState(null);
   
   const [formData, setFormData] = useState({ location: '', category: '', title: '', description: '', anonymous: false, photos: [], email: '', address: '', latitude: null, longitude: null });
+  const [tempLocationData, setTempLocationData] = useState({ address: '', location: '', latitude: null, longitude: null });
+  
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState([]);
 
-  // MODIFICATO: Usa fetchTurinBoundary
   useEffect(() => {
-    const loadData = async () => {
-      const data = await fetchTurinBoundary();
-      if (data) setTurinGeoJSON(data);
+    const fetchGeoJSON = async () => {
+      try {
+        const data = await fetchTurinBoundary();
+        if (data) setTurinGeoJSON(data);
+      } catch (error) { console.error(error); }
     };
-    loadData();
+    fetchGeoJSON();
   }, []);
 
   useEffect(() => { const checkMobile = () => setIsMobile(window.innerWidth < 768); checkMobile(); window.addEventListener('resize', checkMobile); return () => window.removeEventListener('resize', checkMobile); }, []);
@@ -187,14 +202,75 @@ export default function CreateReport() {
   const handleImageDoubleClick = () => { imageScale === 1 ? setImageScale(2) : setImageScale(1); };
   const handlePhotoViewerKeyDown = (e) => { if (e.key === 'ArrowLeft') handlePreviousPhoto(); else if (e.key === 'ArrowRight') handleNextPhoto(); };
   const handleSearchInput = (value) => { setSearchQuery(value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); if (value.trim().length < 3) { setSearchResults([]); setShowSearchResults(false); return; } searchTimeoutRef.current = setTimeout(async () => { try { const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value + ', Torino')}&addressdetails=1&limit=30&countrycodes=it&dedupe=1`); const results = await res.json(); setSearchResults(results.slice(0, 5)); setShowSearchResults(true); } catch (error) { console.error('Search error:', error); } }, 250); };
-  const handleSearchResultClick = (result) => { if (!result.lat || !result.lon) return; const lat = parseFloat(result.lat); const lon = parseFloat(result.lon); setMapPosition([lat, lon]); setFormData(prev => ({ ...prev, address: result.display_name, location: result.display_name, latitude: lat, longitude: lon })); setSearchQuery(result.display_name); setSearchResults([]); setShowSearchResults(false); };
+  const handleSearchResultClick = (result) => { if (!result.lat || !result.lon) return; const lat = parseFloat(result.lat); const lon = parseFloat(result.lon); setMapPosition([lat, lon]); 
+    setTempLocationData(prev => ({ ...prev, address: result.display_name, location: result.display_name, latitude: lat, longitude: lon })); 
+    setSearchQuery(result.display_name); setSearchResults([]); setShowSearchResults(false); 
+  };
   const clearSearch = () => { setSearchQuery(""); setSearchResults([]); setShowSearchResults(false); };
-  const handleUseMyLocation = () => { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((position) => { const lat = position.coords.latitude; const lng = position.coords.longitude; setMapPosition([lat, lng]); setFormData(prev => ({ ...prev, latitude: lat, longitude: lng })); fetchAddress(lat, lng, (address) => { setFormData(prev => ({ ...prev, address, location: address })); }); }, (error) => alert('Unable to get location.')); } };
+  const handleUseMyLocation = () => { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((position) => { const lat = position.coords.latitude; const lng = position.coords.longitude; setMapPosition([lat, lng]); 
+    setTempLocationData(prev => ({ ...prev, latitude: lat, longitude: lng })); 
+    fetchAddress(lat, lng, (address) => { setTempLocationData(prev => ({ ...prev, address, location: address })); }); }, (error) => alert('Unable to get location.')); } };
   const handleSubmit = (e) => { e.preventDefault(); if (formData.anonymous) setShowAnonymousDialog(true); else submitReport(); };
   const submitReport = async () => { try { if (!formData.latitude || !formData.longitude) { alert('Please select a valid location within the Municipality of Turin.'); return; } let photoUrls = []; if (formData.photos.length > 0) { const uploadResponse = await uploadAPI.uploadPhotos(formData.photos); photoUrls = uploadResponse.data.files.map(file => file.url); } else { alert('At least one photo is required'); return; } const reportData = { title: formData.title, description: formData.description, categoryId: CATEGORY_TO_ID[formData.category], latitude: formData.latitude, longitude: formData.longitude, anonymous: formData.anonymous || false, photos: photoUrls }; await reportAPI.create(reportData); alert('Report submitted successfully!'); navigate('/'); } catch (error) { console.error('Error submitting report:', error); alert('Failed to submit report.'); } };
   const handleAnonymousConfirm = () => { submitReport(); };
   const handleAnonymousCancel = () => { setShowAnonymousDialog(false); };
-  const MobilePhotoUpload = () => { const hasPhotos = formData.photos.length > 0; return ( <DropdownMenu> <DropdownMenuTrigger asChild> {hasPhotos ? ( <Button type="button" size="icon" className="rounded-full h-12 w-12"><Camera className="h-5 w-5" /></Button> ) : ( <Button type="button" variant="outline" size="lg" className="gap-2"><Camera className="h-5 w-5" /> Add Photo</Button> )} </DropdownMenuTrigger> <DropdownMenuContent> <DropdownMenuItem onSelect={() => document.getElementById('photo-camera')?.click()}><Camera className="mr-2 h-4 w-4" /> Camera</DropdownMenuItem> <DropdownMenuItem onSelect={() => document.getElementById('photo-library')?.click()}><ImageIcon className="mr-2 h-4 w-4" /> Photo Library</DropdownMenuItem> <DropdownMenuItem onSelect={() => document.getElementById('photo-file')?.click()}><File className="mr-2 h-4 w-4" /> File</DropdownMenuItem> </DropdownMenuContent> </DropdownMenu> ); };
+  
+  const handleOpenMobileMap = () => {
+    setTempLocationData({
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      address: formData.address,
+      location: formData.location
+    });
+    if (formData.latitude && formData.longitude) {
+      setMapPosition([formData.latitude, formData.longitude]);
+    } else {
+      setMapPosition([45.0703, 7.6869]);
+    }
+    setShowMapDialog(true);
+  };
+
+  const handleConfirmMobileMap = () => {
+    setFormData(prev => ({
+      ...prev,
+      latitude: tempLocationData.latitude,
+      longitude: tempLocationData.longitude,
+      address: tempLocationData.address,
+      location: tempLocationData.location
+    }));
+    setShowMapDialog(false);
+  };
+
+  const MobilePhotoUpload = () => {
+    const hasPhotos = formData.photos.length > 0;
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            type="button" 
+            variant={hasPhotos ? "default" : "outline"} 
+            size={hasPhotos ? "icon" : "lg"} 
+            className={hasPhotos ? "rounded-full h-12 w-12" : "gap-2"}
+          >
+            <Camera className={hasPhotos ? "h-5 w-5" : "h-5 w-5"} />
+            {!hasPhotos && "Add Photo"}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onSelect={() => document.getElementById('photo-camera')?.click()}>
+            <Camera className="mr-2 h-4 w-4" /> Camera
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => document.getElementById('photo-library')?.click()}>
+            <ImageIcon className="mr-2 h-4 w-4" /> Photo Library
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => document.getElementById('photo-file')?.click()}>
+            <File className="mr-2 h-4 w-4" /> File
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   const DesktopPhotoUpload = () => ( <Button type="button" variant="outline" size="lg" className="gap-2" onClick={() => document.getElementById('photo-upload')?.click()}> <Upload className="h-5 w-5" /> Add Photo </Button> );
 
   return (
@@ -202,9 +278,16 @@ export default function CreateReport() {
       <Navbar />
       <div className="container max-w-4xl mx-auto px-4 py-8">
         <div className="space-y-6">
-          <div className="space-y-2"><h1 className="text-3xl font-bold tracking-tight">New Report</h1><p className="text-sm text-muted-foreground">Participium is a system to report urban maintenance issues...</p></div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">New Report</h1>
+            <p className="text-sm text-muted-foreground">
+              <strong>ATTENTION:</strong> Participium is a system to report urban maintenance issues and not emergencies that require immediate intervention.
+              In case of fires it is essential to contact the competent authorities such as Firefighters, Police, etc.
+              If necessary therefore in case of temporary intervention, we advise you not to proceed with this report but to contact the relevant services.
+            </p>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {isMobile && ( <button type="button" onClick={() => setShowMapDialog(true)} className="w-full bg-card border rounded-lg p-4 flex items-center gap-3 hover:bg-accent transition-colors text-left"> <div className="flex-shrink-0 bg-primary/10 p-2 rounded-full"><MapPin className="h-5 w-5 text-primary" /></div> <div className="flex-1 min-w-0"> <p className="font-medium text-sm truncate">{formData.address || 'Report location point'}</p> <p className="text-xs text-muted-foreground">{formData.address ? 'Tap to change location' : 'Click to select location on map'}</p> </div> <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" /> </button> )}
+            {isMobile && ( <button type="button" onClick={handleOpenMobileMap} className="w-full bg-card border rounded-lg p-4 flex items-center gap-3 hover:bg-accent transition-colors text-left"> <div className="flex-shrink-0 bg-primary/10 p-2 rounded-full"><MapPin className="h-5 w-5 text-primary" /></div> <div className="flex-1 min-w-0"> <p className="font-medium text-sm truncate">{formData.address || 'Report location point'}</p> <p className="text-xs text-muted-foreground">{formData.address ? 'Tap to change location' : 'Click to select location on map'}</p> </div> <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" /> </button> )}
             {!isMobile && (
               <div className="bg-card border rounded-lg overflow-hidden">
                 <div className={`relative ${theme === 'dark' ? 'dark-map' : ''}`} style={{ height: '500px' }}>
@@ -224,16 +307,182 @@ export default function CreateReport() {
                 <div className="p-4 bg-background border-t flex items-center gap-3"><div className="flex-shrink-0 bg-primary/10 p-2 rounded-full"><MapPin className="h-5 w-5 text-primary" /></div><div className="flex-1 min-w-0"><p className="font-medium text-sm">{formData.address || 'Click to select'}</p>{mapPosition && <p className="text-xs text-muted-foreground">{mapPosition[0].toFixed(6)}, {mapPosition[1].toFixed(6)}</p>}</div></div>
               </div>
             )}
-            <div className="bg-card border rounded-lg p-6 space-y-4"> <h2 className="text-xl font-semibold">Information</h2> <div className="space-y-2"><Label>Location *</Label><Input value={formData.location} readOnly className="bg-muted cursor-default" />{formData.latitude && formData.longitude && <p className="text-xs text-muted-foreground">Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}</p>}</div> <div className="space-y-2"><Label>Category *</Label><Select value={formData.category} onValueChange={handleCategoryChange} required><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger><SelectContent>{CATEGORIES.map((category) => (<SelectItem key={category} value={category}>{category}</SelectItem>))}</SelectContent></Select></div> <div className="space-y-2"><Label>Title *</Label><Input name="title" value={formData.title} onChange={handleChange} maxLength={200} required /></div> <div className="space-y-2"><Label>Description *</Label><Textarea name="description" value={formData.description} onChange={handleChange} maxLength={2000} rows={6} required /></div> </div>
-            <div className="bg-card border rounded-lg p-6 space-y-4"> <h2 className="text-xl font-semibold">Photos</h2> {formData.photos.length > 0 && ( <div className="grid grid-cols-3 gap-4"> {photoPreviewUrls.map((url, index) => ( <div key={index} className="relative aspect-square rounded-lg overflow-hidden border"><img src={url} alt="Preview" className="w-full h-full object-cover" onClick={() => handlePhotoClick(index)} /><button type="button" onClick={() => handleRemovePhoto(index)} className="absolute top-2 right-2 bg-destructive text-white rounded-full p-1"><X className="h-4 w-4" /></button></div> ))} </div> )} <div className={`flex ${formData.photos.length > 0 ? 'justify-end' : 'justify-center'}`}> {formData.photos.length < 3 && ( <> {isMobile ? <MobilePhotoUpload /> : <DesktopPhotoUpload />} {isMobile ? ( <> <input id="photo-camera" type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} className="hidden" multiple /><input id="photo-library" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /><input id="photo-file" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /> </> ) : ( <input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /> )} </> )} </div> </div>
-            <div className="bg-card border rounded-lg p-6 space-y-4"> <h2 className="text-xl font-semibold">User</h2> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name *</Label><Input value={user.firstName || ''} disabled className="bg-muted" /></div><div className="space-y-2"><Label>Last Name *</Label><Input value={user.lastName || ''} disabled className="bg-muted" /></div></div> <div className="space-y-2"><Label>Email *</Label><Input name="email" value={formData.email} onChange={handleChange} required /></div> <div className="flex items-center justify-between border-t pt-4"><div className="space-y-0.5"><Label className="text-base">Anonymous report?</Label><p className="text-sm text-muted-foreground">Your details won't be public.</p></div><Switch checked={formData.anonymous} onCheckedChange={handleAnonymousToggle} /></div> </div>
-            <div className="flex justify-center"><Button type="submit" size="lg" className="px-12">Submit Report</Button></div>
+            
+            <div className="bg-card border rounded-lg p-6 space-y-4">
+               <h2 className="text-xl font-semibold">Information</h2>
+               <div className="space-y-2">
+                  <Label htmlFor="location">Location *</Label>
+                  <Input 
+                    id="location" 
+                    name="location" 
+                    type="text" 
+                    placeholder="Select location on map" 
+                    value={formData.location} 
+                    readOnly 
+                    className="bg-muted cursor-default" 
+                    required 
+                  />
+                  {formData.latitude && formData.longitude && <p className="text-xs text-muted-foreground">Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}</p>}
+               </div>
+               
+               <div className="space-y-2">
+                <Label htmlFor="category">Category *</Label>
+                <Select value={formData.category} onValueChange={handleCategoryChange} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((category) => (<SelectItem key={category} value={category}>{category}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="title">Title of the report *</Label>
+                <Input 
+                  id="title" 
+                  name="title" 
+                  type="text" 
+                  placeholder="Brief description (max 200 characters)" 
+                  value={formData.title} 
+                  onChange={handleChange} 
+                  maxLength={200} 
+                  required 
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea 
+                  id="description" 
+                  name="description" 
+                  placeholder="Detailed description of the report (max 2000 characters)" 
+                  value={formData.description} 
+                  onChange={handleChange} 
+                  maxLength={2000} 
+                  rows={6} 
+                  className="resize-none"
+                  required 
+                />
+              </div>
+            </div>
+            
+            <div className="bg-card border rounded-lg p-6 space-y-4"> 
+              <h2 className="text-xl font-semibold">Photos</h2> 
+              {formData.photos.length > 0 && ( 
+                <div className="grid grid-cols-3 gap-4"> 
+                  {photoPreviewUrls.map((url, index) => ( 
+                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border">
+                      <img src={url} alt="Preview" className="w-full h-full object-cover" onClick={() => handlePhotoClick(index)} />
+                      <button type="button" onClick={() => handleRemovePhoto(index)} className="absolute top-2 right-2 bg-destructive text-white rounded-full p-1"><X className="h-4 w-4" /></button>
+                    </div> 
+                  ))} 
+                </div> 
+              )} 
+              <div className={`flex ${formData.photos.length > 0 ? 'justify-end' : 'justify-center'}`}> 
+                {formData.photos.length < 3 && ( 
+                  <> 
+                    {isMobile ? <MobilePhotoUpload /> : <DesktopPhotoUpload />} 
+                    {isMobile ? ( 
+                      <> 
+                        <input id="photo-camera" type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} className="hidden" multiple />
+                        <input id="photo-library" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple />
+                        <input id="photo-file" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /> 
+                      </> 
+                    ) : ( 
+                      <input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /> 
+                    )} 
+                  </> 
+                )} 
+              </div>
+              
+              {formData.photos.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center mt-2">No photos added yet</p>
+              )}
+              {formData.photos.length > 0 && (
+                <p className="text-sm text-muted-foreground text-right">{formData.photos.length} of 3 photos uploaded</p>
+              )}
+            </div>
+            
+            <div className="bg-card border rounded-lg p-6 space-y-4">
+              <h2 className="text-xl font-semibold">User</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input id="firstName" type="text" value={user.firstName || ''} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input id="lastName" type="text" value={user.lastName || ''} disabled className="bg-muted" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+              </div>
+              <div className="flex items-center justify-between border-t pt-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="anonymous" className="text-base">Do you want to send this report anonymously?</Label>
+                  <p className="text-sm text-muted-foreground">Your personal information will not be visible to other users</p>
+                </div>
+                <Switch id="anonymous" checked={formData.anonymous} onCheckedChange={handleAnonymousToggle} />
+              </div>
+            </div>
+            
+            <p className="text-center text-sm text-muted-foreground">* Required field</p>
+
+            {/* FIX: pulsante Cancel aggiunto accanto a Submit Report */}
+            <div className="flex justify-center gap-4">
+              <Button type="button" variant="outline" size="lg" className="px-12" onClick={() => navigate('/')}>
+                Cancel
+              </Button>
+              <Button type="submit" size="lg" className="px-12">
+                Submit Report
+              </Button>
+            </div>
           </form>
         </div>
       </div>
       <Dialog open={showAnonymousDialog} onOpenChange={setShowAnonymousDialog}><DialogContent><DialogHeader><DialogTitle>Anonymous Report</DialogTitle><DialogDescription>Sure?</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={handleAnonymousCancel}>No</Button><Button onClick={handleAnonymousConfirm}>Yes</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={showPhotoViewer} onOpenChange={handleClosePhotoViewer}><DialogContent className="max-w-4xl w-full p-0 bg-black/99 border-0" onKeyDown={handlePhotoViewerKeyDown}><div className="relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}><button onClick={handleClosePhotoViewer} className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><X className="h-5 w-5" /></button>{photoPreviewUrls.length > 1 && <div className="absolute top-4 left-4 z-10 bg-white/20 text-white px-3 py-1 rounded-full text-sm">{currentPhotoIndex + 1} / {photoPreviewUrls.length}</div>}<div className="flex items-center justify-center min-h-[400px] max-h-[80vh] overflow-hidden"><img src={photoPreviewUrls[currentPhotoIndex]} alt="Photo" className="max-w-full max-h-[80vh] object-contain transition-transform duration-200" style={{ transform: `scale(${imageScale}) translate(${imagePan.x / imageScale}px, ${imagePan.y / imageScale}px)`, cursor: imageScale > 1 ? 'move' : 'default', touchAction: 'none' }} onDoubleClick={handleImageDoubleClick} /></div>{photoPreviewUrls.length > 1 && (<><button onClick={handlePreviousPhoto} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><ChevronLeft className="h-6 w-6" /></button><button onClick={handleNextPhoto} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><ChevronRight className="h-6 w-6" /></button></>)}</div></DialogContent></Dialog>
-      <Dialog open={showMapDialog} onOpenChange={setShowMapDialog}><DialogContent className="max-w-full w-full h-full p-0 m-0"><div className="relative h-full flex flex-col"><div className="flex-1 relative"><MapContainer center={[45.0703, 7.6869]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}><TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />{turinGeoJSON && <GeoJSON data={turinGeoJSON} style={turinBoundaryStyle} />}<ZoomControl /><MapUpdater position={mapPosition} /><LocationMarker position={mapPosition} setPosition={setMapPosition} setFormData={setFormData} address={formData.address} setSearchQuery={setSearchQuery} setSearchResults={setSearchResults} turinGeoJSON={turinGeoJSON} /></MapContainer></div><div className="p-4 border-t bg-background"><p className="text-center font-bold mb-2">{formData.address}</p><Button onClick={() => setShowMapDialog(false)} className="w-full">Confirm Location</Button></div></div></DialogContent></Dialog>
+      <Dialog open={showMapDialog} onOpenChange={setShowMapDialog}>
+        <DialogContent className="max-w-full w-full h-full p-0 m-0">
+          
+          <DialogTitle className="sr-only">Select Location</DialogTitle>
+          <DialogDescription className="sr-only">Interact with the map to pin the location of your report.</DialogDescription>
+
+          <div className="relative h-full flex flex-col">
+            <div className={`flex-1 relative ${theme === 'dark' ? 'dark-map' : ''}`}>
+              <MapContainer center={[45.0703, 7.6869]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {turinGeoJSON && <GeoJSON data={turinGeoJSON} style={turinBoundaryStyle} />}
+                <ZoomControl />
+                <MapUpdater position={mapPosition} />
+                <LocationMarker position={mapPosition} setPosition={setMapPosition} setFormData={setTempLocationData} address={tempLocationData.address} setSearchQuery={setSearchQuery} setSearchResults={setSearchResults} turinGeoJSON={turinGeoJSON} />
+              </MapContainer>
+              
+              <div className="absolute top-4 left-4 right-4 z-[1000]">
+                <div className="relative flex items-center bg-white dark:bg-gray-900 rounded-md shadow-md border border-gray-200 dark:border-gray-800">
+                  <Search className="ml-3 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Input type="text" placeholder="Search for an address..." value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} className="flex-1 border-0 focus-visible:ring-0 bg-transparent shadow-none h-10" />
+                  {searchQuery && <button type="button" onClick={clearSearch} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-1"><X className="h-4 w-4 text-muted-foreground" /></button>}
+                  <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                  <button type="button" onClick={handleUseMyLocation} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-1"><Crosshair className="h-5 w-5 text-primary" /></button>
+                </div>
+                {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result, index) => ( <button key={index} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t bg-background space-y-2">
+              <p className="text-center font-bold mb-2 text-sm">{tempLocationData.address}</p>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setShowMapDialog(false)} className="flex-1">Cancel</Button>
+                <Button onClick={handleConfirmMobileMap} className="flex-1">Confirm Location</Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
