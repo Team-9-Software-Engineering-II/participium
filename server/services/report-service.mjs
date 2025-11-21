@@ -4,6 +4,7 @@ import {
   findReportById,
   findReportsByUserId,
   findAllReportsFilteredByStatus,
+  updateReport,
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
 import {
@@ -67,6 +68,10 @@ export class ReportService {
   static async getReportById(reportId) {
     const report = await findReportById(reportId);
     return sanitizeReport(report);
+  }
+
+  static async updateReport(reportId, payload) {
+    return await updateReport(reportId, payload);
   }
 
   /**

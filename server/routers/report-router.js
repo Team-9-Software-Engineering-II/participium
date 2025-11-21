@@ -2,15 +2,11 @@ import { Router } from "express";
 import {
   createReport,
   getAllReports,
-  getPendingApprovalReports,
+  getAssignedReports,
   getReportById,
   getReportsByUser,
 } from "../controllers/report-controller.js";
-import {
-  isAuthenticated,
-  isCitizen,
-  isPublicRelationsOfficer,
-} from "../middlewares/auth.mjs";
+import { isAuthenticated, isCitizen } from "../middlewares/auth.mjs";
 
 const router = Router();
 
@@ -30,6 +26,12 @@ router.get("/", getAllReports);
  * This route MUST stay before the /:reportId definition to avoid conflicts.
  */
 router.get("/user/:userId", isAuthenticated, getReportsByUser);
+
+/**
+ * Retrieves every report in the Assigned status.
+ * This route MUST stay before the /:reportId definition to avoid conflicts.
+ */
+router.get("/assigned", isAuthenticated, isCitizen, getAssignedReports);
 
 /**
  * Retrieves a single report by its identifier.

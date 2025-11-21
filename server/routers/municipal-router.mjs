@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { getPendingApprovalReports } from "../controllers/report-controller.js";
+import {
+  acceptOrRejectReport,
+  getPendingApprovalReports,
+} from "../controllers/report-controller.js";
 import {
   isAuthenticated,
   isPublicRelationsOfficer,
@@ -12,6 +15,13 @@ router.get(
   isAuthenticated,
   isPublicRelationsOfficer,
   getPendingApprovalReports
+);
+
+router.put(
+  "/reports/:reportId",
+  isAuthenticated,
+  isPublicRelationsOfficer,
+  acceptOrRejectReport
 );
 
 export default router;
