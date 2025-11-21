@@ -112,7 +112,7 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        <Card className="flex-1 flex flex-col min-h-0 shadow-md border-border overflow-hidden">
+        <Card className="max-h-full flex flex-col min-h-0 shadow-md border-border overflow-hidden">
           
           <CardHeader className="border-b border-border bg-card py-3 px-4 shrink-0">
             <div className="flex justify-between items-center">
