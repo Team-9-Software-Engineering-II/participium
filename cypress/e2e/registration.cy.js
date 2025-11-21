@@ -1,4 +1,5 @@
 import RegisterPage from "../pages/register.page";
+import { requiredFieldsRegistration } from "../support/constants";
 
 describe("Registration Flow", () => {
   it("should allow successful registration", () => {
@@ -51,16 +52,7 @@ describe("Registration Flow", () => {
       .should("contain.text", "Password must be at least 6 characters");
   });
 
-  const requiredFields = [
-    "email",
-    "username",
-    "firstName",
-    "lastName",
-    "password",
-    "confirmPassword",
-  ];
-
-  requiredFields.forEach((field) => {
+for (const field of requiredFieldsRegistration) {
     it(`should fail if ${field} is missing`, () => {
       const formData = {
         email: "test2@example.com",
@@ -79,7 +71,7 @@ describe("Registration Flow", () => {
       // Checks that the page is still "/register"
       cy.url().should("eq", Cypress.config().baseUrl + "/register");
     });
-  });
+  };
 
   it("should fail if email is already in use", () => {
     RegisterPage.visit();
