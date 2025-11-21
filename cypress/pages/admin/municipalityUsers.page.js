@@ -9,7 +9,11 @@ class AdminCreateMunicipalityUserPage {
     role: () => cy.get('[data-cy="role"]'),
     submit: () => cy.get('[data-cy="submit"]'),
     createRoleTrigger: () => cy.get('[data-cy="select-role"]'),
-    editRoleTrigger: () => cy.get('[data-cy="edit-role"]'),
+    editRoleTrigger: () => cy.get('[data-cy="select-edit-role"]'),
+    errorMessage: () => cy.get('[data-cy="create-user-modal"]'),
+    submitEdit: () => cy.get('[data-cy="submit-edit-role"]'),
+    modalEdit: () => cy.get('[data-cy="edit-user-modal"]'),
+    editRole: () => cy.get('[data-cy="edit-role"]'),
   };
 
   openCreateUser() {
@@ -28,6 +32,13 @@ class AdminCreateMunicipalityUserPage {
 
       cy.get('[data-cy="role"]').contains(role).should("be.visible").click();
     }
+  }
+
+  editUser (role) {
+    this.elements.editRoleTrigger().should("be.visible").click();
+
+    cy.get('[data-cy="edit-role"]').should("be.visible").contains(role).click();
+
   }
 
   submit() {

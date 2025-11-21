@@ -296,7 +296,7 @@ export default function MunicipalityUsers() {
                   mandatory.
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-5" onSubmit={handleCreateUser}>
+              <form className="space-y-5" onSubmit={handleCreateUser} data-cy="create-user-modal">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First name</Label>
@@ -393,7 +393,7 @@ export default function MunicipalityUsers() {
                 )}
                 <DialogFooter className="pt-2">
                   <DialogClose asChild>
-                    <Button type="button" variant="ghost" disabled={isSubmitting}>
+                    <Button data-cy="cancel" ype="button" variant="ghost" disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </DialogClose>
@@ -476,7 +476,7 @@ export default function MunicipalityUsers() {
                     </td>
                     <td className="px-4 py-4">
                       <Button
-                        data-cy={`edit-user-${user.id}`}
+                        data-cy={`edit-user`}
                         type="button"
                         variant="outline"
                         size="sm"
@@ -520,7 +520,7 @@ export default function MunicipalityUsers() {
                 onValueChange={(value) => setEditRoleValue(value)}
                 disabled={isRolesLoading || !!rolesError}
               >
-                <SelectTrigger data-cy="edit-role" d="editRole">
+                <SelectTrigger d="editRole" data-cy="select-edit-role">
                   <SelectValue
                     placeholder={
                       isRolesLoading ? 'Loading roles…' : rolesError ? 'Roles unavailable' : 'Select a role'
@@ -529,7 +529,7 @@ export default function MunicipalityUsers() {
                 </SelectTrigger>
                 <SelectContent>
                   {roleOptions.map((role) => (
-                    <SelectItem key={role.id} value={role.name}>
+                    <SelectItem key={role.id} value={role.name} data-cy="edit-role">
                       {role.name}
                     </SelectItem>
                   ))}
@@ -548,11 +548,11 @@ export default function MunicipalityUsers() {
             )}
             <DialogFooter className="pt-2">
               <DialogClose asChild>
-                <Button data-cy="submit-edit-role" type="button" variant="ghost" disabled={isUpdatingRole}>
+                <Button data-cy="cancel-edit-role" type="button" variant="ghost" disabled={isUpdatingRole}>
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={isUpdatingRole || isRolesLoading}>
+              <Button data-cy="submit-edit-role" ype="submit" disabled={isUpdatingRole || isRolesLoading}>
                 {isUpdatingRole ? 'Saving...' : 'Save changes'}
               </Button>
             </DialogFooter>

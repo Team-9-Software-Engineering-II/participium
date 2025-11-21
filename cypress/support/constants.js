@@ -7,7 +7,7 @@ export const requiredFieldsRegistration = [
   "confirmPassword",
 ];
 
-export const requiredFieldsAdmin = [
+export const requiredFieldsMunicipalityUser = [
   "firstName",
   "lastName",
   "email",
