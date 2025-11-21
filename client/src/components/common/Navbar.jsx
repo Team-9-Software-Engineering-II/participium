@@ -180,6 +180,12 @@ export default function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link to="/settings" className="cursor-pointer flex items-center gap-2 sm:hidden">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link to="/info" className="cursor-pointer">
                       <HelpCircle className="mr-2 h-4 w-4" />
                       <span>Info</span>
