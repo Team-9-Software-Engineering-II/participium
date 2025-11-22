@@ -1,4 +1,5 @@
 import { REPORT } from "../constants/models.mjs";
+import { isIdNumberAndPositive } from "./common-validator.mjs";
 
 /**
  * Validates the payload for creating a report.
@@ -97,7 +98,6 @@ export function validateReportToBeAcceptedOrRejected(data) {
   const validatedReport = {
     status: undefined,
     rejection_reason: undefined,
-    categoryId: undefined,
   };
 
   if (data.status !== undefined && typeof data.status !== "string") {
@@ -143,15 +143,28 @@ export function validateReportToBeAcceptedOrRejected(data) {
     throw error;
   }
 
+  return validatedReport;
+}
+
+export async function validateNewReportCategory(data) {
+  const validatedData = {
+    categoryId: null,
+  };
+
   if (
     data.categoryId !== undefined &&
     typeof data.categoryId != Number &&
     data.categoryId === null
   ) {
-    const error = new Error("Category id must be a number or null.");
+    const error = new Error("Category id must be a number.");
     error.statusCode = 400;
     throw error;
   }
-
-  return validatedReport;
+  if (!isIdNumberAndPositive(data.categoryId)) {
+    const error = new Error("Invalid ID format");
+    error.statusCode = 400;
+    throw error;
+  }
+  validatedData.categoryId = data.categoryId;
+  return validatedData;
 }

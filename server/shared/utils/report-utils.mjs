@@ -28,7 +28,9 @@ export function sanitizeReport(report) {
     plainReport.user?.firstName && plainReport.user?.lastName
       ? `${plainReport.user.firstName} ${plainReport.user.lastName}`
       : plainReport.user?.username;
-  plainReport.reporterName = plainReport.anonymous ? "Anonymous" : fullName ?? null;
+  plainReport.reporterName = plainReport.anonymous
+    ? "Anonymous"
+    : fullName ?? null;
 
   if (plainReport.rejection_reason !== undefined) {
     plainReport.rejectionReason = plainReport.rejection_reason;
@@ -46,5 +48,3 @@ export function sanitizeReport(report) {
 export function sanitizeReports(reports = []) {
   return reports.map((report) => sanitizeReport(report)).filter(Boolean);
 }
-
-

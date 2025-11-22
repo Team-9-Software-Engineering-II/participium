@@ -1,8 +1,10 @@
 import { ReportService } from "../services/report-service.mjs";
 import { REPORT } from "../shared/constants/models.mjs";
-import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
+import { isIdNumberAndPositive } from "../shared/validators/common-validator.mjs";
+
 import {
   validateCreateReportInput,
+  validateNewReportCategory,
   validateReportToBeAcceptedOrRejected,
 } from "../shared/validators/report-validator.mjs";
 
@@ -114,10 +116,8 @@ export async function getReportsByUser(req, res, next) {
 export async function acceptOrRejectReport(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
-    if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res
-        .status(400)
-        .json({ message: "reportId must be a positive integer." });
+    if (!isIdNumberAndPositive(reportId)) {
+      return res.status(400).json({ message: "Invalid ID format" });
     }
 
     const validatedReport = validateReportToBeAcceptedOrRejected(req.body);
@@ -125,7 +125,24 @@ export async function acceptOrRejectReport(req, res, next) {
       reportId,
       validatedReport
     );
-    return res.status(200).json(updatedReport);
+    return res.status(200).json({ success: updatedReport });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function changeProblemCategory(req, res, next) {
+  try {
+    const reportId = Number(req.params.reportId);
+    if (!isIdNumberAndPositive(reportId)) {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
+    const validatedReportBody = await validateNewReportCategory(req.body);
+    const updatedReport = await ReportService.updateReportCategory(
+      reportId,
+      validatedReportBody
+    );
+    return res.status(200).json({ success: updatedReport });
   } catch (error) {
     return next(error);
   }
