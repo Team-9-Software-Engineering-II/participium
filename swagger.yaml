@@ -173,6 +173,28 @@ paths:
         '401':
           description: Authentication required
 
+  /reports/assigned:
+    get:
+      summary: (Citizen) Get all Assigned reports
+      description: Allows a citizen to retrieve all reports with status 'Assigned'.
+      tags: [Reports]
+      security:
+        - BearerAuth: []
+      x-security-role: citizen
+      responses:
+        '200':
+          description: List of reports in Assigned status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportAssignedResponse'
+        '401':
+          description: "User not authenticated"
+        '403':
+          description: "Forbidden: citizen only"
+
   /reports/{reportId}:
     get:
       summary: Retrieve a single report by id
@@ -200,10 +222,13 @@ paths:
           description: Authentication required
         '404':
           description: Report not found
+    
+
+  /municipal/reports/{reportId}/category:
     put:
-      summary: Municipal Public Relations Officer can updates core report details
-      description: Allows a 'municipal public relations officer' to update details of a report (title, description, location, etc.) before accepting or rejecting it.
-      tags: [Reports]
+      summary: (Municipal Staff) Change report category
+      description: Allows Public Relations Officers to change the report category if it was incorrectly classified.
+      tags: [Municipal]
       parameters:
         - in: path
           name: reportId
@@ -212,30 +237,67 @@ paths:
             type: integer
             minimum: 1
       security:
-        - BearerAuth: [] 
+        - BearerAuth: []
+      x-security-role: municipal_public_relations_officer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCategoryUpdate'
+      responses:
+        '200':
+          description: Category updated successfully, returns a boolean.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateBooleanResponse'
+        '400':
+          description: Invalid ID format
+        '401':
+          description: User not authenticated
+        '403':
+          description: "Forbidden: municipal public relations officer only"
+        '404':
+          description: Report with id XX not found.
+
+
+  /municipal/reports/{reportId}:
+    put:
+      summary: (Municipal Staff) Accept or Reject a report (Initial Review)
+      description: Allows the Public Relations Officer to move a report from 'Pending Approval' to 'Assigned' or 'Rejected'. Please, be careful not to insert the 'rejection_reason' when you want to accept a report. Instead, specify it when you want to reject the report.
+      tags: [Municipal]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      security:
+        - BearerAuth: []
       x-security-role: municipality_public_relations_officer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReportUpdate'
+              $ref: '#/components/schemas/ReportAcceptReject'
       responses:
         '200':
-          description: Report successfully updated
+          description: Report status updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReportUpdatedResponse'
+                $ref: '#/components/schemas/UpdateBooleanResponse'
         '400':
-          description: Validation error on payload or invalid reportId
+          description: Invalid status or missing rejection_reason or invalid ID format
         '401':
-          description: Authentication required
+          description: User not authenticated
         '403':
-          description: 'Forbidden: municipality public relations officer only'
+          description: "Forbidden: municipal public relations officer only"
         '404':
-          description: Report not found
-
+          description: Report with id XX not found.
 
   /upload/photo:
     post:
@@ -438,7 +500,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Report'
+                  $ref: '#/components/schemas/ReportPendingResponse'
         '401':
           description: Authentication required
         '403':
@@ -656,6 +718,34 @@ components:
           minItems: 1
           maxItems: 3
 
+    UpdateBooleanResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: True if the resource was successfully updated, False otherwise (due to internal logic, not API error).
+          example: true
+
+    ReportCategoryUpdate:
+      type: object
+      required: [categoryId]
+      properties:
+        categoryId:
+          type: integer
+          description: The ID of the new category for the report.
+          minimum: 1
+
+    ReportAcceptReject:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+          enum: [Assigned, Rejected]
+        rejection_reason:
+          type: string
+          description: Required if status is 'Rejected'.
+          nullable: true
 
     Report:
       type: object
@@ -722,6 +812,8 @@ components:
           $ref: '#/components/schemas/ReportStatus'
         anonymous:
           type: boolean
+        reporterName: 
+          type: string
         rejectionReason:
           type: string
           nullable: true
@@ -733,6 +825,91 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+
+    ReportPendingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+        category:
+          $ref: '#/components/schemas/ReportCategoryDetails'
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        anonymous:
+          type: boolean
+        rejectionReason:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        reporterName: 
+          type: string
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+        userId:
+          type: integer
+        user:
+          $ref: '#/components/schemas/ReportAuthor'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReportAssignedResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        anonymous:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        categoryId:
+          type: integer
+        category:
+          $ref: '#/components/schemas/ReportCategoryDetails'
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+        reporterName: 
+          type: string
+        rejectionReason:
+          type: string
+          nullable: true
 
     ReportMapItem:
       type: object
@@ -759,6 +936,7 @@ components:
           enum: [accepted, rejected]
         rejectionReason: # Required if action = rejected
           type: string
+
     RoleSummary:
       type: object
       properties:
