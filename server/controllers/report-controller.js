@@ -1,5 +1,6 @@
 import { ReportService } from "../services/report-service.mjs";
 import { REPORT } from "../shared/constants/models.mjs";
+import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
 import {
   validateCreateReportInput,
   validateReportToBeAcceptedOrRejected,
@@ -45,6 +46,7 @@ export async function getPendingApprovalReports(req, res, next) {
     const reports = await ReportService.getAllReportsFilteredByStatus(
       REPORT.STATUS.PENDING_APPROVAL
     );
+
     return res.status(200).json(reports);
   } catch (error) {
     return next(error);
@@ -57,7 +59,8 @@ export async function getPendingApprovalReports(req, res, next) {
 export async function getAssignedReports(req, res, next) {
   try {
     const reports = await ReportService.getAllReportsFilteredByStatus(
-      REPORT.STATUS.ASSIGNED
+      REPORT.STATUS.ASSIGNED,
+      false
     );
     return res.status(200).json(reports);
   } catch (error) {

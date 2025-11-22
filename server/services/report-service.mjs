@@ -11,6 +11,7 @@ import {
   sanitizeReport,
   sanitizeReports,
 } from "../shared/utils/report-utils.mjs";
+import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
 
 /**
  * Encapsulates report business logic and orchestrates repository calls.
@@ -52,12 +53,15 @@ export class ReportService {
   }
 
   /**
-   * Retrieves all reports in the Pending Approval status ordered by creation date.
+   * @param {number} status - Strings that identify the status of the reports that you want to obtain
+   * @param {Boolean} includeUser - Flag to indicates if including user details for each returned report
+   *
+   * Retrieves all reports in a certain status ordered by creation date. If includeUser is true, userDetails will be included in the response.
    * @returns {Promise<object[]>} Sanitized reports collection.
    */
-  static async getAllReportsFilteredByStatus(status) {
+  static async getAllReportsFilteredByStatus(status, includeUser = false) {
     const reports = await findAllReportsFilteredByStatus(status);
-    return sanitizeReports(reports);
+    return mapReportsCollectionToAssignedListDTO(reports, includeUser);
   }
 
   /**
