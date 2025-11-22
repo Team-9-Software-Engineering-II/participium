@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   acceptOrRejectReport,
+  changeProblemCategory,
   getPendingApprovalReports,
 } from "../controllers/report-controller.js";
 import {
@@ -22,6 +23,13 @@ router.put(
   isAuthenticated,
   isPublicRelationsOfficer,
   acceptOrRejectReport
+);
+
+router.put(
+  "/reports/:reportId/category",
+  isAuthenticated,
+  isPublicRelationsOfficer,
+  changeProblemCategory
 );
 
 export default router;

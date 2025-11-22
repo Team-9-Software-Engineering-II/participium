@@ -75,6 +75,13 @@ export class ReportService {
   }
 
   static async updateReport(reportId, payload) {
+    await this.#ensureReportExists(reportId);
+    return await updateReport(reportId, payload);
+  }
+
+  static async updateReportCategory(reportId, payload) {
+    await this.#ensureReportExists(reportId);
+    await this.#ensureCategoryExists(payload.categoryId);
     return await updateReport(reportId, payload);
   }
 
@@ -90,10 +97,21 @@ export class ReportService {
 
   static async #ensureCategoryExists(categoryId) {
     const category = await findProblemCategoryById(categoryId);
-    if (!category) {
-      const error = new Error(`Category with id "${categoryId}" not found.`);
-      error.statusCode = 400;
-      throw error;
+    if (category) {
+      return;
     }
+    const error = new Error(`Category with id "${categoryId}" not found.`);
+    error.statusCode = 404;
+    throw error;
+  }
+
+  static async #ensureReportExists(reportId) {
+    const report = await findReportById(reportId);
+    if (report) {
+      return;
+    }
+    const error = new Error(`Report with id "${reportId}" not found.`);
+    error.statusCode = 404;
+    throw error;
   }
 }
