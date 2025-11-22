@@ -44,7 +44,8 @@ export async function getAllReports(req, res, next) {
 export async function getPendingApprovalReports(req, res, next) {
   try {
     const reports = await ReportService.getAllReportsFilteredByStatus(
-      REPORT.STATUS.PENDING_APPROVAL
+      REPORT.STATUS.PENDING_APPROVAL,
+      true
     );
 
     return res.status(200).json(reports);
