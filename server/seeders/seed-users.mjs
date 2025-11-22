@@ -26,13 +26,31 @@ export const seedUsers = async () => {
     // We assume Role IDs 1-4 exist from seedRoles
     // We assume TechnicalOffice ID 1 exists from seedTechnicalOffices
     await db.User.bulkCreate([
-      // 1. Citizen User
+      // Citizen User 1
       {
         email: "citizen@example.com",
         username: "mario.rossi",
         hashedPassword: defaultHashedPassword,
         firstName: "Mario",
         lastName: "Rossi",
+        roleId: 1,
+      },
+      // Citizen User 2
+      {
+        email: "citizen2@example.com",
+        username: "anna.neri",
+        hashedPassword: defaultHashedPassword,
+        firstName: "Anna",
+        lastName: "Neri",
+        roleId: 1,
+      },
+      // Citizen User 3
+      {
+        email: "citizen3@example.com",
+        username: "paolo.gialli",
+        hashedPassword: defaultHashedPassword,
+        firstName: "Paolo",
+        lastName: "Gialli",
         roleId: 1,
       },
       // 2. Admin User

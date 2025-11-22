@@ -3,9 +3,15 @@ import {
   findAllReports,
   findReportById,
   findReportsByUserId,
+  findAllReportsFilteredByStatus,
+  updateReport,
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
-import { sanitizeReport, sanitizeReports } from "../shared/utils/report-utils.mjs";
+import {
+  sanitizeReport,
+  sanitizeReports,
+} from "../shared/utils/report-utils.mjs";
+import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
 
 /**
  * Encapsulates report business logic and orchestrates repository calls.
@@ -47,6 +53,18 @@ export class ReportService {
   }
 
   /**
+   * @param {number} status - Strings that identify the status of the reports that you want to obtain
+   * @param {Boolean} includeUser - Flag to indicates if including user details for each returned report
+   *
+   * Retrieves all reports in a certain status ordered by creation date. If includeUser is true, userDetails will be included in the response.
+   * @returns {Promise<object[]>} Sanitized reports collection.
+   */
+  static async getAllReportsFilteredByStatus(status, includeUser = false) {
+    const reports = await findAllReportsFilteredByStatus(status);
+    return mapReportsCollectionToAssignedListDTO(reports, includeUser);
+  }
+
+  /**
    * Retrieves a report by its identifier.
    * @param {number} reportId - Identifier of the report to retrieve.
    * @returns {Promise<object | null>} Sanitized report or null when not found.
@@ -54,6 +72,10 @@ export class ReportService {
   static async getReportById(reportId) {
     const report = await findReportById(reportId);
     return sanitizeReport(report);
+  }
+
+  static async updateReport(reportId, payload) {
+    return await updateReport(reportId, payload);
   }
 
   /**
@@ -75,5 +97,3 @@ export class ReportService {
     }
   }
 }
-
-
