@@ -25,3 +25,10 @@ export function isTechnicalStaff(req, res, next) {
   }
   return res.status(403).json({ error: "Forbidden: technical staff only" });
 }
+
+export function isUrpOfficer(req, res, next) {
+  if (req.user?.role?.name === "municipality_public_relations_officer") {
+    return next();
+  }
+  return res.status(403).json({ error: "Forbidden: URP officer only" });
+}

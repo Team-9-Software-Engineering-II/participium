@@ -88,4 +88,14 @@ db.Report.belongsTo(db.Category, {
   as: "category",
 });
 
+db.User.hasMany(db.Report, {
+  foreignKey: "technicalOfficerId",
+  as: "assignedReports",
+});
+
+db.Report.belongsTo(db.User, {
+  foreignKey: "technicalOfficerId",
+  as: "technicalOfficer",
+});
+
 export default db;

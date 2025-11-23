@@ -4,8 +4,9 @@ import {
   getAllReports,
   getReportById,
   getReportsByUser,
+  reviewReport,
 } from "../controllers/report-controller.js";
-import { isAuthenticated, isCitizen } from "../middlewares/auth.mjs";
+import { isAuthenticated, isCitizen, isUrpOfficer } from "../middlewares/auth.mjs";
 
 const router = Router();
 
@@ -19,6 +20,13 @@ router.post("/", isAuthenticated, isCitizen, createReport);
  * Public endpoint - no authentication required.
  */
 router.get("/", getAllReports);
+
+/**
+ * URP Report Review (Accept/Reject).
+ * Path: PUT /reports/:reportId/review
+ */
+// <-- 2. NUOVA ROTTA AGGIUNTA
+router.put("/:reportId/review", isAuthenticated, isUrpOfficer, reviewReport);
 
 /**
  * Retrieves every report created by a specific user.
