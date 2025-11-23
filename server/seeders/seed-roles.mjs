@@ -13,7 +13,7 @@ export const seedRoles = async () => {
     await db.Role.bulkCreate([
       { id: 1, name: "citizen" },
       { id: 2, name: "admin" },
-      { id: 3, name: "municipality_public_relations_officer" },
+      { id: 3, name: "municipal_public_relations_officer" },
       { id: 4, name: "technical_staff" },
     ]);
 

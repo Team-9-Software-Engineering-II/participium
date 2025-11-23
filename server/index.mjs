@@ -27,10 +27,10 @@ function bootstrapExpress() {
   app.use(morgan("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  
+
   // Serve static files from uploads directory
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-  
+
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "participium-session-secret",
@@ -43,6 +43,7 @@ function bootstrapExpress() {
       },
     })
   );
+
   app.use(passport.initialize());
   app.use(passport.session());
   app.use(router);

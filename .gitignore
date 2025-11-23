@@ -125,6 +125,8 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+.vscode/
+
 # yarn v3
 .pnp.*
 .yarn/*
@@ -142,5 +144,5 @@ vite.config.ts.timestamp-*
 # database
 server/data/database.sqlite
 
-#uploaded files
-uploads/
+# uploaded files
+server/uploads/
