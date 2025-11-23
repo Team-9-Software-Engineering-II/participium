@@ -23,15 +23,29 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState({});
 
+  // FIX: Logica indirizzo migliorata per gestire parchi, cimiteri e aree senza via specifica
   const fetchAddress = async (lat, lng) => {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
       );
       const data = await res.json();
-      const road = data.address?.road || data.address?.pedestrian || "";
+      
+      // 1. Prova a costruire un indirizzo breve (Via + Civico)
+      const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
       const houseNumber = data.address?.house_number || "";
-      return `${road} ${houseNumber}`.trim() || "Address not available";
+      let formattedAddress = `${road} ${houseNumber}`.trim();
+
+      // 2. Se vuoto, usa il nome del luogo (es. "Cimitero Monumentale") o il nome visualizzato completo
+      if (!formattedAddress) {
+        // data.name contiene spesso il nome del POI (Point of Interest)
+        // data.display_name contiene l'indirizzo completo
+        formattedAddress = data.name || data.display_name || "Address not available";
+      }
+      
+      // Pulizia opzionale: se il display_name è lunghissimo, prendiamo solo le prime parti? 
+      // Per ora lasciamo l'indirizzo completo come richiesto dall'utente.
+      return formattedAddress;
     } catch (error) {
       console.error("Error fetching address:", error);
       return "Address not available";
@@ -75,7 +89,6 @@ export default function Dashboard() {
   }, [user?.id]);
 
   return (
-    // Usa bg-background/bg-muted per adattarsi al tema
     <div className="h-[100dvh] flex flex-col bg-muted/20 dark:bg-background overflow-hidden transition-colors duration-300">
       
       <div className="shrink-0">
@@ -86,8 +99,8 @@ export default function Dashboard() {
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 shrink-0">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground">
-              Welcome, {user?.firstName}!
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              Welcome, {user?.firstName}
             </h2>
             <p className="text-sm text-muted-foreground">
               Your reports overview
@@ -99,8 +112,7 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {/* Card Principale: usa bg-card e border-border */}
-        <Card className="flex-1 flex flex-col min-h-0 shadow-md border-border overflow-hidden">
+        <Card className="max-h-full flex flex-col min-h-0 shadow-md border-border overflow-hidden">
           
           <CardHeader className="border-b border-border bg-card py-3 px-4 shrink-0">
             <div className="flex justify-between items-center">
@@ -116,7 +128,6 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           
-          {/* Area Scrollabile: Sfondo leggermente diverso dalla card per contrasto */}
           <div className="flex-1 overflow-y-auto bg-muted/30 dark:bg-muted/10 p-0">
             <CardContent className="p-3 sm:p-4 space-y-4">
               {loading ? (
@@ -131,14 +142,11 @@ export default function Dashboard() {
                   <p className="text-sm mt-1">Create your first report above.</p>
                 </div>
               ) : (
-                // Lista Reports
                 myReports.map((report) => (
                   <div 
                     key={report.id} 
-                    // Item Report: usa bg-card per risaltare sullo sfondo della scroll area
                     className="bg-card border border-border rounded-xl shadow-sm p-4 transition-all hover:shadow-md hover:border-primary/50 group"
                   >
-                    {/* Header Report */}
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mr-2">
                         {report.title}
@@ -153,18 +161,19 @@ export default function Dashboard() {
                       </Button>
                     </div>
 
-                    {/* Status Bar */}
                     <div className="mb-4 border-b border-border pb-2">
                       <ReportStatus currentStatus={report.status} />
                     </div>
 
-                    {/* Details */}
                     <div className="flex flex-col sm:flex-row gap-4">
                       <div className="flex-1 space-y-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-2">
-                          {/* Colore accentato per l'icona in dark mode */}
                           <MapPin className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
-                          <span className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-xs font-medium text-foreground/80">
+                          {/* Tooltip nativo per vedere l'indirizzo completo se troncato */}
+                          <span 
+                            className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-xs font-medium text-foreground/80"
+                            title={addresses[report.id]} 
+                          >
                             {addresses[report.id] || "Loading address..."}
                           </span>
                         </div>
@@ -183,7 +192,6 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      {/* Photos Grid */}
                       {report.photos && report.photos.length > 0 && (
                         <div className="flex gap-2 sm:grid sm:grid-cols-2 sm:w-32 shrink-0 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                           {report.photos.slice(0, 2).map((photo, idx) => (
