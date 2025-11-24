@@ -103,6 +103,40 @@ export class ReportService {
   }
 
   /**
+   * Rejects a report, providing a mandatory reason.
+   * @param {number} reportId - The ID of the report to reject.
+   * @param {string} rejectionReason - The reason for rejection.
+   * @returns {Promise<object>} The updated sanitized report.
+   */
+  static async rejectReport(reportId, rejectionReason) {
+    // 1. Recupera il report
+    const report = await findReportById(reportId);
+    if (!report) {
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 2. Verifica lo stato (deve essere Pending Approval)
+    if (report.status !== "Pending Approval") {
+      const error = new Error(
+        `Cannot reject report. Current status is '${report.status}', expected 'Pending Approval'.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 3. Aggiorna il report: Stato "Rejected" e motivo del rifiuto
+    await updateReport(reportId, {
+      status: "Rejected",
+      rejection_reason: rejectionReason,
+    });
+
+    // Ritorna il report aggiornato
+    return this.getReportById(reportId);
+  }
+
+  /**
    * Retrieves all reports ordered by creation date.
    * @returns {Promise<object[]>} Sanitized reports collection.
    */

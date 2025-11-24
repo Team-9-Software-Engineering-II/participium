@@ -127,7 +127,7 @@ export async function reviewReport(req, res, next) {
 
     const { action, rejectionReason } = req.body;
 
-    if (action === "accepted") {
+    if (action === "assigned") {
       // Chiama la logica di Load Balancing
       const updatedReport = await ReportService.acceptReport(reportId);
       return res.status(200).json(updatedReport);
@@ -138,12 +138,11 @@ export async function reviewReport(req, res, next) {
         return res.status(400).json({ message: "Rejection reason is mandatory when rejecting a report." });
       }
       
-      // TO-DO: Implementare ReportService.rejectReport(reportId, rejectionReason)
-      // Per ora restituiamo un 501 (Not Implemented)
-      return res.status(501).json({ message: "Reject logic not implemented yet." });
+      const updatedReport = await ReportService.rejectReport(reportId, rejectionReason);
+      return res.status(200).json(updatedReport);
     } 
     else {
-      return res.status(400).json({ message: "Invalid action. Allowed values: 'accepted', 'rejected'." });
+      return res.status(400).json({ message: "Invalid action. Allowed values: 'assigned', 'rejected'." });
     }
 
   } catch (error) {

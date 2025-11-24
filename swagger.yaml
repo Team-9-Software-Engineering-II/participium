@@ -87,6 +87,7 @@ paths:
                 $ref: '#/components/schemas/UserProfile'
     put:
       summary: Update logged in user's profile
+      description: Citizens can upload a personal photo, add their Telegram username and switch off/on email notifications in the configuration panel.
       tags: [Users]
       security:
         - BearerAuth: []
@@ -103,6 +104,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid input data (e.g. incorrect field format)
+        '401':
+          description: Unauthorized - user not authenticated
+        '404':
+          description: User not found
 
   /reports:
     post:
