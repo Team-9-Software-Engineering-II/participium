@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createReport,
   getAllReports,
+  getAssignedReports,
   getReportById,
   getReportsByUser,
 } from "../controllers/report-controller.js";
@@ -27,11 +28,15 @@ router.get("/", getAllReports);
 router.get("/user/:userId", isAuthenticated, getReportsByUser);
 
 /**
+ * Retrieves every report in the Assigned status.
+ * This route MUST stay before the /:reportId definition to avoid conflicts.
+ */
+router.get("/assigned", isAuthenticated, isCitizen, getAssignedReports);
+
+/**
  * Retrieves a single report by its identifier.
  * Public endpoint - no authentication required.
  */
 router.get("/:reportId", getReportById);
 
 export default router;
-
-

@@ -1,4 +1,5 @@
 import { seedCategories } from "./seed-category.mjs";
+import { seedReports } from "./seed-reports.mjs";
 import { seedRoles } from "./seed-roles.mjs";
 import { seedTechnicalOffices } from "./seed-technical-office.mjs";
 import { seedUsers } from "./seed-users.mjs";
@@ -16,6 +17,7 @@ export const seedDatabase = async () => {
     await seedCategories();
     await seedTechnicalOffices();
     await seedUsers();
+    await seedReports();
 
     console.log("Database seeding finished successfully.");
   } catch (err) {
