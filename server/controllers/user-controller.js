@@ -7,10 +7,6 @@ import { validateProfileUpdateInput } from "../shared/validators/user-profile-up
  */
 export async function getProfile(req, res, next) {
   try {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
     const sanitizedUser = sanitizeUser(req.user);
     return res.status(200).json(sanitizedUser);
   } catch (error) {
@@ -23,10 +19,6 @@ export async function getProfile(req, res, next) {
  */
 export async function updateProfile(req, res, next) {
   try {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
     const validatedInput = validateProfileUpdateInput(req, res);
 
     if (!validatedInput) {
