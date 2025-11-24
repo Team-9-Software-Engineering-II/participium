@@ -42,8 +42,7 @@ class AdminCreateMunicipalityUserPage {
 
     if (role) {
       this.elements.createRoleTrigger().click();
-
-      cy.get('[data-cy="role"]').contains(role).should("be.visible").click();
+      this.elements.role().contains(role).should("be.visible").click();
     }
   }
 
@@ -53,8 +52,7 @@ class AdminCreateMunicipalityUserPage {
    */
   editUser(role) {
     this.elements.editRoleTrigger().should("be.visible").click();
-
-    cy.get('[data-cy="edit-role"]').should("be.visible").contains(role).click();
+    this.elements.editRole().should("be.visible").contains(role).click();
   }
 
   /**

@@ -70,7 +70,7 @@ class MapViewPage {
    */
   placeMarkerAt(x, y) {
     this.clickMap(x, y);
-    cy.get(".custom-user-marker").should("exist").and("be.visible");
+    this.elements.userMarker().should("exist").and("be.visible");
     return this; // allows method chaining
   }
 }

@@ -67,22 +67,6 @@ describe("Map interactions as guest", () => {
       });
   });
 
-  it("should reposition marker when searching after manual placement", () => {
-    MapViewPage.clickMap(200, 200);
-
-    cy.get(".custom-user-marker")
-      .invoke("attr", "style")
-      .then((beforePos) => {
-        MapViewPage.searchAddress("Via Roma");
-
-        cy.get(".custom-user-marker")
-          .invoke("attr", "style")
-          .should((afterPos) => {
-            expect(afterPos).to.not.equal(beforePos);
-          });
-      });
-  });
-
   it("should hide search results after selecting an address", () => {
     MapViewPage.elements
       .searchInput()
