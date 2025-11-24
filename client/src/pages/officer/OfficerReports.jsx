@@ -43,16 +43,17 @@ export default function OfficerReports({ status }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight capitalize">{status} Reports</h1>
-        <p className="text-muted-foreground">
+        {/* Responsive text size */}
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight capitalize">{status} Reports</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
           {status === 'pending' 
             ? 'Review and manage incoming citizen reports.' 
             : `View ${status} reports history.`}
         </p>
       </div>
 
-      {/* MODIFICA QUI: gap-6 e lg:grid-cols-2 per avere card più grandi e 2 per riga */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+      {/* RESPONSIVE GRID: grid-cols-1 su mobile, md:grid-cols-2 su tablet/desktop */}
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 max-w-5xl">
         {reports.length === 0 && (
           <div className="col-span-full py-12 text-center border rounded-lg border-dashed text-muted-foreground">
             No reports found in this section.
@@ -66,14 +67,14 @@ export default function OfficerReports({ status }) {
           >
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start gap-4">
-                <Badge variant={status === 'pending' ? 'outline' : 'secondary'} className="truncate max-w-[200px]">
+                <Badge variant={status === 'pending' ? 'outline' : 'secondary'} className="truncate max-w-[150px] md:max-w-[200px]">
                   {report.category?.name || 'Uncategorized'}
                 </Badge>
                 <span className="text-xs text-muted-foreground whitespace-nowrap group-hover:text-primary transition-colors pt-1">
                   {format(new Date(report.createdAt || Date.now()), 'dd/MM/yyyy')}
                 </span>
               </div>
-              <CardTitle className="text-xl mt-3 line-clamp-1 group-hover:text-primary transition-colors">
+              <CardTitle className="text-lg md:text-xl mt-3 line-clamp-1 group-hover:text-primary transition-colors">
                 {report.title}
               </CardTitle>
             </CardHeader>

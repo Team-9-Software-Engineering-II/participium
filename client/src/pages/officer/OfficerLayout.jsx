@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Menu, X, ClipboardList, CheckCircle2, XCircle, User } from 'lucide-react';
 import Navbar from '@/components/common/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { urpAPI, reportAPI } from '@/services/api'; // Usa reportAPI per getAll
+import { urpAPI, reportAPI } from '@/services/api';
 import { Badge } from '@/components/ui/badge';
 
 const getNavigationItems = (counts) => [
@@ -52,11 +52,7 @@ export default function OfficerLayout() {
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        // Parallel fetch
-        // 1. Pending: esiste endpoint specifico ottimizzato
         const pendingPromise = urpAPI.getPendingReports();
-        
-        // 2. Assigned/Rejected: dobbiamo scaricare tutto e contare
         const allPromise = reportAPI.getAll();
 
         const [pendingRes, allRes] = await Promise.all([pendingPromise, allPromise]);
@@ -76,7 +72,7 @@ export default function OfficerLayout() {
     };
 
     fetchCounts();
-  }, [location.pathname]); // Aggiorna quando cambia pagina (es. dopo aver assegnato un report)
+  }, [location.pathname]);
 
   const navigationItems = getNavigationItems(counts);
 
@@ -119,7 +115,7 @@ export default function OfficerLayout() {
                     </div>
                   </div>
                   {item.count > 0 && (
-                    <Badge variant={item.badgeVariant} className="ml-auto h-5 px-1.5 text-[10px]">
+                      <Badge variant={item.badgeVariant} className="ml-auto">
                       {item.count}
                     </Badge>
                   )}
@@ -131,7 +127,8 @@ export default function OfficerLayout() {
 
         {/* Main content */}
         <main className="flex-1 lg:pl-[280px]">
-          <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-20 sm:px-8 sm:pt-24">
+          {/* MODIFICA QUI: pt-20/pt-24 ridotto a pt-6 per ridurre lo spazio sotto la navbar */}
+          <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-8">
             <div className="mb-6 lg:hidden">
               <button
                 type="button"
@@ -147,7 +144,7 @@ export default function OfficerLayout() {
         </main>
       </div>
       
-      {/* Mobile Sidebar logic */}
+      {/* Mobile Sidebar */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsMobileSidebarOpen(false)} />
@@ -171,7 +168,7 @@ export default function OfficerLayout() {
                       <span>{item.name}</span>
                     </div>
                     {item.count > 0 && (
-                      <Badge variant={item.badgeVariant} className="ml-auto">
+                      <Badge className={`ml-auto ${item.badgeClassName}`}>
                         {item.count}
                       </Badge>
                     )}
