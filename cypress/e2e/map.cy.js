@@ -25,6 +25,19 @@ describe("Map interactions as guest", () => {
     MapViewPage.visit();
   });
 
+  it("should display search results list when typing an address", () => {
+    MapViewPage.elements
+      .searchInput()
+      .click({ force: true })
+      .type("Via Roma", { force: true });
+
+    MapViewPage.elements
+      .searchResults()
+      .should("exist")
+      .and("be.visible")
+      .and("have.length.greaterThan", 0);
+  });
+  
   it("should move the marker when clicking the map", () => {
     MapViewPage.clickMap(300, 300).assertMarkerExists();
   });
@@ -34,5 +47,60 @@ describe("Map interactions as guest", () => {
 
     MapViewPage.elements.createReportButton().click({ force: true });
     cy.url().should("include", "/login");
+  });
+
+  it("should update marker position after a second click", () => {
+    // First click
+    MapViewPage.clickMap(200, 200);
+
+    cy.get(".custom-user-marker")
+      .invoke("attr", "style")
+      .then((firstPos) => {
+        // Second click
+        MapViewPage.clickMap(400, 150);
+
+        cy.get(".custom-user-marker")
+          .invoke("attr", "style")
+          .should((secondPos) => {
+            expect(secondPos).to.not.equal(firstPos);
+          });
+      });
+  });
+
+  it("should reposition marker when searching after manual placement", () => {
+    MapViewPage.clickMap(200, 200);
+
+    cy.get(".custom-user-marker")
+      .invoke("attr", "style")
+      .then((beforePos) => {
+        MapViewPage.searchAddress("Via Roma");
+
+        cy.get(".custom-user-marker")
+          .invoke("attr", "style")
+          .should((afterPos) => {
+            expect(afterPos).to.not.equal(beforePos);
+          });
+      });
+  });
+
+  it("should hide search results after selecting an address", () => {
+    MapViewPage.elements
+      .searchInput()
+      .click({ force: true })
+      .type("Via Roma", { force: true });
+
+    MapViewPage.elements.searchResults().should("exist").and("be.visible");
+
+    MapViewPage.elements.searchResults().first().click({ force: true });
+
+    MapViewPage.elements.searchResults().should("not.exist");
+  });
+
+  it("should not keep the marker after page reload", () => {
+    MapViewPage.clickMap(200, 200).assertMarkerExists();
+
+    cy.reload();
+
+    cy.get(".custom-user-marker").should("not.exist");
   });
 });
