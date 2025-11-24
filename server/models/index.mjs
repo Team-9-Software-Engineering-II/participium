@@ -60,7 +60,7 @@ db.Category.hasOne(db.TechnicalOffice, {
   as: "technicalOffice",
 });
 
-/* User - Report relationship (1:N) */
+/* User (Citizen) - Report relationship (1:N) */
 db.User.hasMany(db.Report, {
   foreignKey: {
     name: "userId",
@@ -72,6 +72,17 @@ db.User.hasMany(db.Report, {
 db.Report.belongsTo(db.User, {
   foreignKey: "userId",
   as: "user",
+});
+
+/* User (Technical Staff) - Report relationship (1:N) */
+db.User.hasMany(db.Report, {
+  foreignKey: "technicalOfficerId",
+  as: "assignedReports",
+});
+
+db.Report.belongsTo(db.User, {
+  foreignKey: "technicalOfficerId",
+  as: "technicalOfficer",
 });
 
 /* Problem_Category - Report relationship (1:N) */
@@ -86,16 +97,6 @@ db.Category.hasMany(db.Report, {
 db.Report.belongsTo(db.Category, {
   foreignKey: "categoryId",
   as: "category",
-});
-
-db.User.hasMany(db.Report, {
-  foreignKey: "technicalOfficerId",
-  as: "assignedReports",
-});
-
-db.Report.belongsTo(db.User, {
-  foreignKey: "technicalOfficerId",
-  as: "technicalOfficer",
 });
 
 export default db;
