@@ -1,43 +1,42 @@
 class MapViewPage {
   elements = {
-    mapContainer: () => cy.get('[data-cy="map-container"]'),
-    searchInput: () => cy.get('[data-cy="search-input"]'),
-    locationMarker: () => cy.get('[data-cy="location-marker"]'),
-    reportPopup: () => cy.get('[data-cy="report-popup"]'),
+    map: () => cy.get('[data-cy="map-container"]'),
+    searchInput: () => cy.get('[data-cy="search-input"]:visible').first(),
     searchResults: () => cy.get('[data-cy="search-result"]'),
+    userMarker: () => cy.get(".custom-user-marker"),
+    createReportButton: () => cy.get('[data-cy="create-report-button"]'),
   };
 
   visit() {
-    cy.visit("/");
-  }
-
-  clickMap(position = "center") {
-    this.elements.mapContainer().click(position);
+    return cy.visit("/");
   }
 
   searchAddress(address) {
-    if (!address || typeof address !== "string") {
-      throw new Error("searchAddress requires a valid string");
-    }
-
     this.elements
       .searchInput()
-      .scrollIntoView({ block: "center" })
+      .should("be.visible")
       .click({ force: true })
       .clear({ force: true })
       .type(address, { force: true });
 
-    cy.wait(500);
-
     this.elements.searchResults().first().click({ force: true });
+
+    return this;
   }
 
-  verifyLocationMarker() {
-    this.elements.locationMarker().should("exist");
+  clickMap(x, y) {
+    cy.get(".leaflet-container").first().click(x, y, { force: true });
+    return this;
   }
 
-  verifyReportPopup() {
-    this.elements.reportPopup().should("exist");
+  assertMarkerExists() {
+    this.elements.userMarker().should("exist");
+    return this;
+  }
+
+  assertReportButtonVisible() {
+    this.elements.createReportButton().should("exist").and("be.visible");
+    return this;
   }
 }
 
