@@ -801,6 +801,7 @@ export default function CreateReport() {
       size="lg"
       className="gap-2"
       onClick={() => document.getElementById('photo-upload')?.click()}
+      data-cy="photo-upload-button"
     >
       <Upload className="h-5 w-5" />
       Add Photo
@@ -815,8 +816,8 @@ export default function CreateReport() {
         <div className="space-y-6">
           {/* Header */}
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">New Report</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 data-cy="create-report-title" className="text-3xl font-bold tracking-tight">New Report</h1>
+            <p data-cy="create-report-warning" className="text-sm text-muted-foreground">
               <strong>ATTENTION:</strong> Participium is a system to report urban maintenance issues and not emergencies that require immediate intervention.
               In case of fires it is essential to contact the competent authorities such as Firefighters, Police, etc.
               If necessary therefore in case of temporary intervention, we advise you not to proceed with this report but to contact the relevant services.
@@ -827,6 +828,7 @@ export default function CreateReport() {
             {/* Map Button - Mobile Only */}
             {isMobile && (
               <button
+                data-cy="location-button"
                 type="button"
                 onClick={() => setShowMapDialog(true)}
                 className="w-full bg-card border rounded-lg p-4 flex items-center gap-3 hover:bg-accent transition-colors text-left"
@@ -848,7 +850,7 @@ export default function CreateReport() {
 
             {/* Map Section - Desktop Only */}
             {!isMobile && (
-              <div className="bg-card border rounded-lg overflow-hidden">
+              <div className="bg-card border rounded-lg overflow-hidden" data-cy="location-map">
                 {/* Map with Search */}
                 <div className={`relative ${theme === 'dark' ? 'dark-map' : ''}`} style={{ height: '500px' }}>
                   <MapContainer
@@ -889,6 +891,7 @@ export default function CreateReport() {
                         value={searchQuery}
                         onChange={(e) => handleSearchInput(e.target.value)}
                         className="pl-10 pr-10 bg-white dark:bg-gray-900 shadow-lg"
+                        data-cy="location-search-input"
                       />
                       {searchQuery && (
                         <button
@@ -910,6 +913,7 @@ export default function CreateReport() {
                             type="button"
                             onClick={() => handleSearchResultClick(result)}
                             className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"
+                            data-cy="location-search-result"
                           >
                             <p className="text-sm font-medium">{result.display_name}</p>
                           </button>
@@ -924,6 +928,8 @@ export default function CreateReport() {
                     onClick={handleUseMyLocation}
                     className="absolute bottom-4 left-4 z-[1000] bg-white dark:bg-gray-900 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
                     title="Use my location"
+                    data-cy="location-geolocate"
+
                   >
                     <Crosshair className="h-5 w-5" />
                   </button>
@@ -963,9 +969,10 @@ export default function CreateReport() {
                   readOnly
                   className="bg-muted cursor-default"
                   required
+                  data-cy="location-input"
                 />
                 {formData.latitude && formData.longitude && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground" data-cy="location-coordinates">
                     Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                   </p>
                 )}
@@ -974,12 +981,12 @@ export default function CreateReport() {
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Select value={formData.category} onValueChange={handleCategoryChange} required>
-                  <SelectTrigger>
+                  <SelectTrigger data-cy="select-category">
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((category) => (
-                      <SelectItem key={category} value={category}>
+                      <SelectItem key={category} value={category} data-cy="category">
                         {category}
                       </SelectItem>
                     ))}
@@ -998,6 +1005,7 @@ export default function CreateReport() {
                   value={formData.title}
                   onChange={handleChange}
                   required
+                  data-cy="report-title-input"
                 />
               </div>
 
@@ -1013,6 +1021,7 @@ export default function CreateReport() {
                   onChange={handleChange}
                   className="resize-none"
                   required
+                  data-cy="report-description-textarea"
                 />
               </div>
             </div>
@@ -1031,9 +1040,11 @@ export default function CreateReport() {
                         alt={`Preview ${index + 1}`}
                         className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => handlePhotoClick(index)}
+                        data-cy={`photo-preview-${index}`}
                       />
                       <button
                         type="button"
+                        data-cy={`photo-remove-${index}`}
                         onClick={() => handleRemovePhoto(index)}
                         className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90 transition-colors"
                       >
@@ -1061,6 +1072,7 @@ export default function CreateReport() {
                           onChange={handlePhotoUpload}
                           className="hidden"
                           multiple
+                          data-cy="photo-input-camera"
                         />
                         <input
                           id="photo-library"
@@ -1069,6 +1081,7 @@ export default function CreateReport() {
                           onChange={handlePhotoUpload}
                           className="hidden"
                           multiple
+                          data-cy="photo-input-library"
                         />
                         <input
                           id="photo-file"
@@ -1077,6 +1090,7 @@ export default function CreateReport() {
                           onChange={handlePhotoUpload}
                           className="hidden"
                           multiple
+                          data-cy="photo-input-file" 
                         />
                       </>
                     ) : (
@@ -1118,6 +1132,7 @@ export default function CreateReport() {
                     value={user.firstName || ''}
                     disabled
                     className="bg-muted"
+                    data-cy="user-first-name"
                   />
                 </div>
 
@@ -1129,6 +1144,7 @@ export default function CreateReport() {
                     value={user.lastName || ''}
                     disabled
                     className="bg-muted"
+                    data-cy="user-last-name"
                   />
                 </div>
               </div>
@@ -1142,6 +1158,7 @@ export default function CreateReport() {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  data-cy="user-email"
                 />
               </div>
 
@@ -1165,7 +1182,7 @@ export default function CreateReport() {
 
             {/* Submit Button */}
             <div className="flex justify-center">
-              <Button type="submit" size="lg" className="px-12">
+              <Button type="submit" size="lg" className="px-12" data-cy="submit-report-button">
                 Submit Report
               </Button>
             </div>
@@ -1248,12 +1265,14 @@ export default function CreateReport() {
               <>
                 <button
                   onClick={handlePreviousPhoto}
+                  data-cy="photo-prev-button"
                   className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors"
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </button>
                 <button
                   onClick={handleNextPhoto}
+                  data-cy="photo-next-button"
                   className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors"
                 >
                   <ChevronRight className="h-6 w-6" />

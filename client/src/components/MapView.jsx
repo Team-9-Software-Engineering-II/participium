@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -18,10 +25,10 @@ import {
 
 // Report status colors and labels
 const REPORT_STATUS = {
-  TO_ASSIGN: { color: '#3B82F6', label: 'To Assign', icon: '●' },
-  ASSIGNED: { color: '#F59E0B', label: 'Assigned', icon: '●' },
-  IN_PROGRESS: { color: '#EAB308', label: 'In Progress', icon: '●' },
-  COMPLETED: { color: '#10B981', label: 'Completed', icon: '●' }
+  TO_ASSIGN: { color: "#3B82F6", label: "To Assign", icon: "●" },
+  ASSIGNED: { color: "#F59E0B", label: "Assigned", icon: "●" },
+  IN_PROGRESS: { color: "#EAB308", label: "In Progress", icon: "●" },
+  COMPLETED: { color: "#10B981", label: "Completed", icon: "●" },
 };
 
 // Create custom user icon (pin)
@@ -34,7 +41,7 @@ const createUserIcon = () => {
         <circle cx="12" cy="9" r="2.5" fill="white"/>
       </svg>
     `,
-    className: 'custom-user-marker',
+    className: "custom-user-marker",
     iconSize: [40, 40],
     iconAnchor: [20, 40],
     popupAnchor: [0, -40],
@@ -45,7 +52,7 @@ const createUserIcon = () => {
 const createReportIcon = (status) => {
   const statusInfo = REPORT_STATUS[status] || REPORT_STATUS.TO_ASSIGN;
   return L.divIcon({
-    className: 'custom-report-marker',
+    className: "custom-report-marker",
     html: `
       <div style="
         width: 30px;
@@ -58,7 +65,7 @@ const createReportIcon = (status) => {
     `,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
-    popupAnchor: [0, -15]
+    popupAnchor: [0, -15],
   });
 };
 
@@ -66,20 +73,20 @@ const createReportIcon = (status) => {
 const createClusterCustomIcon = (cluster) => {
   const count = cluster.getChildCount();
   let color;
-  
+
   // Gradient from green (few) to red (many)
   if (count < 10) {
-    color = '#10B981'; // green
+    color = "#10B981"; // green
   } else if (count < 25) {
-    color = '#EAB308'; // yellow
+    color = "#EAB308"; // yellow
   } else if (count < 50) {
-    color = '#F59E0B'; // orange
+    color = "#F59E0B"; // orange
   } else if (count < 100) {
-    color = '#EF4444'; // red
+    color = "#EF4444"; // red
   } else {
-    color = '#991B1B'; // dark red
+    color = "#991B1B"; // dark red
   }
-  
+
   return L.divIcon({
     html: `
       <div style="
@@ -97,7 +104,7 @@ const createClusterCustomIcon = (cluster) => {
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       ">${count}</div>
     `,
-    className: 'custom-cluster-icon',
+    className: "custom-cluster-icon",
     iconSize: L.point(50, 50, true),
   });
 };
@@ -107,14 +114,14 @@ function ZoomControl() {
   const map = useMap();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef(null);
-  
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -124,15 +131,16 @@ function ZoomControl() {
       L.DomEvent.disableScrollPropagation(containerRef.current);
     }
   }, []);
-  
+
   // Custom zoom buttons for both mobile and desktop
   return (
-    <div 
+    <div
       ref={containerRef}
       className="absolute z-[1000] shadow-md"
-      style={isMobile 
-        ? { bottom: '200px', left: '21px' }
-        : { bottom: '130px', right: '10px' }
+      style={
+        isMobile
+          ? { bottom: "200px", left: "21px" }
+          : { bottom: "130px", right: "10px" }
       }
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -159,15 +167,15 @@ function ZoomControl() {
                    cursor-pointer rounded-t"
         title="Zoom in"
         style={{
-          lineHeight: '26px',
-          textAlign: 'center',
-          textDecoration: 'none',
-          color: '#000',
+          lineHeight: "26px",
+          textAlign: "center",
+          textDecoration: "none",
+          color: "#000",
         }}
       >
         +
       </button>
-      
+
       {/* Custom Zoom Out button */}
       <button
         onClick={(e) => {
@@ -189,10 +197,10 @@ function ZoomControl() {
                    cursor-pointer rounded-b"
         title="Zoom out"
         style={{
-          lineHeight: '26px',
-          textAlign: 'center',
-          textDecoration: 'none',
-          color: '#000',
+          lineHeight: "26px",
+          textAlign: "center",
+          textDecoration: "none",
+          color: "#000",
         }}
       >
         −
@@ -205,61 +213,75 @@ function ZoomControl() {
 function MapUpdater({ position }) {
   const map = useMap();
   const prevPosition = useRef(null);
-  
+
   useEffect(() => {
     // Check if position actually changed
     if (!position || !Array.isArray(position) || position.length !== 2) {
       return;
     }
-    
+
     // Validate coordinates
-    if (isNaN(position[0]) || isNaN(position[1]) || 
-        position[0] === null || position[1] === null) {
-      console.error('Invalid position in MapUpdater:', position);
+    if (
+      isNaN(position[0]) ||
+      isNaN(position[1]) ||
+      position[0] === null ||
+      position[1] === null
+    ) {
+      console.error("Invalid position in MapUpdater:", position);
       return;
     }
-    
+
     // Check if this is a real position change
     const posKey = `${position[0]},${position[1]}`;
-    const prevKey = prevPosition.current ? `${prevPosition.current[0]},${prevPosition.current[1]}` : null;
-    
+    const prevKey = prevPosition.current
+      ? `${prevPosition.current[0]},${prevPosition.current[1]}`
+      : null;
+
     if (posKey === prevKey) {
       return; // Position hasn't changed, skip update
     }
-    
+
     prevPosition.current = position;
-    
+
     try {
       // Use setView with slower animation - more stable than flyTo
       if (map && map.setView) {
         map.setView(position, 15, {
           animate: true,
-          duration: 1.5 // Slower, smoother animation
+          duration: 1.5, // Slower, smoother animation
         });
       }
     } catch (error) {
-      console.error('Error in setView:', error, 'position:', position);
+      console.error("Error in setView:", error, "position:", position);
     }
   }, [position, map]);
-  
+
   return null;
 }
 
 // Component to handle map clicks
-function LocationMarker({ position, setPosition, setAddress, address, setSearchQuery, setSearchResults, setShowSearchResults }) {
+function LocationMarker({
+  position,
+  setPosition,
+  setAddress,
+  address,
+  setSearchQuery,
+  setSearchResults,
+  setShowSearchResults,
+}) {
   const navigate = useNavigate();
   const markerRef = useRef(null);
-  
+
   const map = useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng]);
       fetchAddress(e.latlng.lat, e.latlng.lng, setAddress);
-      
+
       // Pulisce la barra di ricerca quando si clicca sulla mappa
-      if (setSearchQuery) setSearchQuery('');
+      if (setSearchQuery) setSearchQuery("");
       if (setSearchResults) setSearchResults([]);
       if (setShowSearchResults) setShowSearchResults(false);
-      
+
       // Open popup automatically after a short delay
       setTimeout(() => {
         if (markerRef.current) {
@@ -270,8 +292,8 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
   });
 
   return position === null ? null : (
-    <Marker 
-      position={position} 
+    <Marker
+      position={position}
       icon={createUserIcon()}
       draggable={true}
       ref={markerRef}
@@ -286,7 +308,10 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
       }}
     >
       <Popup className="custom-popup" maxWidth={220}>
-        <div className="bg-white dark:bg-black rounded-lg p-2.5 shadow-lg" style={{ minWidth: '200px' }}>
+        <div
+          className="bg-white dark:bg-black rounded-lg p-2.5 shadow-lg"
+          style={{ minWidth: "200px" }}
+        >
           <div className="flex items-center gap-1.5 mb-0.5">
             <MapPin className="h-3.5 w-3.5 text-foreground flex-shrink-0" />
             {address && address.trim() && (
@@ -298,13 +323,14 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
           <p className="text-[10px] text-muted-foreground mb-2 ml-5">
             {position[0].toFixed(6)}, {position[1].toFixed(6)}
           </p>
-          <Button 
+          <Button
+            data-cy="create-report-button"
             onClick={() => {
-              navigate('/reports/new', { 
-                state: { 
+              navigate("/reports/new", {
+                state: {
                   coordinates: position,
-                  address: address || null
-                }
+                  address: address || null,
+                },
               });
             }}
             className="w-full h-7 text-xs"
@@ -339,16 +365,16 @@ const fetchAddress = async (lat, lng, setAddress) => {
 // Component to center map on selected report
 function CenterOnReport({ selectedReport }) {
   const map = useMap();
-  
+
   useEffect(() => {
     if (selectedReport && selectedReport.latitude && selectedReport.longitude) {
       map.setView([selectedReport.latitude, selectedReport.longitude], 16, {
         animate: true,
-        duration: 1
+        duration: 1,
       });
     }
   }, [selectedReport, map]);
-  
+
   return null;
 }
 
@@ -371,37 +397,37 @@ export function MapView({ reports = [], selectedReport = null }) {
       // Search only in Turin city
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchQuery + ', Torino'
+          searchQuery + ", Torino"
         )}&addressdetails=1&limit=1&countrycodes=it`
       );
       const results = await res.json();
-      
+
       if (results.length > 0 && results[0].lat && results[0].lon) {
         const lat = parseFloat(results[0].lat);
         const lon = parseFloat(results[0].lon);
-        
+
         // Validate coordinates before setting position
         if (!isNaN(lat) && !isNaN(lon) && lat !== null && lon !== null) {
           setPosition([lat, lon]);
           setAddress(results[0].display_name);
           setShowSearchResults(false);
         } else {
-          console.error('Invalid coordinates from search:', { lat, lon });
+          console.error("Invalid coordinates from search:", { lat, lon });
         }
       }
     } catch (error) {
-      console.error('Search error:', error);
+      console.error("Search error:", error);
     }
   };
 
   const handleSearchInput = (value) => {
     setSearchQuery(value);
-    
+
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     if (value.trim().length < 3) {
       setSearchResults([]);
       setShowSearchResults(false);
@@ -414,88 +440,115 @@ export function MapView({ reports = [], selectedReport = null }) {
         // Search only in Turin city (not metropolitan area)
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?` +
-          `format=json` +
-          `&q=${encodeURIComponent(value + ', Torino')}` +
-          `&addressdetails=1` +
-          `&limit=30` +
-          `&countrycodes=it` +
-          `&dedupe=1`
+            `format=json` +
+            `&q=${encodeURIComponent(value + ", Torino")}` +
+            `&addressdetails=1` +
+            `&limit=30` +
+            `&countrycodes=it` +
+            `&dedupe=1`
         );
         const results = await res.json();
-        
+
         // Filter and prioritize streets
         const filteredResults = results
-          .filter(result => {
+          .filter((result) => {
             // Must be in Turin city only - strict check
-            const isTurin = (result.address?.city === 'Torino' || 
-                            result.address?.town === 'Torino' ||
-                            result.address?.municipality === 'Torino')
-            
+            const isTurin =
+              result.address?.city === "Torino" ||
+              result.address?.town === "Torino" ||
+              result.address?.municipality === "Torino";
+
             if (!isTurin) return false;
-            
+
             // Exclude unwanted types
-            const excludeTypes = ['shop', 'bar', 'restaurant', 'cafe', 'fast_food', 'pub', 
-                                 'bank', 'pharmacy', 'supermarket', 'mall', 'motorway'];
-            const isExcluded = excludeTypes.includes(result.type) || 
-                              (result.class === 'shop') ||
-                              (result.type === 'motorway');
-            
+            const excludeTypes = [
+              "shop",
+              "bar",
+              "restaurant",
+              "cafe",
+              "fast_food",
+              "pub",
+              "bank",
+              "pharmacy",
+              "supermarket",
+              "mall",
+              "motorway",
+            ];
+            const isExcluded =
+              excludeTypes.includes(result.type) ||
+              result.class === "shop" ||
+              result.type === "motorway";
+
             return !isExcluded;
           })
           .sort((a, b) => {
             const searchLower = value.toLowerCase();
-            
+
             // Get street names
-            const aRoad = (a.address?.road || '').toLowerCase();
-            const bRoad = (b.address?.road || '').toLowerCase();
-            
+            const aRoad = (a.address?.road || "").toLowerCase();
+            const bRoad = (b.address?.road || "").toLowerCase();
+
             // Prioritize streets that start with the search term
-            const aStarts = aRoad.startsWith(searchLower) || aRoad.includes(' ' + searchLower);
-            const bStarts = bRoad.startsWith(searchLower) || bRoad.includes(' ' + searchLower);
-            
+            const aStarts =
+              aRoad.startsWith(searchLower) ||
+              aRoad.includes(" " + searchLower);
+            const bStarts =
+              bRoad.startsWith(searchLower) ||
+              bRoad.includes(" " + searchLower);
+
             if (aStarts && !bStarts) return -1;
             if (!aStarts && bStarts) return 1;
-            
+
             // Then prioritize results with road in address (actual streets)
             const aHasRoad = a.address?.road;
             const bHasRoad = b.address?.road;
-            
+
             if (aHasRoad && !bHasRoad) return -1;
             if (!aHasRoad && bHasRoad) return 1;
-            
+
             return 0;
           })
           .slice(0, 5);
-        
+
         // Only update if we have results or current results are empty
         if (filteredResults.length > 0 || searchResults.length === 0) {
           setSearchResults(filteredResults);
           setShowSearchResults(filteredResults.length > 0);
         }
       } catch (error) {
-        console.error('Search error:', error);
+        console.error("Search error:", error);
       }
     }, 250);
   };
 
   const selectSearchResult = (result) => {
     const { lat, lon, display_name } = result;
-    
+
     // Validate coordinates before setting position
     if (lat && lon) {
       const latitude = parseFloat(lat);
       const longitude = parseFloat(lon);
-      
-      if (!isNaN(latitude) && !isNaN(longitude) && latitude !== null && longitude !== null) {
+
+      if (
+        !isNaN(latitude) &&
+        !isNaN(longitude) &&
+        latitude !== null &&
+        longitude !== null
+      ) {
         setPosition([latitude, longitude]);
         setAddress(display_name);
         setSearchQuery(display_name);
         setShowSearchResults(false);
       } else {
-        console.error('Invalid coordinates from search result:', { lat, lon, latitude, longitude });
+        console.error("Invalid coordinates from search result:", {
+          lat,
+          lon,
+          latitude,
+          longitude,
+        });
       }
     } else {
-      console.error('Missing lat/lon in search result:', result);
+      console.error("Missing lat/lon in search result:", result);
     }
   };
 
@@ -511,6 +564,7 @@ export function MapView({ reports = [], selectedReport = null }) {
         >
           <Search className="h-6 w-6 text-muted-foreground flex-shrink-0 max-md:h-5 max-md:w-5" />
           <input
+            data-cy="search-input"
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearchInput(e.target.value)}
@@ -522,7 +576,7 @@ export function MapView({ reports = [], selectedReport = null }) {
             <button
               type="button"
               onClick={() => {
-                setSearchQuery('');
+                setSearchQuery("");
                 setSearchResults([]);
                 setShowSearchResults(false);
               }}
@@ -541,24 +595,34 @@ export function MapView({ reports = [], selectedReport = null }) {
                   (pos) => {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
-                    
+
                     // Validate coordinates
-                    if (!isNaN(lat) && !isNaN(lng) && lat !== null && lng !== null) {
+                    if (
+                      !isNaN(lat) &&
+                      !isNaN(lng) &&
+                      lat !== null &&
+                      lng !== null
+                    ) {
                       const newPos = [lat, lng];
                       setPosition(newPos);
                       fetchAddress(lat, lng, setAddress);
                     } else {
-                      console.error('Invalid geolocation coordinates:', { lat, lng });
-                      alert('Unable to get valid coordinates.');
+                      console.error("Invalid geolocation coordinates:", {
+                        lat,
+                        lng,
+                      });
+                      alert("Unable to get valid coordinates.");
                     }
                   },
                   (error) => {
-                    console.error('Geolocation error:', error);
-                    alert('Unable to get your location. Please enable location services.');
+                    console.error("Geolocation error:", error);
+                    alert(
+                      "Unable to get your location. Please enable location services."
+                    );
                   }
                 );
               } else {
-                alert('Geolocation is not supported by your browser.');
+                alert("Geolocation is not supported by your browser.");
               }
             }}
             className="text-muted-foreground hover:text-foreground transition-colors md:hidden"
@@ -567,13 +631,14 @@ export function MapView({ reports = [], selectedReport = null }) {
             <Crosshair className="h-5 w-5" />
           </button>
         </form>
-        
+
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
           <div className="mt-2 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden">
             {searchResults.map((result, index) => (
               <button
                 key={index}
+                data-cy="search-result"
                 onClick={() => selectSearchResult(result)}
                 className="w-full px-4 py-3 text-left text-sm hover:bg-accent transition-colors border-b border-border last:border-b-0"
               >
@@ -592,24 +657,34 @@ export function MapView({ reports = [], selectedReport = null }) {
               (pos) => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
-                
+
                 // Validate coordinates
-                if (!isNaN(lat) && !isNaN(lng) && lat !== null && lng !== null) {
+                if (
+                  !isNaN(lat) &&
+                  !isNaN(lng) &&
+                  lat !== null &&
+                  lng !== null
+                ) {
                   const newPos = [lat, lng];
                   setPosition(newPos);
                   fetchAddress(lat, lng, setAddress);
                 } else {
-                  console.error('Invalid geolocation coordinates:', { lat, lng });
-                  alert('Unable to get valid coordinates.');
+                  console.error("Invalid geolocation coordinates:", {
+                    lat,
+                    lng,
+                  });
+                  alert("Unable to get valid coordinates.");
                 }
               },
               (error) => {
-                console.error('Geolocation error:', error);
-                alert('Unable to get your location. Please enable location services.');
+                console.error("Geolocation error:", error);
+                alert(
+                  "Unable to get your location. Please enable location services."
+                );
               }
             );
           } else {
-            alert('Geolocation is not supported by your browser.');
+            alert("Geolocation is not supported by your browser.");
           }
         }}
         className="absolute top-6 left-6 z-[1000] bg-background/95 backdrop-blur-md border border-border
@@ -624,7 +699,7 @@ export function MapView({ reports = [], selectedReport = null }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log('Legend button clicked, current showLegend:', showLegend);
+          console.log("Legend button clicked, current showLegend:", showLegend);
           setShowLegend(true);
         }}
         onMouseDown={(e) => {
@@ -643,25 +718,27 @@ export function MapView({ reports = [], selectedReport = null }) {
         <DialogContent className="max-w-md z-[9999]">
           <DialogHeader>
             <DialogTitle>Legend</DialogTitle>
-            <DialogDescription>
-              Report status legend
-            </DialogDescription>
+            <DialogDescription>Report status legend</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div>
-              <h3 className="font-semibold mb-3 text-sm">How to select a point on the map</h3>
+              <h3 className="font-semibold mb-3 text-sm">
+                How to select a point on the map
+              </h3>
               <p className="text-sm text-muted-foreground">
                 Move the cursor or click on a point on the map
               </p>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-3 text-sm">Report status legend</h3>
+              <h3 className="font-semibold mb-3 text-sm">
+                Report status legend
+              </h3>
               <div className="space-y-3">
                 {Object.entries(REPORT_STATUS).map(([key, value]) => (
                   <div key={key} className="flex items-center gap-3">
-                    <div 
+                    <div
                       className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                       style={{ backgroundColor: value.color }}
                     />
@@ -675,60 +752,75 @@ export function MapView({ reports = [], selectedReport = null }) {
       </Dialog>
 
       {/* Map */}
-      <div className={`w-full h-screen ${theme === 'dark' ? 'dark-map' : ''}`}>
+      <div
+        data-cy="map-container"
+        className={`w-full h-screen ${theme === "dark" ? "dark-map" : ""}`}
+      >
         <MapContainer
           center={[45.0703, 7.6869]}
           zoom={13}
           className="w-full h-full"
           zoomControl={false}
           preferCanvas={true}
+          whenCreated={(map) => {
+            window.map = map;
+          }}
         >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        <ZoomControl />
-        <MapUpdater position={position} />
-        <CenterOnReport selectedReport={selectedReport} />
-        
-        <LocationMarker 
-          position={position} 
-          setPosition={setPosition} 
-          setAddress={setAddress} 
-          address={address}
-          setSearchQuery={setSearchQuery}
-          setSearchResults={setSearchResults}
-          setShowSearchResults={setShowSearchResults}
-        />
-        
-        <MarkerClusterGroup
-          chunkedLoading
-          iconCreateFunction={createClusterCustomIcon}
-          maxClusterRadius={80}
-          spiderfyOnMaxZoom={true}
-          showCoverageOnHover={false}
-        >
-          {reports.map((report) => (
-            <Marker
-              key={report.id}
-              position={[report.latitude, report.longitude]}
-              icon={createReportIcon(report.status)}
-            >
-              <Popup className="custom-popup">
-                <div className="bg-white rounded-lg p-3">
-                  <h3 className="font-semibold text-sm mb-2">{report.title}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Status: <span style={{ color: REPORT_STATUS[report.status]?.color || '#666' }} className="font-medium">
-                      {REPORT_STATUS[report.status]?.label || report.status}
-                    </span>
-                  </p>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MarkerClusterGroup>
-      </MapContainer>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          <ZoomControl />
+          <MapUpdater position={position} />
+          <CenterOnReport selectedReport={selectedReport} />
+
+          <LocationMarker
+            data-cy="location-marker"
+            position={position}
+            setPosition={setPosition}
+            setAddress={setAddress}
+            address={address}
+            setSearchQuery={setSearchQuery}
+            setSearchResults={setSearchResults}
+            setShowSearchResults={setShowSearchResults}
+          />
+
+          <MarkerClusterGroup
+            chunkedLoading
+            iconCreateFunction={createClusterCustomIcon}
+            maxClusterRadius={80}
+            spiderfyOnMaxZoom={true}
+            showCoverageOnHover={false}
+          >
+            {reports.map((report) => (
+              <Marker
+                key={report.id}
+                position={[report.latitude, report.longitude]}
+                icon={createReportIcon(report.status)}
+              >
+                <Popup className="custom-popup">
+                  <div className="bg-white rounded-lg p-3">
+                    <h3 className="font-semibold text-sm mb-2">
+                      {report.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Status:{" "}
+                      <span
+                        style={{
+                          color: REPORT_STATUS[report.status]?.color || "#666",
+                        }}
+                        className="font-medium"
+                      >
+                        {REPORT_STATUS[report.status]?.label || report.status}
+                      </span>
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MarkerClusterGroup>
+        </MapContainer>
       </div>
     </div>
   );
