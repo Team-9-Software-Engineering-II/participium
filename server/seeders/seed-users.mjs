@@ -78,25 +78,95 @@ const getMunicipalUsers = (hashedPassword) => {
  */
 const getStaffUsers = (hashedPassword) => {
   return [
-    // Technical Staff User 1 (Role ID 4)
+    // Tech Staff 1 (Office ID 1: Water Infrastructure)
     {
-      email: "tech@municipality.com",
-      username: "tech_staff",
+      email: "tech1@municipality.com",
+      username: "tech_water",
       hashedPassword,
       firstName: "Luca",
-      lastName: "Verdi",
+      lastName: "Rossi",
       roleId: 4,
       technicalOfficeId: 1,
     },
-    // Technical Staff User 2 (Role ID 4)
+    // Tech Staff 2 (Office ID 2: Accessibility and Mobility)
     {
       email: "tech2@municipality.com",
-      username: "tech_staff2",
+      username: "tech_mobility",
       hashedPassword,
-      firstName: "Mario",
-      lastName: "Verdi",
+      firstName: "Sara",
+      lastName: "Neri",
       roleId: 4,
       technicalOfficeId: 2,
+    },
+    // Tech Staff 3 (Office ID 3: Sewerage Network)
+    {
+      email: "tech3@municipality.com",
+      username: "tech_sewer",
+      hashedPassword,
+      firstName: "Marco",
+      lastName: "Verdi",
+      roleId: 4,
+      technicalOfficeId: 3,
+    },
+    // Tech Staff 4 (Office ID 4: Public Lighting)
+    {
+      email: "tech4@municipality.com",
+      username: "tech_lighting",
+      hashedPassword,
+      firstName: "Laura",
+      lastName: "Gialli",
+      roleId: 4,
+      technicalOfficeId: 4,
+    },
+    // Tech Staff 5 (Office ID 5: Waste Management)
+    {
+      email: "tech5@municipality.com",
+      username: "tech_waste",
+      hashedPassword,
+      firstName: "Davide",
+      lastName: "Bianchi",
+      roleId: 4,
+      technicalOfficeId: 5,
+    },
+    // Tech Staff 6 (Office ID 6: Traffic Management)
+    {
+      email: "tech6@municipality.com",
+      username: "tech_traffic",
+      hashedPassword,
+      firstName: "Elena",
+      lastName: "Marrone",
+      roleId: 4,
+      technicalOfficeId: 6,
+    },
+    // Tech Staff 7 (Office ID 7: Roads Maintenance)
+    {
+      email: "tech7@municipality.com",
+      username: "tech_roads",
+      hashedPassword,
+      firstName: "Andrea",
+      lastName: "Blu",
+      roleId: 4,
+      technicalOfficeId: 7,
+    },
+    // Tech Staff 8 (Office ID 8: Parks and Green Areas)
+    {
+      email: "tech8@municipality.com",
+      username: "tech_green",
+      hashedPassword,
+      firstName: "Silvia",
+      lastName: "Nero",
+      roleId: 4,
+      technicalOfficeId: 8,
+    },
+    // Tech Staff 9 (Office ID 9: General Services)
+    {
+      email: "tech9@municipality.com",
+      username: "tech_general",
+      hashedPassword,
+      firstName: "Paolo",
+      lastName: "Grigio",
+      roleId: 4,
+      technicalOfficeId: 9,
     },
   ];
 };
