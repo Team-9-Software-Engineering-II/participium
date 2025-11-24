@@ -11,7 +11,6 @@ import {
   SheetTitle,
   SheetDescription,
   SheetTrigger,
-  SheetClose,
 } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -38,7 +37,6 @@ import {
   Sun,
   X,
   SlidersHorizontal,
-  Building2,
   ListTree,
   Info,
 } from "lucide-react";
@@ -76,16 +74,24 @@ export default function Home() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch address from coordinates
+  // Fetch address from coordinates (FIXED LOGIC)
   const fetchAddress = async (lat, lng) => {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
       );
       const data = await res.json();
-      const road = data.address?.road || data.address?.pedestrian || "";
+      
+      // Logica migliorata: prova via+civico, altrimenti usa display_name completo
+      const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
       const houseNumber = data.address?.house_number || "";
-      return `${road} ${houseNumber}`.trim() || "Address not available";
+      let formattedAddress = `${road} ${houseNumber}`.trim();
+
+      if (!formattedAddress) {
+        formattedAddress = data.name || data.display_name || "Address not available";
+      }
+      
+      return formattedAddress;
     } catch (error) {
       console.error("Error fetching address:", error);
       return "Address not available";
@@ -95,6 +101,14 @@ export default function Home() {
   // Load reports from API
   useEffect(() => {
     const fetchReports = async () => {
+      // Se non autenticato, non caricare nulla e ferma il loading
+      if (!isAuthenticated) {
+        setAllReports([]);
+        setMyReports([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
 
@@ -103,8 +117,8 @@ export default function Home() {
         setAllReports(allResponse.data);
 
         // Fetch user's reports if authenticated
-        if (isAuthenticated && user) {
-          const myResponse = await reportAPI.getAll(); // Temporary - will filter by user later
+        if (user) {
+          const myResponse = await reportAPI.getAll();
           // Filter to get only the user's reports
           const userReports = myResponse.data.filter(report => report.userId === user.id);
           setMyReports(userReports);
@@ -127,7 +141,6 @@ export default function Home() {
         setAddresses(addressMap);
       } catch (error) {
         console.error("Error fetching reports:", error);
-        // Don't fail if we can't load reports - just show empty
         setAllReports([]);
         setMyReports([]);
       } finally {
@@ -280,21 +293,35 @@ export default function Home() {
   };
 
   const handleApplyFilters = () => {
-    // Qui applicherai i filtri ai dati
     setShowFilters(false);
   };
 
   const handleViewInMap = (report, e) => {
-    e.stopPropagation(); // Prevent navigation to report detail
+    e.stopPropagation(); 
     setSelectedReport(report);
-    // On mobile, close the sheet to show the map
-    if (isMobile) {
-      // Will be handled by the sheet state
-    }
   };
 
   // Reusable Reports List component
   const ReportsList = () => {
+    // Se non autenticato, mostra il box di login
+    if (!isAuthenticated) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No reports</h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                    Log in to view and manage reports in your area.
+                </p>
+                <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
+                    <p className="text-sm font-medium">Log in to see reports</p>
+                    <Button onClick={() => navigate("/login")} className="w-full" size="sm">
+                        Log in
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     if (loading) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -331,7 +358,9 @@ export default function Home() {
                 {addresses[report.id] && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    <span className="font-medium">{addresses[report.id]}</span>
+                    <span className="font-medium truncate" title={addresses[report.id]}>
+                      {addresses[report.id]}
+                    </span>
                   </div>
                 )}
                 
@@ -355,11 +384,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <div
-                  className={
-                    `fixed left-0 w-full flex justify-center items-end z-[1001] bottom-0 pointer-events-none md:static md:w-auto md:justify-end md:items-end md:pb-0`
-                  }
-                >
+                <div className="fixed left-0 w-full flex justify-center items-end z-[1001] bottom-0 pointer-events-none md:static md:w-auto md:justify-end md:items-end md:pb-0">
                 </div>
                 <Button
                   variant="outline"
@@ -386,76 +411,61 @@ export default function Home() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Left Sidebar - Reports List */}
         <div className="w-96 border-r border-border bg-background flex flex-col relative">
-          {/* Search Bar */}
-          <div className="p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search for a report"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                onClick={() => setShowFilters(true)}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* My Reports Switch */}
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">My reports</span>
-              <Switch
-                checked={showMyReports}
-                onCheckedChange={(checked) => {
-                  if (!isAuthenticated && checked) {
-                    // Se non loggato, attiva lo switch comunque
-                    setShowMyReports(true);
-                    return;
-                  }
-                  setShowMyReports(checked);
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Login message if not authenticated and switch active */}
-          {!isAuthenticated && showMyReports ? (
-            <div className="px-4 pb-4">
-              <div className="bg-background rounded-lg p-4 text-center space-y-3 border">
-                <p className="text-sm font-medium">
-                  Log in to see your reports
-                </p>
+          
+          {/* Mostra Search Bar solo se autenticato */}
+          {isAuthenticated && (
+            <div className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search for a report"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
                 <Button
-                  onClick={() => navigate("/login")}
-                  className="w-full"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                  onClick={() => setShowFilters(true)}
                 >
-                  Log in
+                  <SlidersHorizontal className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* Mostra Toggle "My reports" solo se autenticato */}
+          {isAuthenticated && (
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">My reports</span>
+                <Switch
+                  checked={showMyReports}
+                  onCheckedChange={setShowMyReports}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Reports List Area or Login Prompt */}
+          {isAuthenticated ? (
             <>
-              {/* Results count */}
               <div className="px-4 py-4">
                 <p className="text-sm text-muted-foreground">
                   {totalResults} results
                 </p>
               </div>
-
-              {/* Reports List */}
               <div className="flex-1 overflow-y-auto px-4">
                 <ReportsList />
               </div>
             </>
+          ) : (
+            /* Vista Unauthenticated: ReportsList gestisce il box login */
+            <div className="flex-1 overflow-y-auto px-4">
+              <ReportsList /> 
+            </div>
           )}
 
           {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
@@ -501,10 +511,7 @@ export default function Home() {
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
         {!isAuthenticated && (
           <Button
-            onClick={() => {
-              console.log('Toggle theme clicked, current theme:', theme);
-              toggleTheme();
-            }}
+            onClick={() => toggleTheme()}
             variant="outline"
             size="icon"
             className="absolute bottom-2 left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border"
@@ -519,10 +526,7 @@ export default function Home() {
 
         {/* Legend Button - Bottom Left (always visible on mobile) */}
         <Button
-          onClick={() => {
-            console.log('Legend button clicked on Home');
-            setShowLegend(true);
-          }}
+          onClick={() => setShowLegend(true)}
           variant="outline"
           size="icon"
           className={`absolute left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border ${
@@ -556,66 +560,45 @@ export default function Home() {
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
-                {/* Search bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search for a report"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                    onClick={() => setShowFilters(true)}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* My Reports Switch */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm font-medium">My reports</span>
-                  <Switch
-                    checked={showMyReports}
-                    onCheckedChange={(checked) => {
-                      if (!isAuthenticated && checked) {
-                        setShowMyReports(true);
-                        return;
-                      }
-                      setShowMyReports(checked);
-                    }}
-                  />
-                </div>
-
-                {/* Login message if not authenticated and switch active */}
-                {!isAuthenticated && showMyReports ? (
-                  <div className="py-2">
-                    <div className="bg-background rounded-lg p-4 text-center space-y-3 border">
-                      <p className="text-sm font-medium">
-                        Log in to see your reports
-                      </p>
+                {/* Search bar e Toggle visibili solo se autenticato */}
+                {isAuthenticated && (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search for a report"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 pr-10"
+                      />
                       <Button
-                        onClick={() => navigate("/login")}
-                        className="w-full"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                        onClick={() => setShowFilters(true)}
                       >
-                        Log in
+                        <SlidersHorizontal className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-                ) : (
+
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm font-medium">My reports</span>
+                      <Switch
+                        checked={showMyReports}
+                        onCheckedChange={setShowMyReports}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Logica visualizzazione lista Mobile */}
+                {isAuthenticated ? (
                   <>
-                    {/* Results count */}
                     <div className="py-2">
                       <p className="text-sm text-muted-foreground">
                         {totalResults} results
                       </p>
                     </div>
-
-                    {/* Reports List - Scrollable */}
                     <div
                       className="overflow-y-auto"
                       style={{ maxHeight: "calc(80vh - 400px)" }}
@@ -623,6 +606,11 @@ export default function Home() {
                       <ReportsList />
                     </div>
                   </>
+                ) : (
+                  /* Vista Unauthenticated Mobile */
+                  <div className="py-2">
+                    <ReportsList />
+                  </div>
                 )}
               </div>
 
