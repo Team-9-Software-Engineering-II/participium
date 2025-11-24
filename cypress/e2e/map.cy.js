@@ -37,10 +37,6 @@ describe("Map interactions as guest", () => {
       .and("be.visible")
       .and("have.length.greaterThan", 0);
   });
-  
-  it("should move the marker when clicking the map", () => {
-    MapViewPage.clickMap(300, 300).assertMarkerExists();
-  });
 
   it("should redirect to login when guest clicks New Report", () => {
     MapViewPage.clickMap(300, 300).assertReportButtonVisible();

@@ -39,3 +39,29 @@ Cypress.Commands.add(
     );
   }
 );
+
+Cypress.Commands.add("startNewReport", (locationName) => {
+  cy.loginAsUser();
+
+  cy.url().should("include", "/");
+
+  cy.get('[data-cy="new-report-button"]').click();
+
+  cy.url().should("include", "/reports/new");
+});
+
+Cypress.Commands.add("selectLocation", (address) => {
+  cy.get('[data-cy="location-search-input"]', { timeout: 10000 })
+    .should("be.visible")
+    .click({ force: true })
+    .clear({ force: true })
+    .type(address, { force: true });
+
+  cy.get('[data-cy^="location-search-result-"]', { timeout: 10000 })
+    .first()
+    .click({ force: true });
+
+  cy.get('[data-cy="location-confirm"]', { timeout: 10000 })
+    .should("be.visible")
+    .click({ force: true });
+});

@@ -43,7 +43,7 @@ describe("Admin Create Municipality User - simple test", () => {
         email: "test2@example.com",
         username: "user2",
         password: "Password123",
-        role: "Password123",
+        role: "municipality_public_relations_officer",
       };
       formData[field] = "";
 
