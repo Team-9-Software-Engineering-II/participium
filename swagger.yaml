@@ -11,7 +11,7 @@ paths:
   /auth/register:
     post:
       summary: Register a new citizen
-      description: Se non specificato, l'utente ottiene automaticamente il ruolo di cittadino (roleId = 1).
+      description: This api allow a user to sign up as a citizen in the system
       tags: [Auth]
       requestBody:
         required: true
@@ -424,7 +424,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/UserProfile'
     post:
-      summary: (Admin) Crea un nuovo utente municipale
+      summary: (Admin) Create a new municipal/staff member user
+      description: This api allow an admin to register a new municipal or staff member user. It is necessary to pass a valid roleId and technicalOfficeId.
       tags: [Admin]
       security:
         - BearerAuth: []
@@ -436,11 +437,11 @@ paths:
               $ref: '#/components/schemas/AdminUserCreate'
       responses:
         '201':
-          description: Utente staff creato
+          description: Municipal/Staff member user created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: '#/components/schemas/MunicipalOrStaffUserResponse'
         '400':
           description: Dati non validi (es. ruolo non trovato)
         '409':
@@ -554,10 +555,7 @@ components:
         password:
           type: string
           format: password
-        roleId:
-          type: integer
-          minimum: 1
-          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
+
     AuthSessionResponse:
       type: object
       required: [authenticated]
@@ -587,6 +585,7 @@ components:
         password:
           type: string
           format: password
+
     UserProfile:
       type: object
       properties:
@@ -640,7 +639,7 @@ components:
     
     AdminUserCreate:
       type: object
-      required: [email, username, password, firstName, lastName, roleId]
+      required: [email, username, password, firstName, lastName, roleId, technicalOfficeId]
       properties:
         email:
           type: string
@@ -657,7 +656,11 @@ components:
         roleId:
           type: integer
           minimum: 1
-          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
+          description: Identifier of the role to assign.
+        technicalOfficeId:
+          type: integer
+          minimum: 1
+          description: Identifier of the technical office to assign.
 
     ReportCreate:
       type: object
@@ -966,3 +969,75 @@ components:
         description:
           type: string
           nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TechnicalOfficeDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        categoryId:
+          type: integer
+        category:
+          $ref: '#/components/schemas/ReportCategoryDetails'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MunicipalOrStaffUserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoURL:
+          type: string
+          format: uri
+          nullable: true
+        telegramUsername:
+          type: string
+          nullable: true
+        emailConfiguration:
+          type: boolean
+        counterActiveReports:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        roleId:
+          type: integer
+        role:
+          $ref: '#/components/schemas/RoleSummary'
+        technicalOfficeId:
+          type: integer
+          nullable: true
+        technicalOffice:
+          $ref: '#/components/schemas/TechnicalOfficeDetails' 
+          nullable: true
+        reports:
+          type: array
+          items:
+            type: object
+        
