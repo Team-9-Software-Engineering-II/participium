@@ -62,6 +62,7 @@ export default function ReportDetails() {
   const { theme } = useTheme();
   
   const [report, setReport] = useState(null);
+  const [address, setAddress] = useState('Loading address...'); // Stato per l'indirizzo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -72,6 +73,34 @@ export default function ReportDetails() {
   useEffect(() => {
     fetchReport();
   }, [id]);
+
+  // Effetto per il Reverse Geocoding quando il report è caricato
+  useEffect(() => {
+    if (report?.latitude && report?.longitude) {
+      const fetchAddress = async () => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${report.latitude}&lon=${report.longitude}&addressdetails=1`);
+          const data = await res.json();
+          
+          // Formattazione indirizzo simile a quella usata in CreateReport
+          const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
+          const houseNumber = data.address?.house_number || "";
+          let formattedAddress = `${road} ${houseNumber}`.trim();
+          
+          if (!formattedAddress) {
+            formattedAddress = data.name || data.display_name || "Address not available";
+          }
+          
+          setAddress(formattedAddress);
+        } catch (error) {
+          console.error("Geocoding error:", error);
+          setAddress("Location details unavailable");
+        }
+      };
+      
+      fetchAddress();
+    }
+  }, [report]);
 
   const fetchReport = async () => {
     try {
@@ -153,25 +182,24 @@ export default function ReportDetails() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
-      <main className="container max-w-4xl mx-auto px-4 py-8 pb-20">
+      <main className="container max-w-4xl mx-auto px-4 py-6 pb-20">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6 pl-0 hover:pl-2 transition-all gap-2 -ml-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
 
         <div className="space-y-6">
           
-          {/* 1. Header */}
-          <div className="flex justify-between items-start gap-4">
+          {/* 1. Header Responsivo */}
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
             {/* Colonna Sinistra: Titolo e Dettagli */}
-            <div className="space-y-2 flex-1">
-              <h1 className="text-3xl font-bold tracking-tight">{report.title}</h1>
+            <div className="space-y-2 flex-1 w-full">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{report.title}</h1>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                  Created on {format(new Date(report.createdAt), 'PPP')}
               </p>
               
               {report.rejectionReason && (
-                // MODIFICA QUI: Colori espliciti red-500/400 per visibilità in dark mode
-                <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3 flex gap-3 items-center text-red-600 dark:text-red-400 mt-2 inline-flex">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3 flex gap-3 items-center text-red-600 dark:text-red-400 mt-2 inline-flex w-full md:w-auto">
                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                    <span className="font-medium text-sm">Reason for Rejection: {report.rejectionReason}</span>
                 </div>
@@ -179,39 +207,36 @@ export default function ReportDetails() {
             </div>
 
             {/* Colonna Destra: Status e Assignee */}
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto mt-2 md:mt-0">
               {/* Status Badge */}
-              <Badge className={`${REPORT_STATUS_COLORS[report.status] || 'bg-gray-500'} h-6 text-xs px-2`}>
+              <Badge className={`${REPORT_STATUS_COLORS[report.status] || 'bg-gray-500'} h-6 text-xs px-2 text-white border-0`}>
                 {report.status}
               </Badge>
 
               {/* Assignee Info */}
-              <div className="text-sm font-medium text-right">
+              <div className="text-sm font-medium text-left md:text-right">
                 {isPending() ? (
-                  <span className="text-muted-foreground flex items-center justify-end gap-2">
+                  <span className="text-muted-foreground flex items-center justify-start md:justify-end gap-2">
                     Not assigned yet <Clock className="h-4 w-4" /> 
                   </span>
                 ) : report.status === 'Rejected' ? (
-                  <span className="text-destructive flex items-center justify-end gap-2">
+                  <span className="text-destructive flex items-center justify-start md:justify-end gap-2">
                     Rejected <X className="h-4 w-4" /> 
                   </span>
                 ) : (
-                  <div className="text-primary flex flex-col items-end">
+                  <div className="text-primary flex flex-col items-start md:items-end">
                     <span className="text-xs text-muted-foreground mb-0.5">Assigned to</span>
                     
-                    {/* Nome Assignee */}
                     {report.assignee ? (
                       <span className="flex items-center gap-2 font-semibold">
                         {report.assignee.firstName} {report.assignee.lastName} <User className="h-4 w-4" />
                       </span>
                     ) : (
-                       // Fallback
                        <span className="flex items-center gap-2 font-semibold">
                         Technical Staff <User className="h-4 w-4" />
                       </span>
                     )}
 
-                    {/* Ufficio */}
                     <span className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       Office: {report.technicalOffice?.name || "Technical Office"} <Building2 className="h-3 w-3" />
                     </span>
@@ -229,9 +254,9 @@ export default function ReportDetails() {
             </p>
           </div>
 
-          {/* 3. Mappa */}
+          {/* 3. Mappa Responsiva */}
           <div className="bg-card border rounded-lg overflow-hidden">
-            <div className={`h-[500px] w-full relative z-0 ${theme === 'dark' ? 'dark-map' : ''}`}>
+            <div className={`h-[300px] md:h-[500px] w-full relative z-0 ${theme === 'dark' ? 'dark-map' : ''}`}>
                <div className="absolute inset-0 z-[1000] bg-transparent cursor-default" />
                <MapContainer 
                  center={[report.latitude, report.longitude]} 
@@ -248,12 +273,17 @@ export default function ReportDetails() {
                  <Marker position={[report.latitude, report.longitude]} icon={staticIcon} />
                </MapContainer>
             </div>
+            {/* FOOTER MAPPA: Indirizzo (Reverse Geocoding) e Coordinate */}
             <div className="p-4 bg-background border-t flex items-center gap-3">
                <div className="flex-shrink-0 bg-primary/10 p-2 rounded-full">
                  <MapPin className="h-5 w-5 text-primary" />
                </div>
                <div className="flex-1 min-w-0">
-                 <p className="font-medium text-sm">Report Location</p>
+                 {/* Indirizzo dinamico */}
+                 <p className="font-medium text-sm truncate">
+                   {address}
+                 </p>
+                 {/* Coordinate */}
                  <p className="text-xs text-muted-foreground font-mono">
                    {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
                  </p>
@@ -262,7 +292,7 @@ export default function ReportDetails() {
           </div>
 
           {/* 4. Categoria e Autore */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Categoria */}
             <div className="bg-card border rounded-lg p-6 space-y-2">
               <Label className="text-sm text-muted-foreground">Category</Label>
@@ -308,7 +338,7 @@ export default function ReportDetails() {
           <div className="bg-card border rounded-lg p-6 space-y-4">
             <h2 className="text-xl font-semibold">Photos</h2>
             {report.photos && report.photos.length > 0 ? (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {report.photos.map((photo, index) => (
                   <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
                     <img 
@@ -330,14 +360,13 @@ export default function ReportDetails() {
 
           {/* 6. Pulsanti Azione */}
           {showActions && (
-            <div className="flex justify-center gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 w-full">
               <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
                 <DialogTrigger asChild>
-                  {/* MODIFICA QUI: dark:bg-red-600 per avere un rosso più chiaro in dark mode */}
                   <Button 
                     variant="destructive" 
                     size="lg" 
-                    className="px-12 dark:bg-red-600 dark:hover:bg-red-700 dark:text-white" 
+                    className="w-full sm:w-auto sm:px-12 dark:bg-red-600 dark:hover:bg-red-700 dark:text-white" 
                     disabled={actionLoading}
                   >
                     Reject
@@ -371,7 +400,7 @@ export default function ReportDetails() {
 
               <Button 
                 size="lg" 
-                className="px-12"
+                className="w-full sm:w-auto sm:px-12"
                 onClick={handleAssign} 
                 disabled={actionLoading}
               >
