@@ -2,11 +2,11 @@ import { Router } from "express";
 import {
   createReport,
   getAllReports,
+  getAssignedReports,
   getReportById,
   getReportsByUser,
-  reviewReport,
 } from "../controllers/report-controller.js";
-import { isAuthenticated, isCitizen, isUrpOfficer } from "../middlewares/auth.mjs";
+import { isAuthenticated, isCitizen } from "../middlewares/auth.mjs";
 
 const router = Router();
 
@@ -22,17 +22,16 @@ router.post("/", isAuthenticated, isCitizen, createReport);
 router.get("/", getAllReports);
 
 /**
- * URP Report Review (Accept/Reject).
- * Path: PUT /reports/:reportId/review
- */
-// <-- 2. NUOVA ROTTA AGGIUNTA
-router.put("/:reportId/review", isAuthenticated, isUrpOfficer, reviewReport);
-
-/**
  * Retrieves every report created by a specific user.
  * This route MUST stay before the /:reportId definition to avoid conflicts.
  */
 router.get("/user/:userId", isAuthenticated, getReportsByUser);
+
+/**
+ * Retrieves every report in the Assigned status.
+ * This route MUST stay before the /:reportId definition to avoid conflicts.
+ */
+router.get("/assigned", isAuthenticated, isCitizen, getAssignedReports);
 
 /**
  * Retrieves a single report by its identifier.
@@ -41,5 +40,3 @@ router.get("/user/:userId", isAuthenticated, getReportsByUser);
 router.get("/:reportId", getReportById);
 
 export default router;
-
-

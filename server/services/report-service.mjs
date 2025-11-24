@@ -4,11 +4,16 @@ import {
   findReportById,
   findReportsByUserId,
   updateReport,
+  findAllReportsFilteredByStatus, // <-- Import del collega
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
-import { sanitizeReport, sanitizeReports } from "../shared/utils/report-utils.mjs";
-import { findStaffWithFewestReports } from "../repositories/user-repo.mjs";
-
+import { findStaffWithFewestReports } from "../repositories/user-repo.mjs"; // <-- Tuo import
+import {
+  sanitizeReport,
+  sanitizeReports,
+} from "../shared/utils/report-utils.mjs";
+// Import del collega (assicurati che questo file esista ora nel tuo progetto!)
+import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
 /**
  * Encapsulates report business logic and orchestrates repository calls.
  */
@@ -107,6 +112,18 @@ export class ReportService {
   }
 
   /**
+   * @param {number} status - Strings that identify the status of the reports that you want to obtain
+   * @param {Boolean} includeUser - Flag to indicates if including user details for each returned report
+   *
+   * Retrieves all reports in a certain status ordered by creation date. If includeUser is true, userDetails will be included in the response.
+   * @returns {Promise<object[]>} Sanitized reports collection.
+   */
+  static async getAllReportsFilteredByStatus(status, includeUser = false) {
+    const reports = await findAllReportsFilteredByStatus(status);
+    return mapReportsCollectionToAssignedListDTO(reports, includeUser);
+  }
+
+  /**
    * Retrieves a report by its identifier.
    * @param {number} reportId - Identifier of the report to retrieve.
    * @returns {Promise<object | null>} Sanitized report or null when not found.
@@ -114,6 +131,17 @@ export class ReportService {
   static async getReportById(reportId) {
     const report = await findReportById(reportId);
     return sanitizeReport(report);
+  }
+
+  static async updateReport(reportId, payload) {
+    await this.#ensureReportExists(reportId);
+    return await updateReport(reportId, payload);
+  }
+
+  static async updateReportCategory(reportId, payload) {
+    await this.#ensureReportExists(reportId);
+    await this.#ensureCategoryExists(payload.categoryId);
+    return await updateReport(reportId, payload);
   }
 
   /**
@@ -128,12 +156,21 @@ export class ReportService {
 
   static async #ensureCategoryExists(categoryId) {
     const category = await findProblemCategoryById(categoryId);
-    if (!category) {
-      const error = new Error(`Category with id "${categoryId}" not found.`);
-      error.statusCode = 400;
-      throw error;
+    if (category) {
+      return;
     }
+    const error = new Error(`Category with id "${categoryId}" not found.`);
+    error.statusCode = 404;
+    throw error;
+  }
+
+  static async #ensureReportExists(reportId) {
+    const report = await findReportById(reportId);
+    if (report) {
+      return;
+    }
+    const error = new Error(`Report with id "${reportId}" not found.`);
+    error.statusCode = 404;
+    throw error;
   }
 }
-
-
