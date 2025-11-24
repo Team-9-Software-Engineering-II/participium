@@ -112,20 +112,40 @@ export async function getReportsByUser(req, res, next) {
     return next(error);
   }
 }
+// --- NUOVA FUNZIONE AGGIUNTA ---
 
-export async function acceptOrRejectReport(req, res, next) {
+/**
+ * Handles report review (approval or rejection) by URP.
+ * Route: PUT /urp/reports/:reportId/review
+ */
+export async function reviewReport(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
-    if (!isIdNumberAndPositive(reportId)) {
-      return res.status(400).json({ message: "Invalid ID format" });
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      return res.status(400).json({ message: "reportId must be a positive integer." });
     }
 
-    const validatedReport = validateReportToBeAcceptedOrRejected(req.body);
-    const updatedReport = await ReportService.updateReport(
-      reportId,
-      validatedReport
-    );
-    return res.status(200).json({ success: updatedReport });
+    const { action, rejectionReason } = req.body;
+
+    if (action === "accepted") {
+      // Chiama la logica di Load Balancing
+      const updatedReport = await ReportService.acceptReport(reportId);
+      return res.status(200).json(updatedReport);
+    } 
+    else if (action === "rejected") {
+      // Validazione base per il rifiuto
+      if (!rejectionReason || rejectionReason.trim() === "") {
+        return res.status(400).json({ message: "Rejection reason is mandatory when rejecting a report." });
+      }
+      
+      // TO-DO: Implementare ReportService.rejectReport(reportId, rejectionReason)
+      // Per ora restituiamo un 501 (Not Implemented)
+      return res.status(501).json({ message: "Reject logic not implemented yet." });
+    } 
+    else {
+      return res.status(400).json({ message: "Invalid action. Allowed values: 'accepted', 'rejected'." });
+    }
+
   } catch (error) {
     return next(error);
   }

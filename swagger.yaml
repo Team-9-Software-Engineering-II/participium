@@ -264,8 +264,9 @@ paths:
 
   /municipal/reports/{reportId}:
     put:
-      summary: (Municipal Staff) Accept or Reject a report (Initial Review)
-      description: Allows the Public Relations Officer to move a report from 'Pending Approval' to 'Assigned' or 'Rejected'. Please, be careful not to insert the 'rejection_reason' when you want to accept a report. Instead, specify it when you want to reject the report.
+      summary: (URP) Review a report (Accept/Reject)
+      description: >
+        Allows the URP officer to accept a report (automatically assigning it to the technical staff via load balancing) or reject it.
       tags: [Municipal]
       parameters:
         - in: path
@@ -274,6 +275,7 @@ paths:
           schema:
             type: integer
             minimum: 1
+          description: Unique ID of the report
       security:
         - BearerAuth: []
       x-security-role: municipality_public_relations_officer
@@ -282,22 +284,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReportAcceptReject'
+              $ref: '#/components/schemas/ReportReview'
       responses:
         '200':
-          description: Report status updated successfully
+          description: Report successfully reviewed. Returns the updated object.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UpdateBooleanResponse'
+                $ref: '#/components/schemas/Report'
         '400':
-          description: Invalid status or missing rejection_reason or invalid ID format
+          description: Invalid action, invalid ID, or missing rejection reason.
         '401':
-          description: User not authenticated
+          description: User not authenticated.
         '403':
-          description: "Forbidden: municipal public relations officer only"
+          description: Municipal public relations officer only.
         '404':
           description: Report with id XX not found.
+        '409':
+          description: Report is not in 'Pending Approval' status.
 
   /upload/photo:
     post:
@@ -735,16 +739,17 @@ components:
           description: The ID of the new category for the report.
           minimum: 1
 
-    ReportAcceptReject:
+    ReportReview:
       type: object
-      required: [status]
+      required: [action]
       properties:
-        status:
-          $ref: '#/components/schemas/ReportStatus'
-          enum: [Assigned, Rejected]
-        rejection_reason:
+        action:
           type: string
-          description: Required if status is 'Rejected'.
+          enum: [accepted, rejected]
+          description: Action to perform on the report.
+        rejectionReason:
+          type: string
+          description: Reason for rejection, required if action is 'rejected'.
           nullable: true
 
     Report:
@@ -925,16 +930,6 @@ components:
           type: number
           format: double
         reporterName:
-          type: string
-
-    ReportReview:
-      type: object
-      required: [action]
-      properties:
-        action:
-          type: string
-          enum: [accepted, rejected]
-        rejectionReason: # Required if action = rejected
           type: string
 
     RoleSummary:
