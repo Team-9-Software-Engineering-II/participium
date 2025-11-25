@@ -53,9 +53,9 @@ export default function OfficerReports({ status }) {
       </div>
 
       {/* RESPONSIVE GRID: grid-cols-1 su mobile, md:grid-cols-2 su tablet/desktop */}
-      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 max-w-5xl">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 max-w-5xl" data-cy="reports-list">
         {reports.length === 0 && (
-          <div className="col-span-full py-12 text-center border rounded-lg border-dashed text-muted-foreground">
+          <div data-cy="reports-empty" className="col-span-full py-12 text-center border rounded-lg border-dashed text-muted-foreground">
             No reports found in this section.
           </div>
         )}
@@ -64,6 +64,8 @@ export default function OfficerReports({ status }) {
             key={report.id} 
             className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 group" 
             onClick={() => navigate(`/reports/${report.id}`)}
+            data-cy={`report-card-${report.id}`}
+
           >
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start gap-4">
