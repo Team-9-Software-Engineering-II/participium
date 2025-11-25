@@ -45,7 +45,7 @@ db.User.belongsTo(db.TechnicalOffice, {
 db.TechnicalOffice.belongsTo(db.Category, {
   foreignKey: {
     name: "categoryId",
-    allowNull: false,
+    allowNull: true,
     unique: true,
   },
   as: "category",
