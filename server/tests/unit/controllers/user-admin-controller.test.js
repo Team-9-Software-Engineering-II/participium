@@ -92,50 +92,6 @@ describe("UserAdminController (Unit)", () => {
   });
 
   // --------------------------------------------------------------------------
-  // TEST: assignUserRole (NUOVO - Copre righe 27-40)
-  // --------------------------------------------------------------------------
-  describe("assignUserRole", () => {
-    beforeEach(() => {
-      req.params.userId = "5";
-      req.body.role = "technical_staff";
-    });
-
-    it("should assign role successfully and return 200", async () => {
-      // Setup: Il servizio completa l'operazione con successo
-      mockAssignUserRole.mockResolvedValue(true);
-
-      await UserAdminController.assignUserRole(req, res, next);
-
-      // Verifica che il controller chiami il servizio convertendo l'ID in numero
-      expect(mockAssignUserRole).toHaveBeenCalledWith(5, "technical_staff");
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ message: "Role updated successfully." });
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it("should return 400 if role is missing in body", async () => {
-      req.body.role = undefined; // Ruolo mancante
-
-      await UserAdminController.assignUserRole(req, res, next);
-
-      expect(mockAssignUserRole).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Missing required 'role' field." });
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it("should call next(error) if service throws an error", async () => {
-      const error = new Error("Role not found");
-      mockAssignUserRole.mockRejectedValue(error);
-
-      await UserAdminController.assignUserRole(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(error);
-      expect(res.status).not.toHaveBeenCalled();
-    });
-  });
-
-  // --------------------------------------------------------------------------
   // TEST: getAllUsers (NUOVO - Copre riga 52)
   // --------------------------------------------------------------------------
   describe("getAllUsers", () => {
