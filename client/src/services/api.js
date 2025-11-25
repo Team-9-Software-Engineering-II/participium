@@ -54,13 +54,24 @@ export const reportAPI = {
     });
   },
   
-  // Ottiene TUTTI i report (Endpoint pubblico usato per filtri custom lato officer)
-  getAll: () => api.get('/reports'),
+  // Ottiene i report (Supporta filtri opzionali per future implementazioni)
+  getAll: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.category) params.append('category', filters.category);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    
+    return api.get(`/reports?${params.toString()}`);
+  },
   
   getById: (reportId) => api.get(`/reports/${reportId}`),
   
-  getMapData: () => api.get('/reports/map'), // Assumendo esista o fallback su getAll
+  getMapData: () => api.get('/reports/map'),
   
+  // Scarica categorie dal DB (utile per dropdown dinamici)
+  getCategories: () => api.get('/reports/categories'),
+
   downloadCSV: (filters = {}) => {
     const params = new URLSearchParams(filters);
     return api.get(`/reports/download?${params.toString()}`, {
@@ -78,7 +89,6 @@ export const urpAPI = {
   getPendingReports: () => api.get('/municipal/reports/pending'),
 
   // Rotta specifica backend: PUT /municipal/reports/:reportId
-  // Payload atteso dal controller: { action: 'assigned' | 'rejected', rejectionReason?: string }
   reviewReport: (reportId, action, rejectionReason = null) => 
     api.put(`/municipal/reports/${reportId}`, { 
       action, 
@@ -88,6 +98,22 @@ export const urpAPI = {
   // Rotta specifica backend: PUT /municipal/reports/:reportId/category
   updateReportCategory: (reportId, categoryId) =>
     api.put(`/municipal/reports/${reportId}/category`, { categoryId }),
+};
+
+// ==================== STAFF (Technical) ====================
+export const staffAPI = {
+  // Segnalazioni assegnate (per staff tecnico)
+  getAssignedReports: () => api.get('/reports/assigned'),
+  
+  // Aggiorna lo stato di una segnalazione
+  updateReportStatus: (reportId, statusData) => 
+    api.put(`/staff/reports/${reportId}/status`, statusData),
+};
+
+// ==================== STATISTICS ====================
+export const statisticsAPI = {
+  getPublic: () => api.get('/statistics/public'),
+  getPrivate: () => api.get('/statistics/private'),
 };
 
 // ==================== UPLOAD ====================
@@ -114,6 +140,10 @@ export const uploadAPI = {
 export const adminAPI = {
   getUsers: () => api.get('/admin/users'),
   getRoles: () => api.get('/admin/roles'),
+  
+  // Rotta corretta per gli uffici tecnici
+  getTechnicalOffices: () => api.get('/offices'),
+  
   createUser: (userData) => api.post('/admin/users', userData),
   assignRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
 };
