@@ -53,8 +53,8 @@ beforeAll(async () => {
     description: "Pipe leaking in main street",
     status: "Assigned",
     technicalOfficerId: officerUser.id,
-    latitude: 45.0,
-    longitude: 9.0,
+    latitude: 45,
+    longitude: 9,
     userId: citizenUser.id,
     categoryId: category.id,
     anonymous: false,
@@ -67,8 +67,8 @@ beforeAll(async () => {
     description: "Unrelated report",
     status: "Assigned",
     technicalOfficerId: anotherOfficer.id,
-    latitude: 46.0,
-    longitude: 10.0,
+    latitude: 46,
+    longitude: 10,
     userId: citizenUser.id,
     categoryId: category.id,
     anonymous: true,
@@ -121,13 +121,13 @@ describe("API Map Data Visualization (Technical Staff Flow) E2E", () => {
   it("should mask anonymous reporters", async () => {
     const res = await request(app).get(ENDPOINT).set("Cookie", officerCookie);
 
-    res.body.forEach((report) => {
+    for (const report of res.body) {
       if (report.anonymous) {
         expect(report.reporterName).toBe("Anonymous");
       } else {
         expect(typeof report.reporterName).toBe("string");
       }
-    });
+    }
   });
 
   /**
@@ -178,10 +178,10 @@ describe("API Map Data Visualization (Technical Staff Flow) E2E", () => {
    */
   it("should include optional fields even if empty", async () => {
     const res = await request(app).get(ENDPOINT).set("Cookie", officerCookie);
-    res.body.forEach((report) => {
+    for (const report of res.body) {
       expect(report).toHaveProperty("photos");
       expect(Array.isArray(report.photos)).toBe(true);
-    });
+    };
   });
 
   /**
