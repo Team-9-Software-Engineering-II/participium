@@ -3,6 +3,7 @@ import {
   acceptOrRejectReport,
   changeProblemCategory,
   getPendingApprovalReports,
+  reviewReport,
 } from "../controllers/report-controller.js";
 import {
   isAuthenticated,
@@ -23,6 +24,7 @@ router.put(
   isAuthenticated,
   isPublicRelationsOfficer,
   acceptOrRejectReport
+  reviewReport
 );
 
 router.put(

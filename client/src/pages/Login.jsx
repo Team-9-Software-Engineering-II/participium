@@ -52,6 +52,10 @@ export default function Login() {
 
       if (roleValue.includes("admin")) {
         navigate("/admin");
+      } else if (roleValue.includes("municipal")) {
+        navigate("/municipal/dashboard");
+      } else if (roleValue.includes("technical")) {
+        navigate("/technical/dashboard");
       } else {
         navigate("/");
       }

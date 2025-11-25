@@ -1,6 +1,6 @@
 Cypress.Commands.add(
   "loginAsAdmin",
-  (username = "admin", password = "AdminPass123!") => {
+  (username = "admin", password = "password123") => {
     cy.visit("/login");
     cy.get("input[name=username]").type(username);
     cy.get("input[name=password]").type(password);

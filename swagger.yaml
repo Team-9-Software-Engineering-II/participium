@@ -11,7 +11,7 @@ paths:
   /auth/register:
     post:
       summary: Register a new citizen
-      description: Se non specificato, l'utente ottiene automaticamente il ruolo di cittadino (roleId = 1).
+      description: This api allow a user to sign up as a citizen in the system
       tags: [Auth]
       requestBody:
         required: true
@@ -87,6 +87,7 @@ paths:
                 $ref: '#/components/schemas/UserProfile'
     put:
       summary: Update logged in user's profile
+      description: Citizens can upload a personal photo, add their Telegram username and switch off/on email notifications in the configuration panel.
       tags: [Users]
       security:
         - BearerAuth: []
@@ -103,6 +104,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid input data (e.g. incorrect field format)
+        '401':
+          description: Unauthorized - user not authenticated
+        '404':
+          description: User not found
 
   /reports:
     post:
@@ -264,8 +271,9 @@ paths:
 
   /municipal/reports/{reportId}:
     put:
-      summary: (Municipal Staff) Accept or Reject a report (Initial Review)
-      description: Allows the Public Relations Officer to move a report from 'Pending Approval' to 'Assigned' or 'Rejected'. Please, be careful not to insert the 'rejection_reason' when you want to accept a report. Instead, specify it when you want to reject the report.
+      summary: (URP) Review a report (Accept/Reject)
+      description: >
+        Allows the URP officer to accept a report (automatically assigning it to the technical staff via load balancing) or reject it.
       tags: [Municipal]
       parameters:
         - in: path
@@ -274,6 +282,7 @@ paths:
           schema:
             type: integer
             minimum: 1
+          description: Unique ID of the report
       security:
         - BearerAuth: []
       x-security-role: municipality_public_relations_officer
@@ -282,22 +291,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReportAcceptReject'
+              $ref: '#/components/schemas/ReportReview'
       responses:
         '200':
-          description: Report status updated successfully
+          description: Report successfully reviewed. Returns the updated object.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UpdateBooleanResponse'
+                $ref: '#/components/schemas/Report'
         '400':
-          description: Invalid status or missing rejection_reason or invalid ID format
+          description: Invalid action, invalid ID, or missing rejection reason.
         '401':
-          description: User not authenticated
+          description: User not authenticated.
         '403':
-          description: "Forbidden: municipal public relations officer only"
+          description: Municipal public relations officer only.
         '404':
           description: Report with id XX not found.
+        '409':
+          description: Report is not in 'Pending Approval' status.
 
   /upload/photo:
     post:
@@ -420,7 +431,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/UserProfile'
     post:
-      summary: (Admin) Crea un nuovo utente municipale
+      summary: (Admin) Create a new municipal/staff member user
+      description: This api allow an admin to register a new municipal or staff member user. It is necessary to pass a valid roleId and technicalOfficeId.
       tags: [Admin]
       security:
         - BearerAuth: []
@@ -432,11 +444,11 @@ paths:
               $ref: '#/components/schemas/AdminUserCreate'
       responses:
         '201':
-          description: Utente staff creato
+          description: Municipal/Staff member user created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: '#/components/schemas/MunicipalOrStaffUserResponse'
         '400':
           description: Dati non validi (es. ruolo non trovato)
         '409':
@@ -526,12 +538,35 @@ paths:
         '403':
           description: Unauthorized access
 
+  /offices:
+    get:
+      summary: (Admin) Get the list of all technical offices
+      description: Returns a list of all technical offices, showing only their ID and Name.
+      tags: [Technical Offices]
+      security:
+        - CookieAuth: []
+      x-security-role: admin
+      responses:
+        '200':
+          description: List of technical offices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TechnicalOfficeSummary'
+        '401':
+          description: "User not authenticated"
+        '403':
+          description: "Forbidden: admin only"
+
 components:
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Session authentication via cookie set by Passport Local Strategy.
 
   schemas:
     UserRegister:
@@ -550,10 +585,7 @@ components:
         password:
           type: string
           format: password
-        roleId:
-          type: integer
-          minimum: 1
-          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
+
     AuthSessionResponse:
       type: object
       required: [authenticated]
@@ -583,6 +615,7 @@ components:
         password:
           type: string
           format: password
+
     UserProfile:
       type: object
       properties:
@@ -636,7 +669,7 @@ components:
     
     AdminUserCreate:
       type: object
-      required: [email, username, password, firstName, lastName, roleId]
+      required: [email, username, password, firstName, lastName, roleId, technicalOfficeId]
       properties:
         email:
           type: string
@@ -653,7 +686,11 @@ components:
         roleId:
           type: integer
           minimum: 1
-          description: Identifier of the role to assign. Defaults to 1 (citizen) when omitted.
+          description: Identifier of the role to assign.
+        technicalOfficeId:
+          type: integer
+          minimum: 1
+          description: Identifier of the technical office to assign.
 
     ReportCreate:
       type: object
@@ -735,16 +772,17 @@ components:
           description: The ID of the new category for the report.
           minimum: 1
 
-    ReportAcceptReject:
+    ReportReview:
       type: object
-      required: [status]
+      required: [action]
       properties:
-        status:
-          $ref: '#/components/schemas/ReportStatus'
-          enum: [Assigned, Rejected]
-        rejection_reason:
+        action:
           type: string
-          description: Required if status is 'Rejected'.
+          enum: [accepted, rejected]
+          description: Action to perform on the report.
+        rejectionReason:
+          type: string
+          description: Reason for rejection, required if action is 'rejected'.
           nullable: true
 
     Report:
@@ -927,16 +965,6 @@ components:
         reporterName:
           type: string
 
-    ReportReview:
-      type: object
-      required: [action]
-      properties:
-        action:
-          type: string
-          enum: [accepted, rejected]
-        rejectionReason: # Required if action = rejected
-          type: string
-
     RoleSummary:
       type: object
       properties:
@@ -971,3 +999,89 @@ components:
         description:
           type: string
           nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TechnicalOfficeDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        categoryId:
+          type: integer
+        category:
+          $ref: '#/components/schemas/ReportCategoryDetails'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MunicipalOrStaffUserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoURL:
+          type: string
+          format: uri
+          nullable: true
+        telegramUsername:
+          type: string
+          nullable: true
+        emailConfiguration:
+          type: boolean
+        counterActiveReports:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        roleId:
+          type: integer
+        role:
+          $ref: '#/components/schemas/RoleSummary'
+        technicalOfficeId:
+          type: integer
+          nullable: true
+        technicalOffice:
+          $ref: '#/components/schemas/TechnicalOfficeDetails' 
+          nullable: true
+        reports:
+          type: array
+          items:
+            type: object
+    TechnicalOfficeSummary:
+      type: object
+      description: Simplified representation of a Technical Office.
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the Technical Office.
+        name:
+          type: string
+          description: Name of the Technical Office.
+          
+          
+
+    
+        

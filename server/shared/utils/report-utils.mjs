@@ -21,7 +21,6 @@ export function sanitizeReport(report) {
   } else if (plainReport.photosLinks == null) {
     plainReport.photos = [];
   }
-
   delete plainReport.photosLinks;
 
   const fullName =
@@ -37,7 +36,62 @@ export function sanitizeReport(report) {
     delete plainReport.rejection_reason;
   }
 
-  return plainReport;
+  const technicalOfficeDetails = plainReport.category?.technicalOffice || null;
+
+  const assigneeDetails = plainReport.technicalOfficer || null;
+
+  return {
+    id: plainReport.id,
+    title: plainReport.title,
+    description: plainReport.description,
+    status: plainReport.status,
+    latitude: plainReport.latitude,
+    longitude: plainReport.longitude,
+    anonymous: plainReport.anonymous,
+    photos: plainReport.photos,
+    createdAt: plainReport.createdAt,
+    updatedAt: plainReport.updatedAt,
+
+    categoryId: plainReport.categoryId,
+    rejectionReason: plainReport.rejectionReason,
+    reporterName: plainReport.reporterName,
+
+    category: plainReport.category
+      ? {
+          id: plainReport.category.id,
+          name: plainReport.category.name,
+          description: plainReport.category.description,
+        }
+      : null,
+
+    technicalOffice: technicalOfficeDetails
+      ? {
+          id: technicalOfficeDetails.id,
+          name: technicalOfficeDetails.name,
+        }
+      : null,
+
+    assignee: assigneeDetails
+      ? {
+          id: assigneeDetails.id,
+          firstName: assigneeDetails.firstName,
+          lastName: assigneeDetails.lastName,
+          username: assigneeDetails.username,
+          email: assigneeDetails.email,
+        }
+      : null,
+
+    user: plainReport.user
+      ? {
+          id: plainReport.user.id,
+          username: plainReport.user.username,
+          firstName: plainReport.user.firstName,
+          lastName: plainReport.user.lastName,
+          photoURL: plainReport.user.photoURL,
+        }
+      : null,
+    userId: plainReport.userId || null,
+  };
 }
 
 /**

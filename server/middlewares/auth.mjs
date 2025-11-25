@@ -78,3 +78,4 @@ export function isOwnerOrPublicRelationsOfficer(req, res, next) {
   if (isPublicRelationsOfficer()) return next();
   return authorizationFailed;
 }
+

@@ -3,16 +3,17 @@ import {
   findAllReports,
   findReportById,
   findReportsByUserId,
-  findAllReportsFilteredByStatus,
   updateReport,
+  findAllReportsFilteredByStatus, // <-- Import del collega
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
+import { findStaffWithFewestReports } from "../repositories/user-repo.mjs"; // <-- Tuo import
 import {
   sanitizeReport,
   sanitizeReports,
 } from "../shared/utils/report-utils.mjs";
+// Import del collega (assicurati che questo file esista ora nel tuo progetto!)
 import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
-
 /**
  * Encapsulates report business logic and orchestrates repository calls.
  */
@@ -41,6 +42,98 @@ export class ReportService {
 
     const hydratedReport = await findReportById(createdReport.id);
     return sanitizeReport(hydratedReport ?? createdReport);
+  }
+
+  /**
+   * Reviews a report, accepting it and assigning it to a technical officer.
+   * @param {number} reportId - The ID of the report to accept.
+   * @returns {Promise<object>} The updated sanitized report.
+   */
+  static async acceptReport(reportId) {
+    // 1. Recupera il report e valida lo stato corrente
+    const report = await findReportById(reportId);
+    if (!report) {
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (report.status !== "Pending Approval") {
+      const error = new Error(
+        `Cannot accept report. Current status is '${report.status}', expected 'Pending Approval'.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 2. Recupera la categoria per identificare l'Ufficio Tecnico competente
+    const category = await findProblemCategoryById(report.categoryId);
+    
+    // (Nota: findProblemCategoryById include già il modello TechnicalOffice come 'technicalOffice')
+    if (!category || !category.technicalOffice) {
+      console.log(category);
+      const error = new Error(
+        "Configuration Error: This report category is not linked to any Technical Office."
+      );
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const targetOfficeId = category.technicalOffice.id;
+
+    // 3. Algoritmo di Load Balancing: Trova lo staff member con meno report
+    const bestOfficer = await findStaffWithFewestReports(targetOfficeId);
+
+    if (!bestOfficer) {
+      const error = new Error(
+        `No technical officers found in the '${category.technicalOffice.name}' office.`
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // 4. Aggiorna il report: Stato "Assigned" e assegna all'ufficiale trovato
+    await updateReport(reportId, {
+      status: "Assigned",
+      technicalOfficerId: bestOfficer.id, // <-- Usiamo il nome corretto definito nel model
+    });
+
+    // Ritorna il report aggiornato
+    return this.getReportById(reportId);
+  }
+
+  /**
+   * Rejects a report, providing a mandatory reason.
+   * @param {number} reportId - The ID of the report to reject.
+   * @param {string} rejectionReason - The reason for rejection.
+   * @returns {Promise<object>} The updated sanitized report.
+   */
+  static async rejectReport(reportId, rejectionReason) {
+    // 1. Recupera il report
+    const report = await findReportById(reportId);
+    if (!report) {
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 2. Verifica lo stato (deve essere Pending Approval)
+    if (report.status !== "Pending Approval") {
+      const error = new Error(
+        `Cannot reject report. Current status is '${report.status}', expected 'Pending Approval'.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 3. Aggiorna il report: Stato "Rejected" e motivo del rifiuto
+    await updateReport(reportId, {
+      status: "Rejected",
+      rejection_reason: rejectionReason,
+    });
+
+    // Ritorna il report aggiornato
+    return this.getReportById(reportId);
   }
 
   /**

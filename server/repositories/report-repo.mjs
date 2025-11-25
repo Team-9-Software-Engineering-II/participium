@@ -62,6 +62,18 @@ export async function findReportById(id) {
       {
         model: db.Category,
         as: "category",
+        include: [
+          {
+            model: db.TechnicalOffice,
+            as: "technicalOffice",
+            attributes: ["id", "name"],
+          },
+        ],
+      },
+      {
+        model: db.User,
+        as: "technicalOfficer",
+        attributes: ["id", "username", "firstName", "lastName", "email"],
       },
     ],
   });
