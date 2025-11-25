@@ -559,6 +559,28 @@ paths:
           description: "User not authenticated"
         '403':
           description: "Forbidden: admin only"
+  
+  /offices/reports/assigned:
+    get:
+      summary: (Technical Staff) Retrieve reports assigned to me
+      description: Allows a technical staff member to view all reports assigned to them personally.
+      tags: [Technical Offices]
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff
+      responses:
+        '200':
+          description: List of assigned reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (technical staff only)
 
 components:
   securitySchemes:

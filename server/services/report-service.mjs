@@ -4,15 +4,15 @@ import {
   findReportById,
   findReportsByUserId,
   updateReport,
-  findAllReportsFilteredByStatus, // <-- Import del collega
+  findAllReportsFilteredByStatus,
+  findReportsByTechnicalOfficerId,
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
-import { findStaffWithFewestReports } from "../repositories/user-repo.mjs"; // <-- Tuo import
+import { findStaffWithFewestReports } from "../repositories/user-repo.mjs";
 import {
   sanitizeReport,
   sanitizeReports,
 } from "../shared/utils/report-utils.mjs";
-// Import del collega (assicurati che questo file esista ora nel tuo progetto!)
 import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
 /**
  * Encapsulates report business logic and orchestrates repository calls.
@@ -134,6 +134,16 @@ export class ReportService {
 
     // Ritorna il report aggiornato
     return this.getReportById(reportId);
+  }
+
+  /**
+   * Retrieves reports assigned to a specific technical officer.
+   * @param {number} officerId - The ID of the technical staff member.
+   * @returns {Promise<object[]>} Sanitized list of assigned reports.
+   */
+  static async getReportsAssignedToOfficer(officerId) {
+    const reports = await findReportsByTechnicalOfficerId(officerId);
+    return sanitizeReports(reports);
   }
 
   /**
