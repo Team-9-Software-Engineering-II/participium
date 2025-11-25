@@ -185,4 +185,29 @@ describe("Report Repository (Unit)", () => {
             expect(result).toBe(false);
         });
     });
+
+    // ----------------------------------------------------------------------
+    // findReportsByTechnicalOfficerId
+    // ----------------------------------------------------------------------
+    describe("findReportsByTechnicalOfficerId", () => {
+        const officerId = 42;
+        it("should call Report.findAll filtered by technicalOfficerId with includes and DESC order", async () => {
+            mockReportModel.findAll.mockResolvedValue([mockSequelizeReport]);
+
+            const result = await ReportRepo.findReportsByTechnicalOfficerId(officerId);
+
+            expect(mockReportModel.findAll).toHaveBeenCalledWith({
+                where: { technicalOfficerId: officerId },
+                include: includeUserAndCategory,
+                order: orderDesc,
+            });
+            expect(result).toEqual([mockSequelizeReport]);
+        });
+
+        it("should return empty array when no reports are assigned to the officer", async () => {
+            mockReportModel.findAll.mockResolvedValue([]);
+            const result = await ReportRepo.findReportsByTechnicalOfficerId(officerId);
+            expect(result).toEqual([]);
+        });
+    });
 });
