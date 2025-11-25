@@ -6,6 +6,7 @@ import adminRoleRouter from "./admin-role-router.js";
 import reportRouter from "./report-router.js";
 import uploadRouter from "./upload-router.js";
 import municipalRouter from "./municipal-router.mjs";
+import techOfficeRouter from "./technical-office-router.mjs";
 
 const router = Router();
 
@@ -19,4 +20,6 @@ router.use("/upload", uploadRouter);
 router.use("/admin/users", adminUserRouter);
 router.use("/admin/roles", adminRoleRouter);
 router.use("/municipal", municipalRouter);
+router.use("/offices", techOfficeRouter);
+
 export default router;
