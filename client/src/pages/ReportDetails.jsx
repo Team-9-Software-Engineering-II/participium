@@ -36,17 +36,17 @@ const REPORT_STATUS_COLORS = {
   'Rejected': 'bg-red-500'
 };
 
-const CATEGORIES = [
-  { id: 1, name: 'Water Supply' },
-  { id: 2, name: 'Architectural Barriers' },
-  { id: 3, name: 'Sewer System' },
-  { id: 4, name: 'Public Lighting' },
-  { id: 5, name: 'Waste' },
-  { id: 6, name: 'Road Signs' },
-  { id: 7, name: 'Roads' },
-  { id: 8, name: 'Public Green Areas' },
-  { id: 9, name: 'Other' }
-];
+// const CATEGORIES = [
+//   { id: 1, name: 'Water Supply' },
+//   { id: 2, name: 'Architectural Barriers' },
+//   { id: 3, name: 'Sewer System' },
+//   { id: 4, name: 'Public Lighting' },
+//   { id: 5, name: 'Waste' },
+//   { id: 6, name: 'Road Signs' },
+//   { id: 7, name: 'Roads' },
+//   { id: 8, name: 'Public Green Areas' },
+//   { id: 9, name: 'Other' }
+// ];
 
 const getImageUrl = (path) => {
   if (!path) return '';
@@ -69,6 +69,27 @@ export default function ReportDetails() {
   const [rejectReason, setRejectReason] = useState('');
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [reportRes, catRes] = await Promise.all([
+          reportAPI.getById(id),
+          reportAPI.getCategories() // Chiamata parallela per efficienza
+        ]);
+        setReport(reportRes.data);
+        setCategories(catRes.data);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Report details unavailable.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
 
   useEffect(() => {
     fetchReport();
@@ -162,8 +183,15 @@ export default function ReportDetails() {
   const handleCategoryChange = async (newCategoryId) => {
     try {
       await urpAPI.updateReportCategory(report.id, parseInt(newCategoryId));
-      const updatedCat = CATEGORIES.find(c => c.id === parseInt(newCategoryId));
-      setReport(prev => ({ ...prev, categoryId: parseInt(newCategoryId), category: updatedCat }));
+      
+      // Trova la categoria completa dall'array caricato dal DB
+      const updatedCat = categories.find(c => c.id === parseInt(newCategoryId));
+      
+      setReport(prev => ({ 
+        ...prev, 
+        categoryId: parseInt(newCategoryId), 
+        category: updatedCat 
+      }));
     } catch (error) {
       console.error("Category update failed", error);
       alert("Failed to update category");
@@ -305,7 +333,7 @@ export default function ReportDetails() {
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map(c => (
+                    {categories.map(c => (
                       <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
