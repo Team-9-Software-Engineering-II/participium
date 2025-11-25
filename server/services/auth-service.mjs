@@ -181,13 +181,13 @@ export class AuthService {
 
   /**
    * Ensures the provided technicalOffice exists.
-   * @param {number} id - TechincalOfficeId
+   * @param {number|null} id - TechincalOfficeId
    * @returns {Promise<void>} Resolves when the username is available.
    * @private
    */
   static async #ensureTechnicalOfficeExists(id) {
     const existingTechnicalOffice = await findTechnicalOfficeById(id);
-    if (existingTechnicalOffice) {
+    if (existingTechnicalOffice || id === null) {
       return;
     }
     const error = new Error(`Technical office with id ${id} not found.`);

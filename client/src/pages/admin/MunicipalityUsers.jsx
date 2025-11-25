@@ -192,7 +192,7 @@ export default function MunicipalityUsers() {
     const requiredFields = ['firstName', 'lastName', 'email', 'username', 'password', 'roleId'];
     const missing = requiredFields.filter((field) => !formValues[field]?.trim());
 
-    // Validazione extra
+    // Controllo specifico: se è Technical Staff, deve avere un ufficio selezionato
     if (isTechnicalStaffSelected && !formValues.technicalOfficeId) {
       setFormError('Please select a Technical Office for the technical staff.');
       return;
@@ -205,6 +205,7 @@ export default function MunicipalityUsers() {
 
     setIsSubmitting(true);
     try {
+      // 1. Costruiamo l'oggetto base con i dati comuni
       const payload = {
         email: formValues.email.trim(),
         username: formValues.username.trim(),
@@ -214,16 +215,22 @@ export default function MunicipalityUsers() {
         roleId: Number(formValues.roleId),
       };
 
+      // 2. Aggiungiamo technicalOfficeId SOLO se il ruolo è effettivamente tecnico.
+      // Per i Municipal Officer questo blocco viene saltato, evitando l'errore 400.
       if (isTechnicalStaffSelected) {
         payload.technicalOfficeId = Number(formValues.technicalOfficeId);
       }
 
       await adminAPI.createUser(payload);
+
       await fetchUsers();
       handleDialogChange(false);
     } catch (err) {
       console.error('Failed to create municipality user', err);
-      setFormError(err.response?.data?.message || 'Unable to create the user. Please try again.');
+      setFormError(
+        err.response?.data?.message ||
+          'Unable to create the user right now. Please review the data and try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }

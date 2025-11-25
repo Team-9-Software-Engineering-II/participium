@@ -53,8 +53,7 @@ export function validateRegistrationInputForMunicipalOrStaffCreation(req, res) {
     !firstName ||
     !lastName ||
     !password ||
-    !roleId ||
-    !technicalOfficeId
+    !roleId
   ) {
     res.status(400).json({
       message:
@@ -73,6 +72,17 @@ export function validateRegistrationInputForMunicipalOrStaffCreation(req, res) {
     }
   }
 
+  // Validazione opzionale del technicalOfficeId se presente
+  if (technicalOfficeId !== undefined && technicalOfficeId !== null && technicalOfficeId !== "") {
+      const parsedTechId = Number(technicalOfficeId);
+      if (!isIdNumberAndPositive(parsedTechId)) {
+          res.status(400).json({
+              message: "technicalOfficeId must be a positive integer when provided.",
+          });
+          return null;
+      }
+  }
+
   return {
     email,
     username,
@@ -80,6 +90,6 @@ export function validateRegistrationInputForMunicipalOrStaffCreation(req, res) {
     lastName,
     password,
     roleId,
-    technicalOfficeId,
+    technicalOfficeId: technicalOfficeId || null,
   };
 }
