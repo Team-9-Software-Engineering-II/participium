@@ -361,17 +361,17 @@ export function MapView({ reports = [], selectedReport = null }) {
           
           <MarkerClusterGroup chunkedLoading iconCreateFunction={createClusterCustomIcon} maxClusterRadius={80} spiderfyOnMaxZoom={true} showCoverageOnHover={false}>
             {reports.map((report) => (
-              <Marker key={report.id} position={[report.latitude, report.longitude]} icon={createReportIcon(report.status)}>
-                <Popup className="custom-popup">
-                  <div className="bg-background border border-border text-foreground rounded-lg p-3">
-                    <h3 className="font-semibold text-sm mb-2">{report.title}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Status: <span style={{ color: REPORT_STATUS[report.status]?.color || '#666' }} className="font-medium">
-                        {REPORT_STATUS[report.status]?.label || report.status}
-                      </span>
-                    </p>
-                  </div>
-                </Popup>
+              <Marker 
+                key={report.id} 
+                position={[report.latitude, report.longitude]} 
+                icon={createReportIcon(report.status)}
+                eventHandlers={{
+                  click: () => {
+                    navigate(`/reports/${report.id}`);
+                  }
+                }}
+              >
+                {/* Popup rimosso per permettere la navigazione diretta */}
               </Marker>
             ))}
           </MarkerClusterGroup>

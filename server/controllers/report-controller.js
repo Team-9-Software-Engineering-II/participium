@@ -1,6 +1,7 @@
 import { ReportService } from "../services/report-service.mjs";
 import { REPORT } from "../shared/constants/models.mjs";
 import { isIdNumberAndPositive } from "../shared/validators/common-validator.mjs";
+import { findAllProblemsCategories } from "../repositories/problem-category-repo.mjs";
 
 import {
   validateCreateReportInput,
@@ -112,7 +113,6 @@ export async function getReportsByUser(req, res, next) {
     return next(error);
   }
 }
-// --- NUOVA FUNZIONE AGGIUNTA ---
 
 /**
  * Handles report review (approval or rejection) by URP.
@@ -149,6 +149,18 @@ export async function reviewReport(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Gets all problem categories.
+ */
+export const getCategories = async (req, res, next) => {
+  try {
+    const categories = await findAllProblemsCategories();
+    res.status(200).json(categories);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export async function changeProblemCategory(req, res, next) {
   try {

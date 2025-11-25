@@ -19,8 +19,8 @@ import "../components/MapView.css";
 import { reportAPI, uploadAPI } from '../services/api';
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
 
-const CATEGORIES = ['Water Supply', 'Architectural Barriers', 'Sewer System', 'Public Lighting', 'Waste', 'Road Signs', 'Roads and Urban Furnishings', 'Public Green Areas', 'Other'];
-const CATEGORY_TO_ID = { 'Water Supply': 1, 'Architectural Barriers': 2, 'Sewer System': 3, 'Public Lighting': 4, 'Waste': 5, 'Road Signs': 6, 'Roads and Urban Furnishings': 7, 'Public Green Areas': 8, 'Other': 9 };
+//const CATEGORIES = ['Water Supply', 'Architectural Barriers', 'Sewer System', 'Public Lighting', 'Waste', 'Road Signs', 'Roads and Urban Furnishings', 'Public Green Areas', 'Other'];
+//const CATEGORY_TO_ID = { 'Water Supply': 1, 'Architectural Barriers': 2, 'Sewer System': 3, 'Public Lighting': 4, 'Waste': 5, 'Road Signs': 6, 'Roads and Urban Furnishings': 7, 'Public Green Areas': 8, 'Other': 9 };
 const DEFAULT_CENTER = [45.0703, 7.6869]; // Torino Centro
 
 const turinBoundaryStyle = {
@@ -206,6 +206,20 @@ export default function CreateReport() {
   const [tempLocationData, setTempLocationData] = useState({ address: '', location: '', latitude: null, longitude: null });
   
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  // useEffect per caricare le categorie:
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await reportAPI.getCategories();
+        setCategories(response.data);
+      } catch (error) {
+        console.error("Failed to load categories", error);
+      }
+    };
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     const fetchGeoJSON = async () => {
@@ -292,7 +306,7 @@ export default function CreateReport() {
     }
     }, (error) => alert('Unable to get location.')); } };
   const handleSubmit = (e) => { e.preventDefault(); if (formData.anonymous) setShowAnonymousDialog(true); else submitReport(); };
-  const submitReport = async () => { try { if (!formData.latitude || !formData.longitude) { alert('Please select a valid location within the Municipality of Turin.'); return; } let photoUrls = []; if (formData.photos.length > 0) { const uploadResponse = await uploadAPI.uploadPhotos(formData.photos); photoUrls = uploadResponse.data.files.map(file => file.url); } else { alert('At least one photo is required'); return; } const reportData = { title: formData.title, description: formData.description, categoryId: CATEGORY_TO_ID[formData.category], latitude: formData.latitude, longitude: formData.longitude, anonymous: formData.anonymous || false, photos: photoUrls }; await reportAPI.create(reportData); alert('Report submitted successfully!'); navigate('/'); } catch (error) { console.error('Error submitting report:', error); alert('Failed to submit report.'); } };
+  const submitReport = async () => { try { if (!formData.latitude || !formData.longitude) { alert('Please select a valid location within the Municipality of Turin.'); return; } let photoUrls = []; if (formData.photos.length > 0) { const uploadResponse = await uploadAPI.uploadPhotos(formData.photos); photoUrls = uploadResponse.data.files.map(file => file.url); } else { alert('At least one photo is required'); return; } const reportData = { title: formData.title, description: formData.description, categoryId: parseInt(formData.category), latitude: formData.latitude, longitude: formData.longitude, anonymous: formData.anonymous || false, photos: photoUrls }; await reportAPI.create(reportData); alert('Report submitted successfully!'); navigate('/'); } catch (error) { console.error('Error submitting report:', error); alert('Failed to submit report.'); } };
   const handleAnonymousConfirm = () => { submitReport(); };
   const handleAnonymousCancel = () => { setShowAnonymousDialog(false); };
   
@@ -420,9 +434,9 @@ export default function CreateReport() {
                </div>
                <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
-                <Select value={formData.category} onValueChange={handleCategoryChange} required>
+                <Select value={formData.category.toString()} onValueChange={value => setFormData(prev => ({ ...prev, category: value }))} required>
                   <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map((category) => (<SelectItem key={category} value={category}>{category}</SelectItem>))}</SelectContent>
+                  <SelectContent>{categories.map((category) => (<SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">

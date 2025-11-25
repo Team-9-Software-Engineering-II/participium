@@ -5,6 +5,7 @@ import {
   getAssignedReports,
   getReportById,
   getReportsByUser,
+  getCategories
 } from "../controllers/report-controller.js";
 import { isAuthenticated, isCitizen } from "../middlewares/auth.mjs";
 
@@ -32,6 +33,13 @@ router.get("/user/:userId", isAuthenticated, getReportsByUser);
  * This route MUST stay before the /:reportId definition to avoid conflicts.
  */
 router.get("/assigned", isAuthenticated, isCitizen, getAssignedReports);
+
+/**
+ * Retrieves all problem categories.
+ * Prrivate endpoint - authentication not required.
+ * This route MUST stay before the /:reportId definition to avoid conflicts.
+ */
+router.get("/categories", isAuthenticated, getCategories);
 
 /**
  * Retrieves a single report by its identifier.
