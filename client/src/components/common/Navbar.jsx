@@ -79,7 +79,7 @@ export default function Navbar() {
         <div className="flex items-center gap-1 sm:gap-2">
           {isAuthenticated ? (
             <>
-              {/* Notifications dropdown - NASCOSTO per Officer */}
+              {/* Notifications dropdown - NASCOSTO per Officer e Admin */}
               {!isOfficer && !isAdmin &&(
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -156,7 +156,7 @@ export default function Navbar() {
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </Button>
 
-              {/* Settings button - hidden on mobile - NASCOSTO per Officer */}
+              {/* Settings button - hidden on mobile - NASCOSTO per Officer e Admin*/}
               {!isOfficer && !isAdmin && (
                 <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                   <Link to="/settings">
@@ -196,7 +196,7 @@ export default function Navbar() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   
-                  {/* Voci menu visibili SOLO se NON è officer */}
+                  {/* Voci menu visibili SOLO se NON è officer e se NON è admin*/}
                   {!isOfficer && !isAdmin && (
                     <>
                       <DropdownMenuItem asChild>
