@@ -5,8 +5,55 @@ import ReportDetailPage from "../pages/reportDetails.page";
 describe("Municipal Officer - Review Reports Flow", () => {
   beforeEach(() => {
     // Step 0: Visit dashboard and ensure logged in
-    cy.loginAsMunicipalOfficer(); // custom command, assumes real login
+    cy.loginAsMunicipalOfficer();
     OfficerLayoutPage.visit();
+  });
+
+  it("should display assigned reports in the Assigned section", () => {
+    // Navigate to Assigned Reports
+    OfficerLayoutPage.goToAssigned();
+
+    // Verify the reports list is visible
+    OfficerReportsPage.elements.reportsList().should("be.visible");
+
+    // Ensure at least one report card exists
+    OfficerReportsPage.elements
+      .reportsList()
+      .find('[data-cy^="report-card-"]')
+      .should("have.length.greaterThan", 0);
+
+    // Open the first assigned report and verify it's visible
+    OfficerReportsPage.elements
+      .reportsList()
+      .find('[data-cy^="report-card-"]')
+      .first()
+      .click();
+
+    // Check redirection to details page
+    cy.url().should("include", "/reports/");
+  });
+
+  it("should display rejected reports in the Rejected section", () => {
+    // Navigate to Rejected Reports
+    OfficerLayoutPage.goToRejected();
+
+    // Verify the reports list is visible
+    OfficerReportsPage.elements.reportsList().should("be.visible");
+
+    // Ensure at least one report card exists
+    OfficerReportsPage.elements
+      .reportsList()
+      .find('[data-cy^="report-card-"]')
+      .should("have.length.greaterThan", 0);
+
+    // Open the first rejected report and verify rejection reason
+    OfficerReportsPage.elements
+      .reportsList()
+      .find('[data-cy^="report-card-"]')
+      .first()
+      .click();
+
+    cy.url().should("include", "/reports/");
   });
 
   it("should reject a pending report with explanation", () => {
@@ -22,14 +69,14 @@ describe("Municipal Officer - Review Reports Flow", () => {
       .find(".cursor-pointer.group")
       .first()
       .then(($card) => {
-        // Optionally grab report title for assertions
+        // Grab report title for assertions
         const reportTitle = $card.find("h3, h1, .CardTitle").text();
 
         // Open report details
         cy.wrap($card).click();
 
         // Verify report details are visible
-        ReportDetailPage.verifyReportData(reportTitle, "To Assign");
+        ReportDetailPage.verifyReportData(reportTitle, "Pending Approval");
 
         // Step 4: Reject report with reason
         const rejectReason = "Invalid location details";
@@ -76,12 +123,16 @@ describe("Municipal Officer - Review Reports Flow", () => {
         cy.url().should("include", "/municipal/dashboard");
 
         // Navigate to Assigned Reports section
+        cy.intercept("GET", "/reports?*").as("fetchReportsAssigned");
         OfficerLayoutPage.goToAssigned();
+        cy.wait("@fetchReportsAssigned");
 
         // Verify the approved report is visible
-        cy.get('[data-cy="reports-list"]')
+        cy.get('[data-cy="reports-list"]', { timeout: 10000 })
           .should("be.visible")
-          .contains(".cursor-pointer.group", reportTitle);
+          .find(".cursor-pointer.group")
+          .contains(reportTitle)
+          .click();
       });
   });
 });

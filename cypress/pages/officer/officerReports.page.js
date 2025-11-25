@@ -106,15 +106,6 @@ class OfficerReportsPage {
   }
 
   /**
-   * Verify the report card's creation date.
-   * @param {number|string} id
-   * @param {string} expectedDate
-   */
-  verifyReportDate(id, expectedDate) {
-    this.elements.reportCardDate(id).should("contain.text", expectedDate);
-  }
-
-  /**
    * Verify the number of attachments in a report card.
    * @param {number|string} id
    * @param {number} expectedCount
