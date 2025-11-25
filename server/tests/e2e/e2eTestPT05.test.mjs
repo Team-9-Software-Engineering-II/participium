@@ -7,7 +7,6 @@ import {
   describe,
   it,
   expect,
-  beforeEach,
 } from "@jest/globals";
 import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
