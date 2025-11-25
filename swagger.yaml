@@ -454,31 +454,6 @@ paths:
         '409':
           description: Conflitto (es. email o username duplicati)
 
-  /admin/users/{userId}/role:
-    put:
-      summary: (Admin) Assign a role to a municipal user
-      tags: [Admin]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: userId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                role:
-                  $ref: '#/components/schemas/UserRole'
-      responses:
-        '200':
-          description: Role updated
-  
   /admin/roles:
     get:
       summary: (Admin) Ottiene la lista di tutti i ruoli disponibili
