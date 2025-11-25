@@ -28,6 +28,7 @@ export default function Navbar() {
     roleName.toLowerCase().includes('municipal') || 
     roleName.toLowerCase().includes('officer')
   );
+  const isAdmin = roleName && roleName.toLowerCase().includes('admin');
 
   // Funzione per ottenere l'etichetta del ruolo formattata
   const getRoleLabel = () => {
@@ -65,7 +66,7 @@ export default function Navbar() {
     <header className="border-b bg-background sticky top-0 z-50">
       <div className="px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
         {/* Logo on the left - Redirect condizionale */}
-        <Link to={isOfficer ? "/municipal/dashboard" : "/"} className="flex items-center gap-1 sm:gap-2">
+        <Link to={isOfficer ? "/municipal/dashboard" : "/" || isAdmin ? "/admin" : "/"} className="flex items-center gap-1 sm:gap-2">
           <img 
             src={theme === 'dark' ? '/mole-logo-white.png' : '/mole-logo-black.png'}
             alt="Participium Logo" 
@@ -79,7 +80,7 @@ export default function Navbar() {
           {isAuthenticated ? (
             <>
               {/* Notifications dropdown - NASCOSTO per Officer */}
-              {!isOfficer && (
+              {!isOfficer && !isAdmin &&(
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative">
@@ -156,7 +157,7 @@ export default function Navbar() {
               </Button>
 
               {/* Settings button - hidden on mobile - NASCOSTO per Officer */}
-              {!isOfficer && (
+              {!isOfficer && !isAdmin && (
                 <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                   <Link to="/settings">
                     <Settings className="h-5 w-5" />
@@ -196,7 +197,7 @@ export default function Navbar() {
                   <DropdownMenuSeparator />
                   
                   {/* Voci menu visibili SOLO se NON è officer */}
-                  {!isOfficer && (
+                  {!isOfficer && !isAdmin && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/dashboard" className="cursor-pointer">
