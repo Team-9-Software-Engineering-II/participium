@@ -57,6 +57,10 @@ export const seedTechnicalOffices = async () => {
         name: "General Services Office",
         categoryId: 9,
       },
+      {
+        // ID 10: Public Relations Office
+        name: "Public Relations Office",
+      },
     ]);
 
     console.log("TechnicalOffices seeded successfully.");
