@@ -1,6 +1,5 @@
 import { UserAdminService } from "../services/user-admin-service.mjs";
 import {
-  validateRegistrationInput,
   validateRegistrationInputForMunicipalOrStaffCreation,
 } from "../shared/validators/user-registration-validator.mjs";
 import { AuthService } from "../services/auth-service.mjs";
