@@ -13,6 +13,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('blob:')) return path;
+  return `http://localhost:3000${path}`;
+};
+
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -30,6 +36,7 @@ export default function Navbar() {
   );
   const isAdmin = roleName && roleName.toLowerCase().includes('admin');
   const isTechnician = roleName && roleName.toLowerCase().includes('technical');
+  const isCitizen = roleName && roleName.toLowerCase().includes('citizen');
 
   // Funzione per determinare il link della Home/Logo
   const getHomeLink = () => {
@@ -89,7 +96,7 @@ export default function Navbar() {
           {isAuthenticated ? (
             <>
               {/* Notifications dropdown - NASCOSTO per Officer e Admin */}
-              {!isOfficer && !isAdmin && !isTechnician && (
+              {isCitizen && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative">
@@ -166,7 +173,7 @@ export default function Navbar() {
               </Button>
 
               {/* Settings button - hidden on mobile - NASCOSTO per Officer e Admin*/}
-              {!isOfficer && !isAdmin && !isTechnician && (
+              {isCitizen && (
                 <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                   <Link to="/settings">
                     <Settings className="h-5 w-5" />
@@ -179,7 +186,10 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user?.photoUrl} alt={user?.username} />
+                      <AvatarImage 
+                        src={isCitizen ? getImageUrl(user?.photoUrl) : null} 
+                        alt={user?.username} 
+                      />
                       <AvatarFallback>
                         <User className="h-5 w-5" />
                       </AvatarFallback>
@@ -206,7 +216,7 @@ export default function Navbar() {
                   <DropdownMenuSeparator />
                   
                   {/* Voci menu visibili SOLO se NON è officer e se NON è admin*/}
-                  {!isOfficer && !isAdmin && !isTechnician && (
+                  {isCitizen && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/dashboard" className="cursor-pointer">
