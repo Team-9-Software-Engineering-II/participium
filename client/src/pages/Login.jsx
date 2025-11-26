@@ -55,7 +55,7 @@ export default function Login() {
       } else if (roleValue.includes("municipal")) {
         navigate("/municipal/dashboard");
       } else if (roleValue.includes("technical")) {
-        navigate("/technical/dashboard");
+        navigate("/technical/reports/active");
       } else {
         navigate("/");
       }

@@ -29,11 +29,13 @@ export default function Navbar() {
     roleName.toLowerCase().includes('officer')
   );
   const isAdmin = roleName && roleName.toLowerCase().includes('admin');
+  const isTechnician = roleName && roleName.toLowerCase().includes('technical');
 
   // Funzione per determinare il link della Home/Logo
   const getHomeLink = () => {
     if (isOfficer) return "/municipal/dashboard";
     if (isAdmin) return "/admin"; // Assicurati che questa sia la rotta corretta per la dashboard admin
+    if (isTechnician) return "/technical/reports/active";
     return "/";
   };
 
@@ -87,7 +89,7 @@ export default function Navbar() {
           {isAuthenticated ? (
             <>
               {/* Notifications dropdown - NASCOSTO per Officer e Admin */}
-              {!isOfficer && !isAdmin &&(
+              {!isOfficer && !isAdmin && !isTechnician && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative">
@@ -164,7 +166,7 @@ export default function Navbar() {
               </Button>
 
               {/* Settings button - hidden on mobile - NASCOSTO per Officer e Admin*/}
-              {!isOfficer && !isAdmin && (
+              {!isOfficer && !isAdmin && !isTechnician && (
                 <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                   <Link to="/settings">
                     <Settings className="h-5 w-5" />
@@ -204,7 +206,7 @@ export default function Navbar() {
                   <DropdownMenuSeparator />
                   
                   {/* Voci menu visibili SOLO se NON è officer e se NON è admin*/}
-                  {!isOfficer && !isAdmin && (
+                  {!isOfficer && !isAdmin && !isTechnician && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/dashboard" className="cursor-pointer">
