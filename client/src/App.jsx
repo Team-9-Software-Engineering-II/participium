@@ -19,6 +19,7 @@ import OfficerLayout from './pages/officer/OfficerLayout';
 import OfficerReports from './pages/officer/OfficerReports';
 import TechnicianLayout from './pages/technician/TechnicianLayout';
 import TechnicianReports from './pages/technician/TechnicianReports';
+import { Toaster } from "@/components/ui/sonner"
 
 function App() {
   const HomeRoute = () => {
@@ -116,6 +117,9 @@ function App() {
             </Route>
 
         </Routes>
+
+        <Toaster />
+
         </AuthProvider>
       </ThemeProvider>
     </Router>

@@ -11,7 +11,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { User, Shield, Palette, Bell, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { uploadAPI } from '@/services/api';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 // Helper per visualizzare correttamente le immagini dal backend locale
 const getImageUrl = (path) => {
@@ -22,7 +22,6 @@ const getImageUrl = (path) => {
 
 export default function Settings() {
   const { user, updateProfile } = useAuth(); 
-  const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -80,6 +79,7 @@ export default function Settings() {
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      const toastId = toast.loading("Uploading image...");
       try {
         const response = await uploadAPI.uploadPhoto(file);
         const newPhotoUrl = response.data.url;
@@ -87,19 +87,16 @@ export default function Settings() {
         const result = await updateProfile({ photoUrl: newPhotoUrl });
 
         if (result.success) {
-          toast({
-            title: "Image Uploaded",
-            description: "Profile picture updated successfully.",
+          toast.success("Profile picture updated successfully.", {
+            id: toastId,
           });
         } else {
           throw new Error(result.error);
         }
       } catch (error) {
         console.error("Upload failed", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to upload image.",
+        toast.error("Failed to upload image.", {
+          id: toastId,
         });
       }
     }
@@ -126,24 +123,13 @@ export default function Settings() {
       const result = await updateProfile(updateData);
       
       if (result.success) {
-        toast({
-          title: "Success",
-          description: "Profile updated successfully.",
-        });
+        toast.success("Profile updated successfully.");
       } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error || "Failed to update profile.",
-        });
+        toast.error(result.error || "Failed to update profile.");
       }
     } catch (error) {
       console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An unexpected error occurred.",
-      });
+      toast.error("An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -154,10 +140,7 @@ export default function Settings() {
     e.preventDefault();
     setLoading(true);
     try {
-      toast({
-        title: "Info",
-        description: "Personal details are managed by the administration.",
-      });
+      toast.info("Personal details are managed by your organization and cannot be changed here.");
     } catch (error) {
       console.error(error);
     } finally {
@@ -174,20 +157,13 @@ export default function Settings() {
         });
 
         if (result.success) {
-          toast({
-              title: "Preferences Updated",
-              description: "Your notification settings have been saved.",
-          });
+          toast.success("Notification preferences updated successfully.");
         } else {
           throw new Error(result.error);
         }
     } catch (error) {
         console.error(error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to update notification preferences.",
-        });
+        toast.error("Failed to update notification preferences.");
     } finally {
         setLoading(false);
     }
