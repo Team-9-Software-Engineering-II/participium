@@ -1,10 +1,12 @@
 import { defineConfig } from "cypress";
-import db from "./server/models/index.mjs"
-import { seedUsers } from "./server/seeders/seed-users.mjs"
+import db from "./server/models/index.mjs";
+import { seedUsers } from "./server/seeders/seed-users.mjs";
 
 export default defineConfig({
   e2e: {
     baseUrl: "http://localhost:5173",
+    viewportWidth: 1280,
+    viewportHeight: 800,
     setupNodeEvents(on, config) {
       on("task", {
         async resetDb() {

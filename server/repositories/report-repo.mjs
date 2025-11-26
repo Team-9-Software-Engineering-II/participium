@@ -28,6 +28,27 @@ export async function findAllReports() {
 }
 
 /**
+ * Finds all reports filtered by status, including the author (User) and Category.
+ */
+export async function findAllReportsFilteredByStatus(status) {
+  return db.Report.findAll({
+    where: { status },
+    include: [
+      {
+        model: db.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName", "photoURL"],
+      },
+      {
+        model: db.Category,
+        as: "category",
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+  });
+}
+
+/**
  * Finds a report by its ID, including User and Category.
  */
 export async function findReportById(id) {
@@ -41,6 +62,18 @@ export async function findReportById(id) {
       {
         model: db.Category,
         as: "category",
+        include: [
+          {
+            model: db.TechnicalOffice,
+            as: "technicalOffice",
+            attributes: ["id", "name"],
+          },
+        ],
+      },
+      {
+        model: db.User,
+        as: "technicalOfficer",
+        attributes: ["id", "username", "firstName", "lastName", "email"],
       },
     ],
   });

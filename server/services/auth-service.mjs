@@ -7,6 +7,8 @@ import {
 } from "../repositories/user-repo.mjs";
 import { findRoleById } from "../repositories/role-repo.mjs";
 import { findRoleByName } from "../repositories/role-repo.mjs"; // added for refactoring
+import { findTechnicalOfficeById } from "../repositories/technical-office-repo.mjs";
+
 const PASSWORD_SALT_ROUNDS = 10;
 
 /**
@@ -19,20 +21,13 @@ export class AuthService {
    * @returns {Promise<object>} A sanitized user representation without sensitive fields.
    */
   static async registerUser(userInput) {
-    const {
-      email,
-      username,
-      password,
-      firstName,
-      lastName,
-      roleId,
-    } = userInput;
+    const { email, username, password, firstName, lastName } = userInput;
 
     this.#validateEmailFormat(email);
 
     await this.#ensureEmailAvailable(email);
     await this.#ensureUsernameAvailable(username);
-    const assignedRoleId = await this.#ensureRoleExists(roleId);
+    const defaultCitizenRole = await this.#assignCitizenRole();
 
     const hashedPassword = await this.#hashPassword(password);
     const createdUser = await createUser({
@@ -41,7 +36,50 @@ export class AuthService {
       firstName,
       lastName,
       hashedPassword,
-      roleId: assignedRoleId, //mod refactoring, prev -> roleId: roleId ?? 1,
+      roleId: defaultCitizenRole,
+    });
+
+    const hydratedUser = await findUserByIdRepo(createdUser.id);
+    return this.#sanitizeUser(hydratedUser ?? createdUser);
+  }
+
+  /**
+   * Registers a new municipal/staff user after validating uniqueness and hashing the password.
+   * @param {object} userInput - Raw registration data from the client.
+   * @returns {Promise<object>} A sanitized user representation without sensitive fields.
+   */
+  static async registerMunicipalOrStaffUser(userInput) {
+    const {
+      email,
+      username,
+      password,
+      firstName,
+      lastName,
+      roleId,
+      technicalOfficeId,
+    } = userInput;
+
+    this.#validateEmailFormat(email);
+
+    await this.#ensureEmailAvailable(email);
+    await this.#ensureUsernameAvailable(username);
+    await this.#ensureTechnicalOfficeExists(technicalOfficeId);
+    const isRoleExisting = await this.#isRoleExsisting(roleId);
+    if (!isRoleExisting) {
+      const error = new Error(`Role with id ${roleId} not found`);
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hashedPassword = await this.#hashPassword(password);
+    const createdUser = await createUser({
+      email,
+      username,
+      firstName,
+      lastName,
+      hashedPassword,
+      roleId,
+      technicalOfficeId,
     });
 
     const hydratedUser = await findUserByIdRepo(createdUser.id);
@@ -124,25 +162,37 @@ export class AuthService {
     }
   }
 
-  static async #ensureRoleExists(roleId) {
-    let assignedRoleId = roleId;
-    if (!assignedRoleId) {
-      const citizenRole = await findRoleByName("citizen");
-      if (!citizenRole) {
-        const error = new Error("Default citizen role not found in database.");
-        error.statusCode = 500;
-        throw error;
-      }
-      assignedRoleId = citizenRole.id;
-    } else {
-      const role = await findRoleById(assignedRoleId);
-      if (!role) {
-        const error = new Error(`Role with name "${roleId}" not found.`);
-        error.statusCode = 400; // Bad Request
-        throw error;
-      }
+  static async #isRoleExsisting(roleId) {
+    const role = await findRoleById(roleId);
+    return !!role;
+  }
+
+  static async #assignCitizenRole() {
+    const citizenRole = await findRoleByName("citizen");
+    if (!citizenRole) {
+      const error = new Error(
+        "Default citizen role not found in database. Registration process stops"
+      );
+      error.statusCode = 500;
+      throw error;
     }
-    return assignedRoleId;
+    return citizenRole.id;
+  }
+
+  /**
+   * Ensures the provided technicalOffice exists.
+   * @param {number|null} id - TechincalOfficeId
+   * @returns {Promise<void>} Resolves when the username is available.
+   * @private
+   */
+  static async #ensureTechnicalOfficeExists(id) {
+    const existingTechnicalOffice = await findTechnicalOfficeById(id);
+    if (existingTechnicalOffice || id === null) {
+      return;
+    }
+    const error = new Error(`Technical office with id ${id} not found.`);
+    error.statusCode = 404;
+    throw error;
   }
 
   /**
