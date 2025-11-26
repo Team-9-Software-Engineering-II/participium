@@ -16,7 +16,7 @@ docker pull <your-dockerhub-namespace>/participium:latest
 docker run -d \
   --name participium \
   -p 3000:3000 \
-  -e SESSION_SECRET='replace-with-strong-secret' \
+  -e SESSION_SECRET='8Qz!m29sWf4B#1tKjLx0v^RzPpDnCy7h' \
   -e SESSION_COOKIE_SECURE=false \
   -e CLIENT_ORIGIN=http://localhost:3000 \
   -e DB_SYNC_FORCE=false \
