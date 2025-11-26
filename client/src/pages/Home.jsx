@@ -81,15 +81,20 @@ export default function Home() {
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
       );
       const data = await res.json();
-      
-      const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
+
+      const road =
+        data.address?.road ||
+        data.address?.pedestrian ||
+        data.address?.street ||
+        "";
       const houseNumber = data.address?.house_number || "";
       let formattedAddress = `${road} ${houseNumber}`.trim();
 
       if (!formattedAddress) {
-        formattedAddress = data.name || data.display_name || "Address not available";
+        formattedAddress =
+          data.name || data.display_name || "Address not available";
       }
-      
+
       return formattedAddress;
     } catch (error) {
       console.error("Error fetching address:", error);
@@ -102,7 +107,7 @@ export default function Home() {
     const fetchReports = async () => {
       // PULIZIA: Rimosso controllo if (!isAuthenticated).
       // Ci affidiamo alla risposta del backend (401 se non autorizzato).
-      
+
       setLoading(true);
       try {
         // Fetch all reports
@@ -111,20 +116,25 @@ export default function Home() {
         const assignedResponse = await reportAPI.getAssigned();
         const fetchedReports = response.data;
         const assignedReports = assignedResponse.data;
-        
+
         setAllReports(assignedReports);
 
         // OTTIMIZZAZIONE: Filtriamo i report dell'utente direttamente dai dati già scaricati
         // invece di fare una seconda chiamata API ridondante.
         if (user) {
-          const userReports = fetchedReports.filter(report => report.userId === user.id);
+          const userReports = fetchedReports.filter(
+            (report) => report.userId === user.id
+          );
           setMyReports(userReports);
         }
 
         // Fetch addresses for all reports
         const addressPromises = fetchedReports.map(async (report) => {
           if (report.latitude && report.longitude) {
-            const address = await fetchAddress(report.latitude, report.longitude);
+            const address = await fetchAddress(
+              report.latitude,
+              report.longitude
+            );
             return { id: report.id, address };
           }
           return { id: report.id, address: null };
@@ -136,13 +146,12 @@ export default function Home() {
           addressMap[id] = address;
         });
         setAddresses(addressMap);
-
       } catch (error) {
         // Se l'errore è 401 (non autenticato) o altro, svuotiamo le liste
         console.error("Error fetching reports:", error);
         setAllReports([]);
         setMyReports([]);
-      } finally {assignedResponse
+      } finally {
         setLoading(false);
       }
     };
@@ -194,19 +203,30 @@ export default function Home() {
     const reportDateTime = new Date(reportDate);
 
     switch (selectedDate) {
-      case "today":
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const reportDay = new Date(reportDateTime.getFullYear(), reportDateTime.getMonth(), reportDateTime.getDate());
+      case "today": {
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const reportDay = new Date(
+          reportDateTime.getFullYear(),
+          reportDateTime.getMonth(),
+          reportDateTime.getDate()
+        );
         return reportDay.getTime() === today.getTime();
-      
-      case "week":
+      }
+
+      case "week": {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return reportDateTime >= weekAgo;
-      
-      case "month":
+      }
+
+      case "month": {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         return reportDateTime >= monthStart;
-      
+      }
+
       default:
         return true;
     }
@@ -240,7 +260,8 @@ export default function Home() {
 
       // Category filter
       const matchesCategory =
-        !selectedCategory || getCategoryName(report.categoryId) === selectedCategory;
+        !selectedCategory ||
+        getCategoryName(report.categoryId) === selectedCategory;
 
       // Status filter
       const matchesStatus = !selectedStatus || report.status === selectedStatus;
@@ -279,7 +300,7 @@ export default function Home() {
   };
 
   const handleViewInMap = (report, e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     setSelectedReport(report);
   };
 
@@ -287,21 +308,25 @@ export default function Home() {
   const ReportsList = () => {
     // Se non autenticato, mostra il box di login
     if (!isAuthenticated) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No reports</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                    Log in to view and manage reports in your area.
-                </p>
-                <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
-                    <p className="text-sm font-medium">Log in to see reports</p>
-                    <Button onClick={() => navigate("/login")} className="w-full" size="sm">
-                        Log in
-                    </Button>
-                </div>
-            </div>
-        );
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center py-12">
+          <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No reports</h3>
+          <p className="text-sm text-muted-foreground max-w-xs mb-6">
+            Log in to view and manage reports in your area.
+          </p>
+          <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
+            <p className="text-sm font-medium">Log in to see reports</p>
+            <Button
+              onClick={() => navigate("/login")}
+              className="w-full"
+              size="sm"
+            >
+              Log in
+            </Button>
+          </div>
+        </div>
+      );
     }
 
     if (loading) {
@@ -340,22 +365,26 @@ export default function Home() {
                 {addresses[report.id] && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    <span className="font-medium truncate" title={addresses[report.id]}>
+                    <span
+                      className="font-medium truncate"
+                      title={addresses[report.id]}
+                    >
                       {addresses[report.id]}
                     </span>
                   </div>
                 )}
-                
+
                 {/* Coordinates */}
                 {report.latitude && report.longitude && (
                   <div className="flex items-center gap-1 text-xs">
                     <MapPin className="h-3 w-3 opacity-50" />
                     <span className="opacity-70">
-                      {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
+                      {report.latitude.toFixed(6)},{" "}
+                      {report.longitude.toFixed(6)}
                     </span>
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>{new Date(report.createdAt).toLocaleDateString()}</span>
@@ -366,9 +395,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                 <div className="flex items-center gap-2">
-                    {/* Status Badge removed for brevity if not used, or add back if needed */}
-                 </div>
+                <div className="flex items-center gap-2">
+                  {/* Status Badge removed for brevity if not used, or add back if needed */}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -394,7 +423,6 @@ export default function Home() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Left Sidebar - Reports List */}
         <div className="w-96 border-r border-border bg-background flex flex-col relative">
-          
           {/* Mostra Search Bar solo se autenticato */}
           {isAuthenticated && (
             <div className="p-4">
@@ -434,11 +462,11 @@ export default function Home() {
 
           {/* Reports List Area */}
           <div className="px-4 py-4">
-             {isAuthenticated && (
-                <p className="text-sm text-muted-foreground">
-                  {totalResults} results
-                </p>
-             )}
+            {isAuthenticated && (
+              <p className="text-sm text-muted-foreground">
+                {totalResults} results
+              </p>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto px-4">
             <ReportsList />
@@ -507,7 +535,7 @@ export default function Home() {
           variant="outline"
           size="icon"
           className={`absolute left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border ${
-            !isAuthenticated ? 'bottom-[76px]' : 'bottom-6'
+            !isAuthenticated ? "bottom-[76px]" : "bottom-6"
           }`}
         >
           <Info style={{ width: "20px", height: "20px" }} />
@@ -565,7 +593,7 @@ export default function Home() {
                         onCheckedChange={setShowMyReports}
                       />
                     </div>
-                    
+
                     <div className="py-2">
                       <p className="text-sm text-muted-foreground">
                         {totalResults} results
@@ -845,10 +873,7 @@ export default function Home() {
             >
               Cancel
             </Button>
-            <Button
-              onClick={() => navigate('/login')}
-              className="flex-1"
-            >
+            <Button onClick={() => navigate("/login")} className="flex-1">
               Go to Log in
             </Button>
           </div>
@@ -860,36 +885,50 @@ export default function Home() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Legend</DialogTitle>
-            <DialogDescription>
-              Report status legend
-            </DialogDescription>
+            <DialogDescription>Report status legend</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div>
-              <h3 className="font-semibold mb-3 text-sm">How to select a point on the map</h3>
+              <h3 className="font-semibold mb-3 text-sm">
+                How to select a point on the map
+              </h3>
               <p className="text-sm text-muted-foreground">
                 Move the cursor or click on a point on the map
               </p>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-3 text-sm">Report status legend</h3>
+              <h3 className="font-semibold mb-3 text-sm">
+                Report status legend
+              </h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#3B82F6' }} />
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#3B82F6" }}
+                  />
                   <span className="text-sm">To Assign</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#F59E0B' }} />
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#F59E0B" }}
+                  />
                   <span className="text-sm">Assigned</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#EAB308' }} />
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#EAB308" }}
+                  />
                   <span className="text-sm">In Progress</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#10B981' }} />
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#10B981" }}
+                  />
                   <span className="text-sm">Completed</span>
                 </div>
               </div>
