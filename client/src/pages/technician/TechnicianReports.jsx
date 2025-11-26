@@ -122,7 +122,7 @@ export default function TechnicianReports({ type = "active" }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-cy="report-list">
       <div className="mb-6">
         <h2 className="text-2xl font-bold tracking-tight">
           {type === "active" ? "Your Assigned Reports" : "Resolved Reports History"}
@@ -160,7 +160,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
   const hasChanged = selectedStatus !== report.status;
 
   return (
-    <Card className="transition-all hover:shadow-md border-l-4 border-l-primary/20">
+    <Card data-cy="report-card" className="transition-all hover:shadow-md border-l-4 border-l-primary/20">
       <div className="flex flex-col md:flex-row md:items-start gap-4 p-6">
         
         {/* Left Content: Info */}
@@ -228,7 +228,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
                 value={selectedStatus}
                 onValueChange={setSelectedStatus}
               >
-                <SelectTrigger className="w-full md:w-[240px] bg-background">
+                <SelectTrigger className="w-full md:w-[240px] bg-background" data-cy="status-select">
                   <SelectValue placeholder="Change status..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -246,6 +246,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
               {/* Show Update Button only if status is changed */}
               {hasChanged && (
                 <Button 
+                  data-cy="update-status-btn"
                   size="sm" 
                   className="w-full animate-in fade-in zoom-in duration-200"
                   onClick={() => onUpdateStatus(report.id, selectedStatus)}
@@ -258,6 +259,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
           )}
 
           <Button 
+            data-cy="view-details-btn"
             variant="ghost" 
             size="sm" 
             className="w-full md:w-auto mt-auto gap-2 text-primary hover:text-primary/80"
