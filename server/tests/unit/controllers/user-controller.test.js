@@ -1,112 +1,122 @@
 import { jest, describe, it, expect, beforeEach, beforeAll } from "@jest/globals";
 
-// Non ci sono dipendenze esterne mockate nel test originale per questi metodi,
-// perché usano req.user direttamente.
+// --- 1. SETUP MOCKS ---
 
-let getProfile;
-let updateProfile;
+// Mock del Service
+const mockUpdateProfile = jest.fn();
+jest.unstable_mockModule("../../../services/user-service.mjs", () => ({
+  UserService: { updateProfile: mockUpdateProfile },
+}));
 
-describe("UserController (Unit)", () => {
+// Mock delle Utility (sanitizeUser)
+const mockSanitizeUser = jest.fn();
+jest.unstable_mockModule("../../../shared/utils/userUtils.mjs", () => ({
+  sanitizeUser: mockSanitizeUser,
+}));
+
+// Mock del Validatore
+const mockValidateProfileUpdateInput = jest.fn();
+jest.unstable_mockModule("../../../shared/validators/user-profile-update-validator.mjs", () => ({
+  validateProfileUpdateInput: mockValidateProfileUpdateInput,
+}));
+
+// --- 2. TEST SUITE ---
+
+let UserController;
+
+describe("User Controller (Unit)", () => {
   beforeAll(async () => {
-    const userControllerModule = await import("../../../controllers/user-controller.js");
-    getProfile = userControllerModule.getProfile;
-    updateProfile = userControllerModule.updateProfile;
+    // Import dinamico del controller dopo i mock
+    UserController = await import("../../../controllers/user-controller.js");
   });
+
+  let req, res, next;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset oggetti req/res base
+    req = {
+      user: { id: 1, username: "testuser", email: "test@test.com" },
+      body: {},
+    };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    next = jest.fn();
   });
 
+  // --------------------------------------------------------------------------
+  // TEST: getProfile
+  // --------------------------------------------------------------------------
   describe("getProfile", () => {
-    let req, res, next;
-    beforeEach(() => {
-      req = { isAuthenticated: jest.fn(), user: null };
-      res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-      next = jest.fn();
-    });
+    it("should return sanitized user profile with 200 OK", async () => {
+      const sanitizedUser = { id: 1, username: "testuser" }; // Senza password
+      mockSanitizeUser.mockReturnValue(sanitizedUser);
 
-    it("returns 401 if not authenticated", async () => {
-      req.isAuthenticated.mockReturnValue(false);
-      await getProfile(req, res, next);
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ message: "Non autenticato" });
-    });
+      await UserController.getProfile(req, res, next);
 
-    it("returns 200 with user data without password", async () => {
-      req.isAuthenticated.mockReturnValue(true);
-      req.user = { toJSON: () => ({ id: 1, username: "Elena", password: "secret", email: "x@x.com" }) };
-      await getProfile(req, res, next);
+      expect(mockSanitizeUser).toHaveBeenCalledWith(req.user);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ id: 1, username: "Elena", email: "x@x.com" });
+      expect(res.json).toHaveBeenCalledWith(sanitizedUser);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it("calls next(error) on exception", async () => {
-      const error = new Error("fail");
-      req.isAuthenticated.mockImplementation(() => { throw error; });
-      await getProfile(req, res, next);
+    it("should call next(error) if an error occurs", async () => {
+      const error = new Error("Unexpected error");
+      mockSanitizeUser.mockImplementation(() => { throw error; });
+
+      await UserController.getProfile(req, res, next);
+
       expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
+  // --------------------------------------------------------------------------
+  // TEST: updateProfile
+  // --------------------------------------------------------------------------
   describe("updateProfile", () => {
-    let req, res, next;
-    beforeEach(() => {
-      req = { isAuthenticated: jest.fn(), body: {}, user: null };
-      res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-      next = jest.fn();
-    });
+    const validUpdates = { photoUrl: "http://new.jpg" };
+    const updatedUser = { id: 1, photoURL: "http://new.jpg" };
 
-    it("returns 401 if not authenticated", async () => {
-      req.isAuthenticated.mockReturnValue(false);
-      await updateProfile(req, res, next);
-      expect(res.status).toHaveBeenCalledWith(401);
-    });
+    it("should update profile and return 200 OK on success", async () => {
+      // Setup: Validazione OK, Service OK
+      mockValidateProfileUpdateInput.mockReturnValue(validUpdates);
+      mockUpdateProfile.mockResolvedValue(updatedUser);
 
-    it("updates allowed fields and returns 200", async () => {
-      req.isAuthenticated.mockReturnValue(true);
-      req.body = { photoUrl: "p.jpg", telegramUsername: "tg", emailNotificationsEnabled: true };
-      const updatedUser = { id: 1, username: "Elena", email: "x@x.com", ...req.body };
-      req.user = { update: jest.fn().mockResolvedValue(), toJSON: () => ({ ...updatedUser, password: "hidden" }) };
-      
-      await updateProfile(req, res, next);
+      await UserController.updateProfile(req, res, next);
 
-      expect(req.user.update).toHaveBeenCalledWith(req.body);
+      // Verifica interazioni
+      expect(mockValidateProfileUpdateInput).toHaveBeenCalledWith(req, res);
+      // Verifica che chiami il SERVIZIO, non il modello direttamente
+      expect(mockUpdateProfile).toHaveBeenCalledWith(req.user.id, validUpdates);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(updatedUser);
     });
 
-    it("calls next(error) if update throws", async () => {
-      const error = new Error("fail");
-      req.isAuthenticated.mockReturnValue(true);
-      req.body = { telegramUsername: "tg" };
-      req.user = { update: jest.fn().mockRejectedValue(error), toJSON: () => ({}) };
-      await updateProfile(req, res, next);
+    it("should stop if validation fails (returns null)", async () => {
+      // Setup: Validazione fallisce (restituisce null e gestisce la risposta internamente)
+      mockValidateProfileUpdateInput.mockReturnValue(null);
+
+      await UserController.updateProfile(req, res, next);
+
+      expect(mockValidateProfileUpdateInput).toHaveBeenCalled();
+      expect(mockUpdateProfile).not.toHaveBeenCalled(); // Il servizio NON deve partire
+      expect(res.status).not.toHaveBeenCalled(); // La risposta l'ha già data il validatore
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("should call next(error) if service throws", async () => {
+      // Setup: Validazione OK, ma il Service esplode
+      const error = new Error("DB Update failed");
+      mockValidateProfileUpdateInput.mockReturnValue(validUpdates);
+      mockUpdateProfile.mockRejectedValue(error);
+
+      await UserController.updateProfile(req, res, next);
+
       expect(next).toHaveBeenCalledWith(error);
-    });
-
-    it("should ignore undefined fields and update only provided ones", async () => {
-      req.isAuthenticated.mockReturnValue(true);
-      
-      // Simuliamo un payload PARZIALE.
-      // Manca 'telegramUsername' e 'emailNotificationsEnabled' (saranno undefined)
-      req.body = { photoUrl: "new_photo.jpg" };
-      
-      // Mock dell'utente
-      const updatedUser = { id: 1, username: "Elena", ...req.body };
-      req.user = { 
-          update: jest.fn().mockResolvedValue(), 
-          toJSON: () => ({ ...updatedUser, password: "hidden" }) 
-      };
-
-      await updateProfile(req, res, next);
-
-      // VERIFICA CHIAVE:
-      // Ci aspettiamo che update sia stato chiamato SOLO con photoUrl.
-      // Questo prova che gli altri 'if' sono stati valutati come FALSI (Branch coverage!)
-      expect(req.user.update).toHaveBeenCalledWith({ photoUrl: "new_photo.jpg" });
-      
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(updatedUser);
     });
   });
 });
