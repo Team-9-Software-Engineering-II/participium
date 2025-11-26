@@ -114,12 +114,12 @@ describe("ReportService (Unit)", () => {
             expect(result).toEqual(mockSanitizedReport);
         });
 
-        it("should throw a 400 error if the category does not exist", async () => {
+        it("should throw a 404 error if the category does not exist", async () => {
             // Setup: Category check fails
             mockFindProblemCategoryById.mockResolvedValue(null);
 
             await expect(ReportService.createCitizenReport(42, mockPayload))
-                .rejects.toHaveProperty("statusCode", 400);
+                .rejects.toHaveProperty("statusCode", 404);
 
             // Verify that no further repository calls were made
             expect(mockCreateReport).not.toHaveBeenCalled();
