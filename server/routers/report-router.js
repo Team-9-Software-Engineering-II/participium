@@ -18,9 +18,9 @@ router.post("/", isAuthenticated, isCitizen, createReport);
 
 /**
  * Retrieves all reports created in the platform.
- * Public endpoint - no authentication required.
+ * Private endpoint - authentication required.
  */
-router.get("/", getAllReports);
+router.get("/", isAuthenticated, getAllReports);
 
 /**
  * Retrieves every report created by a specific user.
@@ -43,8 +43,8 @@ router.get("/categories", isAuthenticated, getCategories);
 
 /**
  * Retrieves a single report by its identifier.
- * Public endpoint - no authentication required.
+ * Private endpoint - authentication required.
  */
-router.get("/:reportId", getReportById);
+router.get("/:reportId", isAuthenticated, getReportById);
 
 export default router;

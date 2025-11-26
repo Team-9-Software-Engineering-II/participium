@@ -178,3 +178,18 @@ export async function changeProblemCategory(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Returns reports assigned to the currently logged-in technical staff member.
+ */
+export async function getMyAssignedReports(req, res, next) {
+  try {
+    // L'ID dell'utente loggato è in req.user.id (grazie a passport/session)
+    const officerId = req.user.id;
+    
+    const reports = await ReportService.getReportsAssignedToOfficer(officerId);
+    return res.status(200).json(reports);
+  } catch (error) {
+    return next(error);
+  }
+}

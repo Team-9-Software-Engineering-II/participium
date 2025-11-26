@@ -74,7 +74,7 @@ export default function Home() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch address from coordinates (FIXED LOGIC)
+  // Fetch address from coordinates
   const fetchAddress = async (lat, lng) => {
     try {
       const res = await fetch(
@@ -82,7 +82,6 @@ export default function Home() {
       );
       const data = await res.json();
       
-      // Logica migliorata: prova via+civico, altrimenti usa display_name completo
       const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
       const houseNumber = data.address?.house_number || "";
       let formattedAddress = `${road} ${houseNumber}`.trim();
@@ -101,31 +100,27 @@ export default function Home() {
   // Load reports from API
   useEffect(() => {
     const fetchReports = async () => {
-      // Se non autenticato, non caricare nulla e ferma il loading
-      if (!isAuthenticated) {
-        setAllReports([]);
-        setMyReports([]);
-        setLoading(false);
-        return;
-      }
-
+      // PULIZIA: Rimosso controllo if (!isAuthenticated).
+      // Ci affidiamo alla risposta del backend (401 se non autorizzato).
+      
+      setLoading(true);
       try {
-        setLoading(true);
+        // Fetch all reports
+        // Nota: Se non autenticato, questo lancerà un errore (401) che verrà catturato sotto
+        const response = await reportAPI.getAll();
+        const fetchedReports = response.data;
+        
+        setAllReports(fetchedReports);
 
-        // Fetch all reports using our API
-        const allResponse = await reportAPI.getAll();
-        setAllReports(allResponse.data);
-
-        // Fetch user's reports if authenticated
+        // OTTIMIZZAZIONE: Filtriamo i report dell'utente direttamente dai dati già scaricati
+        // invece di fare una seconda chiamata API ridondante.
         if (user) {
-          const myResponse = await reportAPI.getAll();
-          // Filter to get only the user's reports
-          const userReports = myResponse.data.filter(report => report.userId === user.id);
+          const userReports = fetchedReports.filter(report => report.userId === user.id);
           setMyReports(userReports);
         }
 
         // Fetch addresses for all reports
-        const addressPromises = allResponse.data.map(async (report) => {
+        const addressPromises = fetchedReports.map(async (report) => {
           if (report.latitude && report.longitude) {
             const address = await fetchAddress(report.latitude, report.longitude);
             return { id: report.id, address };
@@ -139,7 +134,9 @@ export default function Home() {
           addressMap[id] = address;
         });
         setAddresses(addressMap);
+
       } catch (error) {
+        // Se l'errore è 401 (non autenticato) o altro, svuotiamo le liste
         console.error("Error fetching reports:", error);
         setAllReports([]);
         setMyReports([]);
@@ -149,7 +146,7 @@ export default function Home() {
     };
 
     fetchReports();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user]); // Re-run quando cambia lo stato di auth o l'utente
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -229,56 +226,39 @@ export default function Home() {
     return categoryMap[categoryId] || "";
   };
 
-  // Filter reports based on search query, category, status, and date
-  const filteredReports = allReports.filter((report) => {
-    // Search query filter
-    const matchesSearch =
-      !searchQuery ||
-      report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter helper function
+  const filterReportsList = (reports) => {
+    return reports.filter((report) => {
+      // Search query filter
+      const matchesSearch =
+        !searchQuery ||
+        report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Category filter
-    const matchesCategory =
-      !selectedCategory || getCategoryName(report.categoryId) === selectedCategory;
+      // Category filter
+      const matchesCategory =
+        !selectedCategory || getCategoryName(report.categoryId) === selectedCategory;
 
-    // Status filter
-    const matchesStatus = !selectedStatus || report.status === selectedStatus;
+      // Status filter
+      const matchesStatus = !selectedStatus || report.status === selectedStatus;
 
-    // Date filter
-    const matchesDate = matchesDateFilter(report.createdAt);
+      // Date filter
+      const matchesDate = matchesDateFilter(report.createdAt);
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
-  });
+      return matchesSearch && matchesCategory && matchesStatus && matchesDate;
+    });
+  };
 
-  const filteredMyReports = myReports.filter((report) => {
-    // Search query filter
-    const matchesSearch =
-      !searchQuery ||
-      report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    // Category filter
-    const matchesCategory =
-      !selectedCategory || getCategoryName(report.categoryId) === selectedCategory;
-
-    // Status filter
-    const matchesStatus = !selectedStatus || report.status === selectedStatus;
-
-    // Date filter
-    const matchesDate = matchesDateFilter(report.createdAt);
-
-    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
-  });
+  const filteredReports = filterReportsList(allReports);
+  const filteredMyReports = filterReportsList(myReports);
 
   // Determine which list to show
   const displayReports = showMyReports ? filteredMyReports : filteredReports;
-  const totalResults = showMyReports
-    ? filteredMyReports.length
-    : filteredReports.length;
+  const totalResults = displayReports.length;
 
   const handleNewReport = () => {
+    // Manteniamo questo controllo UX per evitare redirect o errori 401 durante la navigazione
     if (!isAuthenticated) {
       setShowLoginPrompt(true);
     } else {
@@ -342,7 +322,7 @@ export default function Home() {
             <p className="text-sm text-muted-foreground max-w-xs">
               {showMyReports
                 ? "You haven't created any reports yet"
-                : "No reports to display yet. Check back later!"}
+                : "No reports found matching your criteria."}
             </p>
           </div>
         ) : (
@@ -384,8 +364,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <div className="fixed left-0 w-full flex justify-center items-end z-[1001] bottom-0 pointer-events-none md:static md:w-auto md:justify-end md:items-end md:pb-0">
-                </div>
+                 <div className="flex items-center gap-2">
+                    {/* Status Badge removed for brevity if not used, or add back if needed */}
+                 </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -449,24 +430,17 @@ export default function Home() {
             </div>
           )}
 
-          {/* Reports List Area or Login Prompt */}
-          {isAuthenticated ? (
-            <>
-              <div className="px-4 py-4">
+          {/* Reports List Area */}
+          <div className="px-4 py-4">
+             {isAuthenticated && (
                 <p className="text-sm text-muted-foreground">
                   {totalResults} results
                 </p>
-              </div>
-              <div className="flex-1 overflow-y-auto px-4">
-                <ReportsList />
-              </div>
-            </>
-          ) : (
-            /* Vista Unauthenticated: ReportsList gestisce il box login */
-            <div className="flex-1 overflow-y-auto px-4">
-              <ReportsList /> 
-            </div>
-          )}
+             )}
+          </div>
+          <div className="flex-1 overflow-y-auto px-4">
+            <ReportsList />
+          </div>
 
           {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
           {!isAuthenticated && (
@@ -588,30 +562,21 @@ export default function Home() {
                         onCheckedChange={setShowMyReports}
                       />
                     </div>
-                  </>
-                )}
-
-                {/* Logica visualizzazione lista Mobile */}
-                {isAuthenticated ? (
-                  <>
+                    
                     <div className="py-2">
                       <p className="text-sm text-muted-foreground">
                         {totalResults} results
                       </p>
                     </div>
-                    <div
-                      className="overflow-y-auto"
-                      style={{ maxHeight: "calc(80vh - 400px)" }}
-                    >
-                      <ReportsList />
-                    </div>
                   </>
-                ) : (
-                  /* Vista Unauthenticated Mobile */
-                  <div className="py-2">
-                    <ReportsList />
-                  </div>
                 )}
+
+                <div
+                  className="overflow-y-auto"
+                  style={{ maxHeight: "calc(80vh - 400px)" }}
+                >
+                  <ReportsList />
+                </div>
               </div>
 
               {/* Fixed + button bottom right inside Sheet */}

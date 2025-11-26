@@ -147,3 +147,9 @@ server/data/database.sqlite
 
 # uploaded files
 server/uploads/
+
+# Ignore macOS DS_Store files
+.DS_Store
+
+# Ignores JetBrains IDEs project files
+.idea/

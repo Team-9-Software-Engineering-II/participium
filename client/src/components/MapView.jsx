@@ -12,10 +12,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
 
 const REPORT_STATUS = {
-  TO_ASSIGN: { color: '#3B82F6', label: 'To Assign', icon: '●' },
-  ASSIGNED: { color: '#F59E0B', label: 'Assigned', icon: '●' },
-  IN_PROGRESS: { color: '#EAB308', label: 'In Progress', icon: '●' },
-  COMPLETED: { color: '#10B981', label: 'Completed', icon: '●' }
+  "Pending Approval": { color: '#3B82F6', label: 'Pending Approval', icon: '●' }, // Blu
+  "Assigned": { color: '#F59E0B', label: 'Assigned', icon: '●' }, // Arancione
+  "In Progress": { color: '#EAB308', label: 'In Progress', icon: '●' }, // Giallo
+  "Resolved": { color: '#10B981', label: 'Resolved', icon: '●' }, // Verde
+  "Suspended": { color: '#EF4444', label: 'Suspended', icon: '●' }, // Rosso
+  "Rejected": { color: '#6B7280', label: 'Rejected', icon: '●' }    // Grigio
 };
 
 const DEFAULT_CENTER = [45.0703, 7.6869]; // Torino Centro
@@ -37,7 +39,7 @@ const createUserIcon = () => L.divIcon({
 });
 
 const createReportIcon = (status) => {
-  const statusInfo = REPORT_STATUS[status] || REPORT_STATUS.TO_ASSIGN;
+  const statusInfo = REPORT_STATUS[status] || REPORT_STATUS["Pending Approval"];
   return L.divIcon({
     className: 'custom-report-marker',
     html: `<div style="width: 30px; height: 30px; background-color: ${statusInfo.color}; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,

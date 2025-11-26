@@ -82,7 +82,7 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
 
       expect(res.statusCode).toBe(200);
 
-      res.body.forEach((report) => {
+      for (const report of res.body) {
         expect(report).toHaveProperty("latitude");
         expect(report).toHaveProperty("longitude");
 
@@ -92,7 +92,7 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
         // Basic sanity check for coordinates
         expect(report.latitude).not.toBe(0);
         expect(report.longitude).not.toBe(0);
-      });
+      };
     });
 
     it("should include Title for report visualization (Zoom In requirement)", async () => {
