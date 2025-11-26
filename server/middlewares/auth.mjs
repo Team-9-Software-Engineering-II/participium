@@ -7,28 +7,28 @@ export function isAuthenticated(req, res, next) {
 }
 
 export function isAdmin(req, res, next) {
-  if (req.user?.role.name === "admin") {
+  if (req.user?.role?.name === "admin") {
     return next();
   }
   return res.status(403).json({ error: "Forbidden: admin only" });
 }
 
 export function isCitizen(req, res, next) {
-  if (req.user?.role.name === "citizen") {
+  if (req.user?.role?.name === "citizen") {
     return next();
   }
   return res.status(403).json({ error: "Forbidden: citizen only" });
 }
 
 export function isTechnicalStaff(req, res, next) {
-  if (req.user?.role.name === "technical_staff") {
+  if (req.user?.role?.name === "technical_staff") {
     return next();
   }
   return res.status(403).json({ error: "Forbidden: technical staff only" });
 }
 
 export function isPublicRelationsOfficer(req, res, next) {
-  if (req.user?.role.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER) {
+  if (req.user?.role?.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER) {
     return next();
   }
   return res
@@ -71,7 +71,7 @@ export function isOwnerOrPublicRelationsOfficer(req, res, next) {
   };
 
   const isPublicRelationsOfficer = () => {
-    return req.user?.role.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER;
+    return req.user?.role?.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER;
   };
 
   if (isOwner()) return next();

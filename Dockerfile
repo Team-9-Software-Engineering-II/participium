@@ -5,6 +5,8 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ .
+# Build with empty API base URL since frontend and backend are served from same origin
+ENV VITE_API_BASE_URL=""
 RUN npm run build
 
 FROM node:20-bookworm-slim AS server

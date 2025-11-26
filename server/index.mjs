@@ -84,12 +84,24 @@ function bootstrapExpress() {
         secure: sessionCookieSecure,
         sameSite: sessionSameSite,
         maxAge: 1000 * 60 * 60 * 24,
+        path: '/',
+        domain: undefined, // Let browser handle domain for same-origin
       },
+      name: 'connect.sid',
+      proxy: false, // Not behind a proxy in Docker
     })
   );
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Debug middleware for session tracking (only in non-production)
+  if (NODE_ENV !== "production") {
+    app.use((req, res, next) => {
+      console.log(`[${req.method}] ${req.path} - Authenticated: ${req.isAuthenticated()}, User: ${req.user?.username || 'none'}`);
+      next();
+    });
+  }
 }
 
 /**

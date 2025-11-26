@@ -13,16 +13,7 @@ The container exposes both the UI and API on port `3000`, so third parties can d
 ```bash
 docker pull <your-dockerhub-namespace>/participium:latest
 
-docker run -d \
-  --name participium \
-  -p 3000:3000 \
-  -e SESSION_SECRET='8Qz!m29sWf4B#1tKjLx0v^RzPpDnCy7h' \
-  -e SESSION_COOKIE_SECURE=false \
-  -e CLIENT_ORIGIN=http://localhost:3000 \
-  -e DB_SYNC_FORCE=false \
-  -v participium_db:/app/server/data \
-  -v participium_uploads:/app/server/uploads \
-  participium:latest
+docker run -d --name participium -p 3000:3000 -e SESSION_SECRET='8Qz!m29sWf4B#1tKjLx0v^RzPpDnCy7h' -e SESSION_COOKIE_SECURE=false -e CLIENT_ORIGIN=http://localhost:3000 -e DB_SYNC_FORCE=false participium:latest
 ```
 
 Once the container is healthy, open `http://localhost:3000`. The initial seed inserts demo admin—log in as `admin@participium.com` with password `password123` and municiplaity officer with email `officer@municipality.com` with the same password.

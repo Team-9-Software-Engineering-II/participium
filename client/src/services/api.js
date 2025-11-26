@@ -1,13 +1,20 @@
 import axios from 'axios';
 
 // Configura l'URL base dell'API
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV
-    ? 'http://localhost:3000'
-    : typeof window !== 'undefined'
-      ? window.location.origin
-      : 'http://localhost:3000');
+const API_BASE_URL = (() => {
+  // If explicitly set via env var (including empty string), use it
+  const envValue = import.meta.env.VITE_API_BASE_URL;
+  if (envValue !== undefined && envValue !== null) {
+    // Empty string means same-origin (for Docker/production)
+    return envValue;
+  }
+  // Development: use localhost:3000
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000';
+  }
+  // Production fallback: use window location origin for same-origin requests
+  return typeof window !== 'undefined' ? window.location.origin : '';
+})();
 
 // Crea un'istanza di axios con configurazione di base
 const api = axios.create({
