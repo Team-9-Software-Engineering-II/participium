@@ -1,5 +1,4 @@
 import db from "../models/index.mjs";
-import technicalOffice from "../models/technical-office.mjs";
 
 /**
  * Seeds the 'Reports' table with sample data covering various statuses and categories.
@@ -21,6 +20,7 @@ export const seedReports = async () => {
         status: "Pending Approval",
         latitude: 45.0703,
         longitude: 7.6869,
+        address: "Via Dante Alighieri, 10121 Torino TO, Italy",
         anonymous: false,
         photosLinks: null,
         userId: 1,
@@ -34,6 +34,7 @@ export const seedReports = async () => {
         status: "Pending Approval",
         latitude: 45.065,
         longitude: 7.68,
+        address: "Parco del Valentino, 10126 Torino TO, Italy",
         anonymous: true,
         photosLinks: null,
         userId: 2,
@@ -47,6 +48,7 @@ export const seedReports = async () => {
         status: "Assigned",
         latitude: 45.05,
         longitude: 7.65,
+        address: "Corso Francia 50, 10143 Torino TO, Italy",
         anonymous: false,
         photosLinks: null,
         userId: 3,
@@ -61,6 +63,7 @@ export const seedReports = async () => {
         status: "In Progress",
         latitude: 45.04,
         longitude: 7.7,
+        address: "Parco della Rimembranza, 10133 Torino TO, Italy",
         anonymous: false,
         photosLinks: null,
         userId: 1,
@@ -75,6 +78,7 @@ export const seedReports = async () => {
         status: "Resolved",
         latitude: 45.06,
         longitude: 7.67,
+        address: "Corso Vittorio Emanuele II, 10128 Torino TO, Italy",
         anonymous: false,
         photosLinks: null,
         userId: 2,
@@ -90,10 +94,11 @@ export const seedReports = async () => {
           "Jurisdiction for network infrastructure belongs to private operators.",
         latitude: 45.075,
         longitude: 7.695,
+        address: "Corso Regio Parco, 10153 Torino TO, Italy",
         anonymous: false,
         photosLinks: null,
         userId: 3,
-        categoryId: 9, // Other
+        categoryId: 9,
       },
     ]);
 

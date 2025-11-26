@@ -37,6 +37,7 @@ export function mapReportToAssignedListDTO(report, includeUser = false) {
     status: plainReport.status,
     latitude: plainReport.latitude,
     longitude: plainReport.longitude,
+    address: plainReport.address,
     anonymous: plainReport.anonymous,
     createdAt: plainReport.createdAt,
     updatedAt: plainReport.updatedAt,

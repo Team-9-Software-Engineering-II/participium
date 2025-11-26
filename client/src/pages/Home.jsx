@@ -60,7 +60,6 @@ export default function Home() {
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [addresses, setAddresses] = useState({});
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -73,34 +72,6 @@ export default function Home() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  // Fetch address from coordinates
-  const fetchAddress = async (lat, lng) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
-      );
-      const data = await res.json();
-
-      const road =
-        data.address?.road ||
-        data.address?.pedestrian ||
-        data.address?.street ||
-        "";
-      const houseNumber = data.address?.house_number || "";
-      let formattedAddress = `${road} ${houseNumber}`.trim();
-
-      if (!formattedAddress) {
-        formattedAddress =
-          data.name || data.display_name || "Address not available";
-      }
-
-      return formattedAddress;
-    } catch (error) {
-      console.error("Error fetching address:", error);
-      return "Address not available";
-    }
-  };
 
   // Load reports from API
   useEffect(() => {
@@ -127,25 +98,6 @@ export default function Home() {
           );
           setMyReports(userReports);
         }
-
-        // Fetch addresses for all reports
-        const addressPromises = fetchedReports.map(async (report) => {
-          if (report.latitude && report.longitude) {
-            const address = await fetchAddress(
-              report.latitude,
-              report.longitude
-            );
-            return { id: report.id, address };
-          }
-          return { id: report.id, address: null };
-        });
-
-        const fetchedAddresses = await Promise.all(addressPromises);
-        const addressMap = {};
-        fetchedAddresses.forEach(({ id, address }) => {
-          addressMap[id] = address;
-        });
-        setAddresses(addressMap);
       } catch (error) {
         // Se l'errore è 401 (non autenticato) o altro, svuotiamo le liste
         console.error("Error fetching reports:", error);
@@ -256,7 +208,7 @@ export default function Home() {
         !searchQuery ||
         report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
+        report.address?.toLowerCase().includes(searchQuery.toLowerCase());
 
       // Category filter
       const matchesCategory =
@@ -362,14 +314,14 @@ export default function Home() {
               <h3 className="font-semibold mb-2">{report.title}</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
                 {/* Street Address */}
-                {addresses[report.id] && (
+                {report.address && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
                     <span
                       className="font-medium truncate"
-                      title={addresses[report.id]}
+                      title={report.address}
                     >
-                      {addresses[report.id]}
+                      {report.address}
                     </span>
                   </div>
                 )}

@@ -47,6 +47,7 @@ export function sanitizeReport(report) {
     status: plainReport.status,
     latitude: plainReport.latitude,
     longitude: plainReport.longitude,
+    address: plainReport.address,
     anonymous: plainReport.anonymous,
     photos: plainReport.photos,
     createdAt: plainReport.createdAt,
