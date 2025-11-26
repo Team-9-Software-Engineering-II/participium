@@ -8,6 +8,8 @@ const mockFindAllReports = jest.fn();
 const mockFindReportById = jest.fn();
 const mockFindReportsByUserId = jest.fn();
 const mockfindAllReportsFilteredByStatus = jest.fn();
+const mockFindReportsByTechnicalOfficerId = jest.fn();
+const mockUpdateReport = jest.fn();
 
 jest.unstable_mockModule("../../../repositories/report-repo.mjs", () => ({
     createReport: mockCreateReport,
@@ -15,6 +17,8 @@ jest.unstable_mockModule("../../../repositories/report-repo.mjs", () => ({
     findReportById: mockFindReportById,
     findReportsByUserId: mockFindReportsByUserId,
     findAllReportsFilteredByStatus: mockfindAllReportsFilteredByStatus,
+    findReportsByTechnicalOfficerId: mockFindReportsByTechnicalOfficerId,
+    updateReport: mockUpdateReport,
 }));
 
 // Mocking the Problem Category Repository function
@@ -204,6 +208,35 @@ describe("ReportService (Unit)", () => {
             expect(mockFindReportsByUserId).toHaveBeenCalledWith(userId);
             expect(mockSanitizeReports).toHaveBeenCalledWith(mockRawReports);
             expect(result).toEqual([mockSanitizedReport]);
+        });
+    });
+
+    // ----------------------------------------------------------------------
+    // getReportsAssignedToOfficer
+    // ----------------------------------------------------------------------
+    describe("getReportsAssignedToOfficer", () => {
+        const officerId = 42;
+        const mockRawReports = [mockHydratedReport, mockHydratedReport];
+
+        it("should call findReportsByTechnicalOfficerId and return sanitized results", async () => {
+            mockFindReportsByTechnicalOfficerId.mockResolvedValue(mockRawReports);
+
+            const result = await ReportService.getReportsAssignedToOfficer(officerId);
+
+            expect(mockFindReportsByTechnicalOfficerId).toHaveBeenCalledWith(officerId);
+            expect(mockSanitizeReports).toHaveBeenCalledWith(mockRawReports);
+            expect(result).toEqual([mockSanitizedReport, mockSanitizedReport]);
+        });
+
+        it("should return empty array when no reports are assigned to the officer", async () => {
+            mockFindReportsByTechnicalOfficerId.mockResolvedValue([]);
+            mockSanitizeReports.mockReturnValue([]);
+
+            const result = await ReportService.getReportsAssignedToOfficer(officerId);
+
+            expect(mockFindReportsByTechnicalOfficerId).toHaveBeenCalledWith(officerId);
+            expect(mockSanitizeReports).toHaveBeenCalledWith([]);
+            expect(result).toEqual([]);
         });
     });
 });

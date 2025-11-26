@@ -454,31 +454,6 @@ paths:
         '409':
           description: Conflitto (es. email o username duplicati)
 
-  /admin/users/{userId}/role:
-    put:
-      summary: (Admin) Assign a role to a municipal user
-      tags: [Admin]
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: userId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                role:
-                  $ref: '#/components/schemas/UserRole'
-      responses:
-        '200':
-          description: Role updated
-  
   /admin/roles:
     get:
       summary: (Admin) Ottiene la lista di tutti i ruoli disponibili
@@ -559,6 +534,28 @@ paths:
           description: "User not authenticated"
         '403':
           description: "Forbidden: admin only"
+  
+  /offices/reports/assigned:
+    get:
+      summary: (Technical Staff) Retrieve reports assigned to me
+      description: Allows a technical staff member to view all reports assigned to them personally.
+      tags: [Technical Offices]
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff
+      responses:
+        '200':
+          description: List of assigned reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (technical staff only)
 
 components:
   securitySchemes:

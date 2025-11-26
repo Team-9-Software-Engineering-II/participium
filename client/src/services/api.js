@@ -64,6 +64,10 @@ export const reportAPI = {
     
     return api.get(`/reports?${params.toString()}`);
   },
+
+  // Aggiunti metodi specifici per Citizen
+  getAssigned: () => api.get('/reports/assigned'),
+  getByUser: (userId) => api.get(`/reports/user/${userId}`),
   
   getById: (reportId) => api.get(`/reports/${reportId}`),
   

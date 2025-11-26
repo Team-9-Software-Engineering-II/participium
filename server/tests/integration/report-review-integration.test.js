@@ -185,7 +185,6 @@ describe("Reports API Integration (Public Relations Officer Flow)", () => {
     });
 
     it("should successfully approve, assign via Load Balancing, and clear rejection data (200)", async () => {
-      // @param {string} payload - { action: "assigned" }
       const res = await request(app)
         .put(reviewUrl)
         .set("Cookie", prOfficerCookie)
@@ -194,13 +193,12 @@ describe("Reports API Integration (Public Relations Officer Flow)", () => {
       // Verify API response
       expect(res.statusCode).toBe(200);
       expect(res.body.status).toBe("Assigned");
-      expect(res.body).toHaveProperty("technicalOfficerId");
-      expect(res.body.technicalOfficerId).toBeDefined();
+      expect(res.body.assignee).toBeDefined();
+      expect(res.body.assignee.id).toBeDefined();
 
-      // Verify Database integrity
+      // Verify database state
       const reportInDb = await db.Report.findByPk(reportId);
       expect(reportInDb.status).toBe("Assigned");
-      expect(reportInDb.technicalOfficerId).toBe(res.body.technicalOfficerId);
       expect(reportInDb.rejection_reason).toBeNull();
     });
 

@@ -140,3 +140,26 @@ export async function deleteReport(id) {
   });
   return deletedRows > 0;
 }
+
+/**
+ * Finds all reports assigned to a specific technical officer.
+ */
+export async function findReportsByTechnicalOfficerId(officerId) {
+  return db.Report.findAll({
+    where: { 
+      technicalOfficerId: officerId
+    },
+    include: [
+      {
+        model: db.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName", "photoURL"],
+      },
+      {
+        model: db.Category,
+        as: "category",
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+  });
+}

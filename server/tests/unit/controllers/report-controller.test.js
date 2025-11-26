@@ -9,6 +9,7 @@ const mockGetAllReportsFilteredByStatus = jest.fn();
 const mockAcceptReport = jest.fn();
 const mockRejectReport = jest.fn();
 const mockUpdateReportCategory = jest.fn();
+const mockGetReportsAssignedToOfficer = jest.fn();
 
 jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
   ReportService: {
@@ -20,6 +21,7 @@ jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
     acceptReport: mockAcceptReport,
     rejectReport: mockRejectReport,
     updateReportCategory: mockUpdateReportCategory,
+    getReportsAssignedToOfficer: mockGetReportsAssignedToOfficer,
   },
 }));
 
@@ -533,6 +535,52 @@ describe("Report Controllers (Unit)", () => {
       await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
 
       expect(mockRejectReport).toHaveBeenCalledWith(10, "Invalid data");
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: getMyAssignedReports
+  // --------------------------------------------------------------------------
+  describe("getMyAssignedReports", () => {
+    const mockAssignedReports = [
+      { id: 1, status: "Assigned", title: "Report 1", technicalOfficerId: 42 },
+      { id: 2, status: "Assigned", title: "Report 2", technicalOfficerId: 42 }
+    ];
+
+    it("should return assigned reports for the logged-in technical staff member with status 200", async () => {
+      mockReq.user.id = 42;
+      mockGetReportsAssignedToOfficer.mockResolvedValue(mockAssignedReports);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockAssignedReports);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array when no reports are assigned to the officer", async () => {
+      mockReq.user.id = 42;
+      mockGetReportsAssignedToOfficer.mockResolvedValue([]);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith([]);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should call next() if the service throws an error", async () => {
+      const serviceError = new Error("Database connection failed");
+      mockReq.user.id = 42;
+      mockGetReportsAssignedToOfficer.mockRejectedValue(serviceError);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
       expect(mockNext).toHaveBeenCalledWith(serviceError);
       expect(mockRes.status).not.toHaveBeenCalled();
     });
