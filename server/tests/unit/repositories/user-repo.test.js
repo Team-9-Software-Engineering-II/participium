@@ -208,4 +208,69 @@ describe("User Repository (Unit)", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("findStaffWithFewestReports", () => {
+    const technicalOfficeId = 1;
+
+    it("should return null if no staff members found in office", async () => {
+      mockUserModel.findAll.mockResolvedValue([]); // Nessuno staff
+
+      const result = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
+
+      expect(mockUserModel.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: { technicalOfficeId }
+      }));
+      expect(result).toBeNull();
+    });
+
+    it("should return staff with fewest active reports", async () => {
+      const staffA = { id: 1, firstName: "A", lastName: "Z", assignedReports: [1, 2, 3] }; // 3 report
+      const staffB = { id: 2, firstName: "B", lastName: "Z", assignedReports: [1] };       // 1 report (Vincitore)
+      
+      mockUserModel.findAll.mockResolvedValue([staffA, staffB]);
+
+      const result = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
+
+      expect(result).toEqual(staffB);
+    });
+
+    it("should resolve tie by alphabetical order (LastName)", async () => {
+      // Pareggio: entrambi 0 report
+      const staffA = { id: 1, firstName: "John", lastName: "Doe", assignedReports: [] };
+      const staffB = { id: 2, firstName: "Jane", lastName: "Aloha", assignedReports: [] }; // "Aloha" vince su "Doe"
+      
+      mockUserModel.findAll.mockResolvedValue([staffA, staffB]);
+
+      const result = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
+
+      expect(result).toEqual(staffB);
+    });
+    
+    it("should resolve tie by alphabetical order (FirstName) if LastName is same", async () => {
+      // Pareggio totale: 0 report, stesso cognome
+      const staffA = { id: 1, firstName: "Albert", lastName: "Doe", assignedReports: [] }; // "Albert" vince su "John"
+      const staffB = { id: 2, firstName: "John", lastName: "Doe", assignedReports: [] };
+      
+      mockUserModel.findAll.mockResolvedValue([staffB, staffA]); // Ordine inverso nell'array
+
+      const result = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
+
+      expect(result).toEqual(staffA);
+    });
+
+    it("should cover countB branch by handling null/undefined assignedReports in any order", async () => {
+      const staffFull = { id: 1, firstName: "Full", lastName: "User", assignedReports: [1, 2] };
+      const staffEmpty = { id: 2, firstName: "Empty", lastName: "User", assignedReports: null }; // Null fa scattare il : 0
+      
+      // Esecuzione 1: [Full, Empty] -> Qui è probabile che b=Empty (countB = 0)
+      mockUserModel.findAll.mockResolvedValueOnce([staffFull, staffEmpty]);
+      const result1 = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
+      expect(result1).toEqual(staffEmpty);
+
+      // Esecuzione 2: [Empty, Full] -> Qui è probabile che a=Empty (countA = 0)
+      mockUserModel.findAll.mockResolvedValueOnce([staffEmpty, staffFull]);
+      const result2 = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
+      expect(result2).toEqual(staffEmpty);
+    });
+  });
 });
