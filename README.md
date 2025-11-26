@@ -25,7 +25,8 @@ docker run -d \
   participium:latest
 ```
 
-Once the container is healthy, open `http://localhost:3000`. The initial seed inserts demo users—log in as `admin@participium.com` with password `password123`.
+Once the container is healthy, open `http://localhost:3000`. The initial seed inserts demo admin—log in as `admin@participium.com` with password `password123` and municiplaity officer with email `officer@municipality.com` with the same password.
+You can register as new citizen user and also as admin define technical staff memebrs.
 
 ### Persisting data
 
