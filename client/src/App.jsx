@@ -17,6 +17,8 @@ import CreateReport from './pages/CreateReport';
 import ReportDetails from './pages/ReportDetails';
 import OfficerLayout from './pages/officer/OfficerLayout';
 import OfficerReports from './pages/officer/OfficerReports';
+import TechnicianLayout from './pages/technician/TechnicianLayout';
+import TechnicianReports from './pages/technician/TechnicianReports';
 
 function App() {
   const HomeRoute = () => {
@@ -102,6 +104,16 @@ function App() {
             <Route path="assigned" element={<OfficerReports status="assigned" />} />
             <Route path="rejected" element={<OfficerReports status="rejected" />} />
           </Route>
+
+          <Route path="/technical" element={
+              <ProtectedRoute>
+                <TechnicianLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="reports/active" replace />} />
+              <Route path="reports/active" element={<TechnicianReports type="active" />} />
+              <Route path="reports/history" element={<TechnicianReports type="history" />} />
+            </Route>
 
         </Routes>
         </AuthProvider>

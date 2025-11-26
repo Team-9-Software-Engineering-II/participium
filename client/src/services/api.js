@@ -113,11 +113,10 @@ export const urpAPI = {
 // ==================== STAFF (Technical) ====================
 export const staffAPI = {
   // Segnalazioni assegnate (per staff tecnico)
-  getAssignedReports: () => api.get('/reports/assigned'),
-  
+  getAssignedReports: () => api.get('/offices/reports/assigned'),  
   // Aggiorna lo stato di una segnalazione
   updateReportStatus: (reportId, statusData) => 
-    api.put(`/staff/reports/${reportId}/status`, statusData),
+    api.put(`/offices/reports/${reportId}/status`, statusData),
 };
 
 // ==================== STATISTICS ====================
