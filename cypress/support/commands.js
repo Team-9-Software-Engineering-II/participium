@@ -8,6 +8,13 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("loginAsMunicipalOfficer", (username = "pr_officer", password = "password123") => {
+  cy.visit("/login");
+  cy.get("input[name=username]").type(username);
+  cy.get("input[name=password]").type(password);
+  cy.get("button[type=submit]").click();
+});
+
 Cypress.Commands.add("loginAsUser", (username, password) => {
   cy.visit("/login");
   cy.get("input[name=username]").type(username);

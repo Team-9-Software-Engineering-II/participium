@@ -30,6 +30,13 @@ export default function Navbar() {
   );
   const isAdmin = roleName && roleName.toLowerCase().includes('admin');
 
+  // Funzione per determinare il link della Home/Logo
+  const getHomeLink = () => {
+    if (isOfficer) return "/municipal/dashboard";
+    if (isAdmin) return "/admin"; // Assicurati che questa sia la rotta corretta per la dashboard admin
+    return "/";
+  };
+
   // Funzione per ottenere l'etichetta del ruolo formattata
   const getRoleLabel = () => {
     if (!roleName) return '';
@@ -66,7 +73,7 @@ export default function Navbar() {
     <header className="border-b bg-background sticky top-0 z-50">
       <div className="px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
         {/* Logo on the left - Redirect condizionale */}
-        <Link to={isOfficer ? "/municipal/dashboard" : "/" || isAdmin ? "/admin" : "/"} className="flex items-center gap-1 sm:gap-2">
+        <Link to={getHomeLink()} className="flex items-center gap-1 sm:gap-2">
           <img 
             src={theme === 'dark' ? '/mole-logo-white.png' : '/mole-logo-black.png'}
             alt="Participium Logo" 

@@ -207,7 +207,7 @@ export default function ReportDetails() {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div data-cy="report-details-page" className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
       <main className="container max-w-4xl mx-auto px-4 py-6 pb-20">
@@ -221,7 +221,7 @@ export default function ReportDetails() {
           <div className="flex flex-col md:flex-row justify-between items-start gap-4">
             {/* Colonna Sinistra: Titolo e Dettagli */}
             <div className="space-y-2 flex-1 w-full">
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{report.title}</h1>
+              <h1 data-cy="report-title" className="text-2xl md:text-3xl font-bold tracking-tight">{report.title}</h1>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                  Created on {format(new Date(report.createdAt), 'PPP')}
               </p>
@@ -229,7 +229,7 @@ export default function ReportDetails() {
               {report.rejectionReason && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3 flex gap-3 items-center text-red-600 dark:text-red-400 mt-2 inline-flex w-full md:w-auto">
                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                   <span className="font-medium text-sm">Reason for Rejection: {report.rejectionReason}</span>
+                   <span data-cy="rejection-reason-text" className="font-medium text-sm">Reason for Rejection: {report.rejectionReason}</span>
                 </div>
               )}
             </div>
@@ -237,7 +237,7 @@ export default function ReportDetails() {
             {/* Colonna Destra: Status e Assignee */}
             <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto mt-2 md:mt-0">
               {/* Status Badge */}
-              <Badge className={`${REPORT_STATUS_COLORS[report.status] || 'bg-gray-500'} h-6 text-xs px-2 text-white border-0`}>
+              <Badge data-cy="status-badge" className={`${REPORT_STATUS_COLORS[report.status] || 'bg-gray-500'} h-6 text-xs px-2 text-white border-0`}>
                 {report.status}
               </Badge>
 
@@ -277,13 +277,13 @@ export default function ReportDetails() {
           {/* 2. Descrizione */}
           <div className="bg-card border rounded-lg p-6 space-y-2">
             <h2 className="text-xl font-semibold">Description</h2>
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap text-sm">
+            <p data-cy="report-description" className="text-muted-foreground leading-relaxed whitespace-pre-wrap text-sm">
               {report.description}
             </p>
           </div>
 
           {/* 3. Mappa Responsiva */}
-          <div className="bg-card border rounded-lg overflow-hidden">
+          <div className="bg-card border rounded-lg overflow-hidden" data-cy="map-section">
             <div className={`h-[300px] md:h-[500px] w-full relative z-0 ${theme === 'dark' ? 'dark-map' : ''}`}>
                <div className="absolute inset-0 z-[1000] bg-transparent cursor-default" />
                <MapContainer 
@@ -329,7 +329,7 @@ export default function ReportDetails() {
                   value={report.categoryId?.toString()} 
                   onValueChange={handleCategoryChange}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full" data-cy="category-select">
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,7 +354,7 @@ export default function ReportDetails() {
                    <User className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                   <p className="font-medium text-sm">
+                   <p data-cy="reporter-name" className="font-medium text-sm">
                      {report.anonymous ? 'Anonymous Citizen' : (report.user?.username || report.reporterName || 'User')}
                    </p>
                 </div>
@@ -366,7 +366,7 @@ export default function ReportDetails() {
           <div className="bg-card border rounded-lg p-6 space-y-4">
             <h2 className="text-xl font-semibold">Photos</h2>
             {report.photos && report.photos.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-cy="photos-section">
                 {report.photos.map((photo, index) => (
                   <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
                     <img 
@@ -392,6 +392,7 @@ export default function ReportDetails() {
               <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
                 <DialogTrigger asChild>
                   <Button 
+                    data-cy="btn-reject"
                     variant="destructive" 
                     size="lg" 
                     className="w-full sm:w-auto sm:px-12 dark:bg-red-600 dark:hover:bg-red-700 dark:text-white" 
@@ -411,6 +412,7 @@ export default function ReportDetails() {
                     <Label htmlFor="reason" className="mb-2 block">Reason</Label>
                     <Textarea 
                       id="reason" 
+                      data-cy="rejection-textarea"
                       placeholder="Why is this report being rejected?" 
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
@@ -419,7 +421,7 @@ export default function ReportDetails() {
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
-                    <Button variant="destructive" onClick={handleReject} disabled={!rejectReason.trim() || actionLoading}>
+                    <Button data-cy="btn-confirm-reject" variant="destructive" onClick={handleReject} disabled={!rejectReason.trim() || actionLoading}>
                       Confirm Rejection
                     </Button>
                   </DialogFooter>
@@ -428,6 +430,7 @@ export default function ReportDetails() {
 
               <Button 
                 size="lg" 
+                data-cy="btn-approve"
                 className="w-full sm:w-auto sm:px-12"
                 onClick={handleAssign} 
                 disabled={actionLoading}
