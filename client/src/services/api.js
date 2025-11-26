@@ -110,7 +110,7 @@ export const staffAPI = {
   getAssignedReports: () => api.get('/offices/reports/assigned'),  
   // Aggiorna lo stato di una segnalazione
   updateReportStatus: (reportId, statusData) => 
-    api.put(`/staff/reports/${reportId}/status`, statusData),
+    api.put(`/offices/reports/${reportId}/status`, statusData),
 };
 
 // ==================== STATISTICS ====================
