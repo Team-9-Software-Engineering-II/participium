@@ -188,7 +188,7 @@ export default function Navbar() {
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
                       <AvatarImage 
-                        src={isCitizen ? getImageUrl(user?.photoUrl) : null} 
+                        src={isCitizen ? getImageUrl(user?.photoUrl || user?.photoURL) : null}                        
                         alt={user?.username} 
                       />
                       <AvatarFallback>

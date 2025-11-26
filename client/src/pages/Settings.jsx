@@ -27,7 +27,8 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
   
   const [formData, setFormData] = useState({
-    photoUrl: user?.photoUrl || '',
+    // FIX: Supporta sia photoUrl (sanitizzato) che photoURL (grezzo) per sicurezza
+    photoUrl: user?.photoUrl || user?.photoURL || '',
     username: user?.username || '',
     email: user?.email || '',
     telegramUsername: user?.telegramUsername || '',
@@ -41,10 +42,9 @@ export default function Settings() {
   
   const [loading, setLoading] = useState(false);
   
-  // FIX: Mappatura corretta del booleano emailNotificationsEnabled
+  // FIX: Supporta sia emailNotificationsEnabled che emailConfiguration
   const [notificationSettings, setNotificationSettings] = useState({
-    // Se undefined (es. primo caricamento), mettiamo false o true a seconda del default desiderato
-    communicationEmail: user?.emailNotificationsEnabled ?? false,
+    communicationEmail: user?.emailNotificationsEnabled ?? user?.emailConfiguration ?? false,
   });
 
   // Sincronizza lo stato locale se l'utente cambia (es. dopo refresh o update)
@@ -52,13 +52,12 @@ export default function Settings() {
     if (user) {
       setFormData(prev => ({
         ...prev,
-        photoUrl: user.photoUrl || '',
+        photoUrl: user.photoUrl || user.photoURL || '',
         telegramUsername: user.telegramUsername || '',
       }));
       
-      // FIX: Aggiorniamo lo stato usando la proprietà corretta dal sanitizeUser del backend
       setNotificationSettings({
-        communicationEmail: user.emailNotificationsEnabled ?? false
+        communicationEmail: user.emailNotificationsEnabled ?? user.emailConfiguration ?? false
       });
     }
   }, [user]);
@@ -155,7 +154,6 @@ export default function Settings() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Solo placeholder visivo per ora
       toast({
         title: "Info",
         description: "Personal details are managed by the administration.",
@@ -171,7 +169,6 @@ export default function Settings() {
   const handleNotificationsSubmit = async () => {
     setLoading(true);
     try {
-        // Invia il valore booleano (true/false) al backend
         const result = await updateProfile({
             emailNotificationsEnabled: notificationSettings.communicationEmail
         });
