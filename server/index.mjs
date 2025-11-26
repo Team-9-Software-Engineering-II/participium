@@ -72,12 +72,11 @@ function registerErrorHandlers() {
 }
 
 bootstrapExpress();
-app.use(router);
 
 registerErrorHandlers();
 
 db.sequelize
-  .sync({ force: true })
+  .sync({ force: false })
   .then(async () => {
     console.log("Database synced successfully.");
 
