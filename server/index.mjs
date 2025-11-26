@@ -6,8 +6,8 @@ import router from "./routers/index.js";
 import { passport } from "./services/passport-service.mjs";
 import cors from "cors";
 import { seedDatabase } from "./seeders/index.mjs";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const app = express();
 
@@ -30,6 +30,7 @@ function bootstrapExpress() {
 
   // Serve static files from uploads directory
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  app.use(express.static(path.join(__dirname, "public")));
 
   app.use(
     session({
@@ -47,6 +48,9 @@ function bootstrapExpress() {
   app.use(passport.initialize());
   app.use(passport.session());
   app.use(router);
+  app.get(/(.*)/, (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+  });
 }
 
 /**

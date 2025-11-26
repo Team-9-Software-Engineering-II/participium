@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: participium-app
+    ports:
+      - "3000:3000" # Mappa la porta 3001 del PC alla 3001 del container
+    environment:
+      - PORT=3001
+      # Definisci il path del DB. Assicurati che il tuo codice legga questa variabile
+      # o che punti di default a ./data/database.sqlite
+      - DB_PATH=/app/data/database.sqlite
+      - NODE_ENV=production
+    volumes:
+      # Persistenza Database: collega la cartella locale server/data a quella nel container
+      - ./server/data:/app/data
+      # Persistenza Uploads: collega la cartella locale server/uploads a quella nel container
+      - ./server/uploads:/app/uploads
