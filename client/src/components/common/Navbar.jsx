@@ -46,12 +46,6 @@ export default function Navbar() {
     return "/";
   };
 
-  // Funzione per determinare il link della Home/Logo
-  const getHomeLink = () => {
-    if (isOfficer) return "/municipal/dashboard";
-    if (isAdmin) return "/admin"; // Assicurati che questa sia la rotta corretta per la dashboard admin
-    return "/";
-  };
 
   // Funzione per ottenere l'etichetta del ruolo formattata
   const getRoleLabel = () => {
