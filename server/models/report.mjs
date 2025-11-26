@@ -41,6 +41,10 @@ export default (sequelize) => {
         type: DataTypes.FLOAT,
         allowNull: false,
       },
+      address: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       anonymous: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

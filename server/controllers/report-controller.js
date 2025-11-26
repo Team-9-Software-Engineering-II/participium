@@ -193,3 +193,40 @@ export async function getMyAssignedReports(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Allows technical staff to update the status of a report.
+ * Restricted to specific status transitions.
+ */
+export async function updateReportStatus(req, res, next) {
+  try {
+    const reportId = Number(req.params.reportId);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      return res.status(400).json({ message: "Invalid report ID." });
+    }
+
+    const { status } = req.body;
+    
+    // Definiamo gli stati permessi per il tecnico
+    const allowedStatuses = ["In Progress", "Resolved", "Suspended"];
+    
+    if (!status || !allowedStatuses.includes(status)) {
+      return res.status(400).json({ 
+        message: `Invalid status. Allowed values: ${allowedStatuses.join(", ")}` 
+      });
+    }
+
+    // Usiamo il metodo generico di update del servizio
+    // Nota: Assicurati che ReportService.updateReport esista e sia accessibile
+    // (dal file che hai caricato, sembra esistere)
+    const updatedReport = await ReportService.updateReport(reportId, { status });
+    
+    // Ritorniamo il report aggiornato
+    // Per essere sicuri di avere l'oggetto completo aggiornato, lo rileggiamo
+    const freshReport = await ReportService.getReportById(reportId);
+    
+    return res.status(200).json(freshReport);
+  } catch (error) {
+    return next(error);
+  }
+}

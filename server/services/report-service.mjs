@@ -27,6 +27,15 @@ export class ReportService {
   static async createCitizenReport(userId, payload) {
     await this.#ensureCategoryExists(payload.categoryId);
 
+    let address = null;
+    if (payload.latitude && payload.longitude) {
+      // Recuperiamo l'indirizzo in modo asincrono prima di salvare
+      address = await this.#fetchAddressFromOSM(
+        payload.latitude,
+        payload.longitude
+      );
+    }
+
     const createdReport = await createReport({
       title: payload.title,
       description: payload.description,
@@ -34,6 +43,7 @@ export class ReportService {
       rejection_reason: null,
       latitude: payload.latitude,
       longitude: payload.longitude,
+      address,
       anonymous: payload.anonymous,
       photosLinks: payload.photos,
       userId,
@@ -68,7 +78,7 @@ export class ReportService {
 
     // 2. Recupera la categoria per identificare l'Ufficio Tecnico competente
     const category = await findProblemCategoryById(report.categoryId);
-    
+
     // (Nota: findProblemCategoryById include già il modello TechnicalOffice come 'technicalOffice')
     if (!category || !category.technicalOffice) {
       console.log(category);
@@ -216,5 +226,48 @@ export class ReportService {
     const error = new Error(`Report with id "${reportId}" not found.`);
     error.statusCode = 404;
     throw error;
+  }
+
+  /**
+   * Helper method to perform Reverse Geocoding via OpenStreetMap
+   * @param {number} lat - Latitude
+   * @param {number} lon - Longitude
+   * @returns {Promise<string|null>} Formatted address or null if failed
+   */
+  static async #fetchAddressFromOSM(lat, lon) {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,
+        {
+          headers: {
+            "User-Agent": "ParticipiumProject/1.0 (student-project)",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.warn("OSM response not ok:", response.status);
+        return null;
+      }
+
+      const data = await response.json();
+
+      const road =
+        data.address?.road ||
+        data.address?.pedestrian ||
+        data.address?.street ||
+        "";
+      const houseNumber = data.address?.house_number || "";
+      let formattedAddress = `${road} ${houseNumber}`.trim();
+
+      if (!formattedAddress) {
+        formattedAddress = data.name || data.display_name;
+      }
+
+      return formattedAddress || null;
+    } catch (error) {
+      console.error("Error fetching address from OSM:", error);
+      return null;
+    }
   }
 }

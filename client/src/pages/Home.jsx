@@ -60,7 +60,6 @@ export default function Home() {
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [addresses, setAddresses] = useState({});
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -108,13 +107,18 @@ export default function Home() {
       // PULIZIA: Rimosso controllo if (!isAuthenticated).
       // Ci affidiamo alla risposta del backend (401 se non autorizzato).
 
+
       setLoading(true);
       try {
         // Fetch all reports
         // Nota: Se non autenticato, questo lancerà un errore (401) che verrà catturato sotto
         const response = await reportAPI.getAll();
         const assignedResponse = await reportAPI.getAssigned();
+        const assignedResponse = await reportAPI.getAssigned();
         const fetchedReports = response.data;
+        const assignedReports = assignedResponse.data;
+
+        setAllReports(assignedReports);
         const assignedReports = assignedResponse.data;
 
         setAllReports(assignedReports);
@@ -122,6 +126,9 @@ export default function Home() {
         // OTTIMIZZAZIONE: Filtriamo i report dell'utente direttamente dai dati già scaricati
         // invece di fare una seconda chiamata API ridondante.
         if (user) {
+          const userReports = fetchedReports.filter(
+            (report) => report.userId === user.id
+          );
           const userReports = fetchedReports.filter(
             (report) => report.userId === user.id
           );
@@ -214,7 +221,21 @@ export default function Home() {
           reportDateTime.getMonth(),
           reportDateTime.getDate()
         );
+      case "today": {
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const reportDay = new Date(
+          reportDateTime.getFullYear(),
+          reportDateTime.getMonth(),
+          reportDateTime.getDate()
+        );
         return reportDay.getTime() === today.getTime();
+      }
+
+      case "week": {
       }
 
       case "week": {
@@ -223,8 +244,13 @@ export default function Home() {
       }
 
       case "month": {
+      }
+
+      case "month": {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         return reportDateTime >= monthStart;
+      }
+
       }
 
       default:
@@ -256,10 +282,12 @@ export default function Home() {
         !searchQuery ||
         report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        addresses[report.id]?.toLowerCase().includes(searchQuery.toLowerCase());
+        report.address?.toLowerCase().includes(searchQuery.toLowerCase());
 
       // Category filter
       const matchesCategory =
+        !selectedCategory ||
+        getCategoryName(report.categoryId) === selectedCategory;
         !selectedCategory ||
         getCategoryName(report.categoryId) === selectedCategory;
 
@@ -301,6 +329,7 @@ export default function Home() {
 
   const handleViewInMap = (report, e) => {
     e.stopPropagation();
+    e.stopPropagation();
     setSelectedReport(report);
   };
 
@@ -308,6 +337,25 @@ export default function Home() {
   const ReportsList = () => {
     // Se non autenticato, mostra il box di login
     if (!isAuthenticated) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center py-12">
+          <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No reports</h3>
+          <p className="text-sm text-muted-foreground max-w-xs mb-6">
+            Log in to view and manage reports in your area.
+          </p>
+          <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
+            <p className="text-sm font-medium">Log in to see reports</p>
+            <Button
+              onClick={() => navigate("/login")}
+              className="w-full"
+              size="sm"
+            >
+              Log in
+            </Button>
+          </div>
+        </div>
+      );
       return (
         <div className="flex flex-col items-center justify-center h-full text-center py-12">
           <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
@@ -362,7 +410,7 @@ export default function Home() {
               <h3 className="font-semibold mb-2">{report.title}</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
                 {/* Street Address */}
-                {addresses[report.id] && (
+                {report.address && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
                     <span
@@ -374,6 +422,7 @@ export default function Home() {
                   </div>
                 )}
 
+
                 {/* Coordinates */}
                 {report.latitude && report.longitude && (
                   <div className="flex items-center gap-1 text-xs">
@@ -381,9 +430,12 @@ export default function Home() {
                     <span className="opacity-70">
                       {report.latitude.toFixed(6)},{" "}
                       {report.longitude.toFixed(6)}
+                      {report.latitude.toFixed(6)},{" "}
+                      {report.longitude.toFixed(6)}
                     </span>
                   </div>
                 )}
+
 
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
@@ -395,6 +447,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {/* Status Badge removed for brevity if not used, or add back if needed */}
+                </div>
                 <div className="flex items-center gap-2">
                   {/* Status Badge removed for brevity if not used, or add back if needed */}
                 </div>
@@ -467,6 +522,11 @@ export default function Home() {
                 {totalResults} results
               </p>
             )}
+            {isAuthenticated && (
+              <p className="text-sm text-muted-foreground">
+                {totalResults} results
+              </p>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto px-4">
             <ReportsList />
@@ -493,6 +553,7 @@ export default function Home() {
             onClick={handleNewReport}
             className="absolute bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
             data-cy="new-report-button"
+            data-cy="new-report-button"
           >
             <Plus className="h-6 w-6" />
           </Button>
@@ -502,6 +563,7 @@ export default function Home() {
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
             <MapView reports={displayReports} selectedReport={selectedReport} />
+            <MapView reports={displayReports} selectedReport={selectedReport} />
           </div>
         </div>
       </div>
@@ -510,6 +572,7 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0 pointer-events-auto">
+          <MapView reports={displayReports} selectedReport={selectedReport} />
           <MapView reports={displayReports} selectedReport={selectedReport} />
         </div>
 
@@ -535,6 +598,7 @@ export default function Home() {
           variant="outline"
           size="icon"
           className={`absolute left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border ${
+            !isAuthenticated ? "bottom-[76px]" : "bottom-6"
             !isAuthenticated ? "bottom-[76px]" : "bottom-6"
           }`}
         >
@@ -593,6 +657,7 @@ export default function Home() {
                         onCheckedChange={setShowMyReports}
                       />
                     </div>
+
 
                     <div className="py-2">
                       <p className="text-sm text-muted-foreground">
@@ -874,6 +939,7 @@ export default function Home() {
               Cancel
             </Button>
             <Button onClick={() => navigate("/login")} className="flex-1">
+            <Button onClick={() => navigate("/login")} className="flex-1">
               Go to Log in
             </Button>
           </div>
@@ -886,10 +952,15 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Legend</DialogTitle>
             <DialogDescription>Report status legend</DialogDescription>
+            <DialogDescription>Report status legend</DialogDescription>
           </DialogHeader>
+
 
           <div className="space-y-4 py-4">
             <div>
+              <h3 className="font-semibold mb-3 text-sm">
+                How to select a point on the map
+              </h3>
               <h3 className="font-semibold mb-3 text-sm">
                 How to select a point on the map
               </h3>
@@ -902,8 +973,15 @@ export default function Home() {
               <h3 className="font-semibold mb-3 text-sm">
                 Report status legend
               </h3>
+              <h3 className="font-semibold mb-3 text-sm">
+                Report status legend
+              </h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#3B82F6" }}
+                  />
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                     style={{ backgroundColor: "#3B82F6" }}
@@ -915,6 +993,10 @@ export default function Home() {
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                     style={{ backgroundColor: "#F59E0B" }}
                   />
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#F59E0B" }}
+                  />
                   <span className="text-sm">Assigned</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -922,9 +1004,17 @@ export default function Home() {
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                     style={{ backgroundColor: "#EAB308" }}
                   />
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#EAB308" }}
+                  />
                   <span className="text-sm">In Progress</span>
                 </div>
                 <div className="flex items-center gap-3">
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#10B981" }}
+                  />
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                     style={{ backgroundColor: "#10B981" }}
@@ -939,3 +1029,4 @@ export default function Home() {
     </div>
   );
 }
+

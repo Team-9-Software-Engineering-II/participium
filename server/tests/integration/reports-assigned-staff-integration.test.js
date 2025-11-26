@@ -181,7 +181,7 @@ describe("API Map Data Visualization (Technical Staff Flow) E2E", () => {
     for (const report of res.body) {
       expect(report).toHaveProperty("photos");
       expect(Array.isArray(report.photos)).toBe(true);
-    };
+    }
   });
 
   /**
@@ -218,5 +218,51 @@ describe("API Map Data Visualization (Technical Staff Flow) E2E", () => {
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBe(assignedReportsCount);
+  });
+  /**
+   * Test that uploading a file exceeding the size limit returns a 400 with proper error message.
+   */
+  it("should return 400 if uploaded file exceeds size limit", async () => {
+    const res = await request(app)
+      .post("/upload/photo")
+      .set("Cookie", officerCookie)
+      .attach("photo", Buffer.alloc(6 * 1024 * 1024), "large-file.jpg"); // 6MB file
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty(
+      "message",
+      "File size too large. Maximum size is 5MB."
+    );
+  });
+  /**
+   * Test that uploading more files than the allowed limit returns a 400 with proper error message.
+   */
+  it("should return 400 if uploaded files exceed count limit", async () => {
+    const res = await request(app)
+      .post("/upload/photos")
+      .set("Cookie", officerCookie)
+      .attach("photos", Buffer.from("file1"), "file1.jpg")
+      .attach("photos", Buffer.from("file2"), "file2.jpg")
+      .attach("photos", Buffer.from("file3"), "file3.jpg")
+      .attach("photos", Buffer.from("file4"), "file4.jpg"); // 4th file exceeds limit of 3
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty(
+      "message",
+      "Unexpected file field."
+    );
+  });
+
+  /**
+   * Test that uploading a file with an unexpected field name returns a 400 with proper error message.
+   */
+  it("should return 400 if uploaded file has unexpected field name", async () => {
+    const res = await request(app)
+      .post("/upload/photo")
+      .set("Cookie", officerCookie)
+      .attach("unexpectedField", Buffer.from("dummy"), "file.jpg");
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("message", "Unexpected file field.");
   });
 });

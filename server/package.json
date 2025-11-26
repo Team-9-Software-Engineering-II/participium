@@ -27,6 +27,7 @@
     "yarn": "^1.22.22"
   },
   "devDependencies": {
+    "node-mocks-http": "^1.17.2",
     "supertest": "^7.1.4"
   }
 }
