@@ -1,4 +1,5 @@
 import db from "../models/index.mjs";
+import technicalOffice from "../models/technical-office.mjs";
 
 /**
  * Seeds the 'Reports' table with sample data covering various statuses and categories.
@@ -50,6 +51,7 @@ export const seedReports = async () => {
         photosLinks: null,
         userId: 3,
         categoryId: 4, // Public Lighting
+        technicalOfficerId: 9,
       },
       // 4. In Progress (Author: Mario Rossi / User ID 1)
       {
@@ -63,6 +65,7 @@ export const seedReports = async () => {
         photosLinks: null,
         userId: 1,
         categoryId: 8, // Public Green Areas
+        technicalOfficeId: 13,
       },
       // 5. Resolved (Author: Anna Neri / User ID 2)
       {
