@@ -25,11 +25,12 @@ jest.unstable_mockModule("../../../services/passport-service.mjs", () => ({
 
 let AuthController;
 
+async function loadAuthController() {
+  AuthController = await import("../../../controllers/auth-controller.js");
+}
+
 describe("Auth Controller (Unit)", () => {
-  beforeAll(async () => {
-    // Import dinamico del controller dopo aver definito i mock
-    AuthController = await import("../../../controllers/auth-controller.js");
-  });
+  beforeAll(loadAuthController);
 
   beforeEach(() => {
     jest.clearAllMocks();

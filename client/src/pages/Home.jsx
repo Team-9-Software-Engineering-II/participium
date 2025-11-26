@@ -108,9 +108,11 @@ export default function Home() {
         // Fetch all reports
         // Nota: Se non autenticato, questo lancerà un errore (401) che verrà catturato sotto
         const response = await reportAPI.getAll();
+        const assignedResponse = await reportAPI.getAssigned();
         const fetchedReports = response.data;
+        const assignedReports = assignedResponse.data;
         
-        setAllReports(fetchedReports);
+        setAllReports(assignedReports);
 
         // OTTIMIZZAZIONE: Filtriamo i report dell'utente direttamente dai dati già scaricati
         // invece di fare una seconda chiamata API ridondante.
@@ -140,7 +142,7 @@ export default function Home() {
         console.error("Error fetching reports:", error);
         setAllReports([]);
         setMyReports([]);
-      } finally {
+      } finally {assignedResponse
         setLoading(false);
       }
     };
@@ -471,7 +473,7 @@ export default function Home() {
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
-            <MapView reports={filteredReports} selectedReport={selectedReport} />
+            <MapView reports={displayReports} selectedReport={selectedReport} />
           </div>
         </div>
       </div>
@@ -480,7 +482,7 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0 pointer-events-auto">
-          <MapView reports={filteredReports} selectedReport={selectedReport} />
+          <MapView reports={displayReports} selectedReport={selectedReport} />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}

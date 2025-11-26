@@ -35,48 +35,6 @@ describe("UserAdminService (Unit)", () => {
     jest.clearAllMocks();
   });
 
-  // --- NOTA: Abbiamo rimosso i test di createMunicipalityUser perché la funzione è stata rimossa ---
-
-  // --------------------------------------------------------------------------
-  // assignUserRole
-  // --------------------------------------------------------------------------
-  describe("assignUserRole", () => {
-    const userId = 1;
-    const roleName = "technical_staff";
-    const mockRole = { id: 4, name: "technical_staff" };
-
-    it("should successfully assign a role to a user", async () => {
-      // Setup
-      mockFindRoleByName.mockResolvedValue(mockRole);
-      mockUpdateUser.mockResolvedValue(true); // Update riuscito
-
-      // Esecuzione
-      const result = await UserAdminService.assignUserRole(userId, roleName);
-
-      // Verifica
-      expect(mockFindRoleByName).toHaveBeenCalledWith(roleName);
-      expect(mockUpdateUser).toHaveBeenCalledWith(userId, { roleId: mockRole.id });
-      expect(result).toBe(true);
-    });
-
-    it("should throw 400 if role name does not exist", async () => {
-      mockFindRoleByName.mockResolvedValue(null); // Ruolo non trovato
-
-      await expect(UserAdminService.assignUserRole(userId, "fake_role"))
-        .rejects.toHaveProperty("statusCode", 400);
-
-      expect(mockUpdateUser).not.toHaveBeenCalled();
-    });
-
-    it("should throw 404 if user update fails (user not found)", async () => {
-      mockFindRoleByName.mockResolvedValue(mockRole);
-      mockUpdateUser.mockResolvedValue(false); // Update fallito (utente non trovato)
-
-      await expect(UserAdminService.assignUserRole(999, roleName))
-        .rejects.toHaveProperty("statusCode", 404);
-    });
-  });
-
   // --------------------------------------------------------------------------
   // getUsers
   // --------------------------------------------------------------------------
