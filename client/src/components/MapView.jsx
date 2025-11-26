@@ -45,7 +45,7 @@ const createReportIcon = (status) => {
     html: `<div style="width: 30px; height: 30px; background-color: ${statusInfo.color}; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
-    popupAnchor: [0, -15]
+    popupAnchor: [0, -15],
   });
 };
 
@@ -367,13 +367,15 @@ export function MapView({ reports = [], selectedReport = null }) {
                 key={report.id} 
                 position={[report.latitude, report.longitude]} 
                 icon={createReportIcon(report.status)}
-                eventHandlers={{
-                  click: () => {
-                    navigate(`/reports/${report.id}`);
-                  }
-                }}
               >
-                {/* Popup rimosso per permettere la navigazione diretta */}
+                <Popup className="custom-popup">
+                  <div className="p-4 min-w-[200px]">
+                    <h3 className="font-semibold text-sm mb-2">{report.title}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Author: <span className="font-medium text-foreground">{report.reporterName || "Anonymous"}</span>
+                    </p>
+                  </div>
+                </Popup>
               </Marker>
             ))}
           </MarkerClusterGroup>

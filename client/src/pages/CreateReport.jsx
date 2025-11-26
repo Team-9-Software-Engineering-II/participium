@@ -374,8 +374,8 @@ export default function CreateReport() {
       <div className="container max-w-4xl mx-auto px-4 py-8">
         <div className="space-y-6">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">New Report</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 data-cy="create-report-title" className="text-3xl font-bold tracking-tight">New Report</h1>
+            <p data-cy="create-report-warning" className="text-sm text-muted-foreground">
               <strong>ATTENTION:</strong> Participium is a system to report urban maintenance issues and not emergencies that require immediate intervention.
               In case of fires it is essential to contact the competent authorities such as Firefighters, Police, etc.
               If necessary therefore in case of temporary intervention, we advise you not to proceed with this report but to contact the relevant services.

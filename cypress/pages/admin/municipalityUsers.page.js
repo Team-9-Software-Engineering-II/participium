@@ -16,10 +16,23 @@ class AdminCreateMunicipalityUserPage {
     editRole: () => cy.get('[data-cy="edit-role"]'),
   };
 
+  /**
+   * Opens the "Create User" modal
+   */
   openCreateUser() {
     this.elements.openCreateUser().click();
   }
 
+  /**
+   * Fills the create user form
+   * @param {Object} data - User information
+   * @param {string} [data.firstName] - First name
+   * @param {string} [data.lastName] - Last name
+   * @param {string} [data.email] - Email
+   * @param {string} [data.username] - Username
+   * @param {string} [data.password] - Password
+   * @param {string} [data.role] - Role to select
+   */
   fillForm({ firstName, lastName, email, username, password, role }) {
     if (firstName) this.elements.firstName().type(firstName);
     if (lastName) this.elements.lastName().type(lastName);
@@ -29,18 +42,22 @@ class AdminCreateMunicipalityUserPage {
 
     if (role) {
       this.elements.createRoleTrigger().click();
-
-      cy.get('[data-cy="role"]').contains(role).should("be.visible").click();
+      this.elements.role().contains(role).should("be.visible").click();
     }
   }
 
-  editUser (role) {
+  /**
+   * Edits an existing user's role
+   * @param {string} role - Role to assign
+   */
+  editUser(role) {
     this.elements.editRoleTrigger().should("be.visible").click();
-
-    cy.get('[data-cy="edit-role"]').should("be.visible").contains(role).click();
-
+    this.elements.editRole().should("be.visible").contains(role).click();
   }
 
+  /**
+   * Submits the create user form
+   */
   submit() {
     this.elements.submit().click();
   }
