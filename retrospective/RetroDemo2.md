@@ -17,6 +17,7 @@ sections:
 - Total points committed vs. done: 22 vs 22
 - Nr of hours planned vs. spent (as a team): 79h vs 83h 50m 
 ﻿
+
 **Remember** a story is done ONLY if it fits the Definition of Done:
  
 - Unit Tests passing
