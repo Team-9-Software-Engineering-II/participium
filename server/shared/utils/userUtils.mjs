@@ -11,5 +11,16 @@ export function sanitizeUser(user) {
   const plainUser = user.get ? user.get({ plain: true }) : { ...user };
   delete plainUser.hashedPassword;
 
+  // Map model field names to swagger field names
+  if (plainUser.photoURL !== undefined) {
+    plainUser.photoUrl = plainUser.photoURL;
+    delete plainUser.photoURL;
+  }
+
+  if (plainUser.emailConfiguration !== undefined) {
+    plainUser.emailNotificationsEnabled = plainUser.emailConfiguration;
+    delete plainUser.emailConfiguration;
+  }
+
   return plainUser;
 }

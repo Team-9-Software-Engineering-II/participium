@@ -2,6 +2,7 @@
   "name": "participium",
   "private": true,
   "devDependencies": {
-    "cypress": "^15.6.0"
+    "cypress": "^15.6.0",
+    "cypress-real-events": "^1.15.0"
   }
 }

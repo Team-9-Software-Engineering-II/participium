@@ -7,7 +7,6 @@ import {
   describe,
   it,
   expect,
-  beforeEach,
 } from "@jest/globals";
 import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
@@ -170,7 +169,7 @@ describe("POST /reports (E2E Test)", () => {
         .set("Cookie", cookie)
         .send(payload);
         
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe('Category with id "9999" not found.');
     });
   });

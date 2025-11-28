@@ -5,6 +5,11 @@ const mockCreateCitizenReport = jest.fn();
 const mockGetAllReports = jest.fn();
 const mockGetReportById = jest.fn();
 const mockGetReportsByUserId = jest.fn();
+const mockGetAllReportsFilteredByStatus = jest.fn();
+const mockAcceptReport = jest.fn();
+const mockRejectReport = jest.fn();
+const mockUpdateReportCategory = jest.fn();
+const mockGetReportsAssignedToOfficer = jest.fn();
 
 jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
   ReportService: {
@@ -12,13 +17,28 @@ jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
     getAllReports: mockGetAllReports,
     getReportById: mockGetReportById,
     getReportsByUserId: mockGetReportsByUserId,
+    getAllReportsFilteredByStatus: mockGetAllReportsFilteredByStatus,
+    acceptReport: mockAcceptReport,
+    rejectReport: mockRejectReport,
+    updateReportCategory: mockUpdateReportCategory,
+    getReportsAssignedToOfficer: mockGetReportsAssignedToOfficer,
   },
 }));
 
 const mockValidateCreateReportInput = jest.fn();
+const mockValidateNewReportCategory = jest.fn();
+const mockValidateReportToBeAcceptedOrRejected = jest.fn();
 
 jest.unstable_mockModule("../../../shared/validators/report-validator.mjs", () => ({
   validateCreateReportInput: mockValidateCreateReportInput,
+  validateNewReportCategory: mockValidateNewReportCategory,
+  validateReportToBeAcceptedOrRejected: mockValidateReportToBeAcceptedOrRejected,
+}));
+
+const mockIsIdNumberAndPositive = jest.fn();
+
+jest.unstable_mockModule("../../../shared/validators/common-validator.mjs", () => ({
+  isIdNumberAndPositive: mockIsIdNumberAndPositive,
 }));
 
 
@@ -49,6 +69,7 @@ describe("Report Controllers (Unit)", () => {
     mockReq = {
       user: { id: 42 }, // Mock authenticated user (for createReport)
       params: {}, // Routing parameters
+      body: {}, // Request body
     };
     mockRes = createMockResponse();
     mockNext = jest.fn(); // Mock for error handling
@@ -230,6 +251,336 @@ describe("Report Controllers (Unit)", () => {
 
       await ReportControllers.getReportsByUser(mockReq, mockRes, mockNext);
 
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: getAssignedReports
+  // --------------------------------------------------------------------------
+  describe("getAssignedReports", () => {
+    const mockAssignedReports = [
+      { id: 1, status: "Assigned", title: "Report 1" },
+      { id: 2, status: "Assigned", title: "Report 2" }
+    ];
+
+    it("should return assigned reports with status 200", async () => {
+      mockGetAllReportsFilteredByStatus.mockResolvedValue(mockAssignedReports);
+
+      await ReportControllers.getAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetAllReportsFilteredByStatus).toHaveBeenCalledWith(
+        "Assigned",
+        false
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockAssignedReports);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array when no assigned reports exist", async () => {
+      mockGetAllReportsFilteredByStatus.mockResolvedValue([]);
+
+      await ReportControllers.getAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetAllReportsFilteredByStatus).toHaveBeenCalledWith(
+        "Assigned",
+        false
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith([]);
+    });
+
+    it("should call next() if the service throws an error", async () => {
+      const serviceError = new Error("Database connection failed");
+      mockGetAllReportsFilteredByStatus.mockRejectedValue(serviceError);
+
+      await ReportControllers.getAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: changeProblemCategory
+  // --------------------------------------------------------------------------
+  describe("changeProblemCategory", () => {
+    const mockValidatedCategory = { categoryId: 5 };
+    const mockUpdatedReport = { success: true };
+
+    beforeEach(() => {
+      mockIsIdNumberAndPositive.mockReturnValue(true);
+    });
+
+    it("should update report category and return 200 with success", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { categoryId: 5 };
+      mockValidateNewReportCategory.mockResolvedValue(mockValidatedCategory);
+      mockUpdateReportCategory.mockResolvedValue(mockUpdatedReport);
+
+      await ReportControllers.changeProblemCategory(mockReq, mockRes, mockNext);
+
+      expect(mockIsIdNumberAndPositive).toHaveBeenCalledWith(10);
+      expect(mockValidateNewReportCategory).toHaveBeenCalledWith(mockReq.body);
+      expect(mockUpdateReportCategory).toHaveBeenCalledWith(
+        10,
+        mockValidatedCategory
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith({ success: mockUpdatedReport });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 for invalid reportId format", async () => {
+      mockReq.params.reportId = '0';
+      mockIsIdNumberAndPositive.mockReturnValue(false);
+
+      await ReportControllers.changeProblemCategory(mockReq, mockRes, mockNext);
+
+      expect(mockIsIdNumberAndPositive).toHaveBeenCalledWith(0);
+      expect(mockValidateNewReportCategory).not.toHaveBeenCalled();
+      expect(mockUpdateReportCategory).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "Invalid ID format" });
+    });
+
+    it.each([
+      ['-1'],
+      ['not-a-number']
+    ])("should return 400 for invalid reportId: %s", async (invalidId) => {
+      mockReq.params.reportId = invalidId;
+      const parsedId = Number(invalidId);
+      mockIsIdNumberAndPositive.mockReturnValue(false);
+
+      await ReportControllers.changeProblemCategory(mockReq, mockRes, mockNext);
+
+      expect(mockIsIdNumberAndPositive).toHaveBeenCalledWith(parsedId);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "Invalid ID format" });
+    });
+
+    it("should call next() if validator throws an error", async () => {
+      const validationError = new Error("Invalid category ID");
+      validationError.statusCode = 400;
+      mockReq.params.reportId = '10';
+      mockValidateNewReportCategory.mockRejectedValue(validationError);
+
+      await ReportControllers.changeProblemCategory(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(validationError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+
+    it("should call next() if service throws an error", async () => {
+      const serviceError = new Error("Report not found");
+      serviceError.statusCode = 404;
+      mockReq.params.reportId = '10';
+      mockValidateNewReportCategory.mockResolvedValue(mockValidatedCategory);
+      mockUpdateReportCategory.mockRejectedValue(serviceError);
+
+      await ReportControllers.changeProblemCategory(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: reviewReport
+  // --------------------------------------------------------------------------
+  describe("reviewReport", () => {
+    const mockUpdatedReport = { id: 10, status: "Assigned", title: "Report 10" };
+
+    it("should accept a report (action: assigned) and return 200", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "assigned" };
+      mockAcceptReport.mockResolvedValue(mockUpdatedReport);
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).toHaveBeenCalledWith(10);
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockUpdatedReport);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should reject a report (action: rejected) with reason and return 200", async () => {
+      const rejectionReason = "Insufficient information provided";
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "rejected", rejectionReason };
+      const mockRejectedReport = { id: 10, status: "Rejected", rejection_reason: rejectionReason };
+      mockRejectReport.mockResolvedValue(mockRejectedReport);
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockRejectReport).toHaveBeenCalledWith(10, rejectionReason);
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockRejectedReport);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 when rejecting without rejection reason", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "rejected", rejectionReason: "" };
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Rejection reason is mandatory when rejecting a report."
+      });
+    });
+
+    it("should return 400 when rejecting with whitespace-only rejection reason", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "rejected", rejectionReason: "   " };
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Rejection reason is mandatory when rejecting a report."
+      });
+    });
+
+    it("should return 400 when rejecting without rejectionReason field", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "rejected" };
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Rejection reason is mandatory when rejecting a report."
+      });
+    });
+
+    it("should return 400 for invalid action", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "invalid_action" };
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Invalid action. Allowed values: 'assigned', 'rejected'."
+      });
+    });
+
+    it("should return 400 for missing action", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = {};
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Invalid action. Allowed values: 'assigned', 'rejected'."
+      });
+    });
+
+    it.each([
+      ['0'],
+      ['-5'],
+      ['not-a-number']
+    ])("should return 400 for invalid reportId: %s", async (invalidId) => {
+      mockReq.params.reportId = invalidId;
+      mockReq.body = { action: "assigned" };
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).not.toHaveBeenCalled();
+      expect(mockRejectReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "reportId must be a positive integer."
+      });
+    });
+
+    it("should call next() if acceptReport service throws an error", async () => {
+      const serviceError = new Error("Report is not in 'Pending Approval' status");
+      serviceError.statusCode = 409;
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "assigned" };
+      mockAcceptReport.mockRejectedValue(serviceError);
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockAcceptReport).toHaveBeenCalledWith(10);
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+
+    it("should call next() if rejectReport service throws an error", async () => {
+      const serviceError = new Error("Report not found");
+      serviceError.statusCode = 404;
+      mockReq.params.reportId = '10';
+      mockReq.body = { action: "rejected", rejectionReason: "Invalid data" };
+      mockRejectReport.mockRejectedValue(serviceError);
+
+      await ReportControllers.reviewReport(mockReq, mockRes, mockNext);
+
+      expect(mockRejectReport).toHaveBeenCalledWith(10, "Invalid data");
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: getMyAssignedReports
+  // --------------------------------------------------------------------------
+  describe("getMyAssignedReports", () => {
+    const mockAssignedReports = [
+      { id: 1, status: "Assigned", title: "Report 1", technicalOfficerId: 42 },
+      { id: 2, status: "Assigned", title: "Report 2", technicalOfficerId: 42 }
+    ];
+
+    it("should return assigned reports for the logged-in technical staff member with status 200", async () => {
+      mockReq.user.id = 42;
+      mockGetReportsAssignedToOfficer.mockResolvedValue(mockAssignedReports);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockAssignedReports);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array when no reports are assigned to the officer", async () => {
+      mockReq.user.id = 42;
+      mockGetReportsAssignedToOfficer.mockResolvedValue([]);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith([]);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should call next() if the service throws an error", async () => {
+      const serviceError = new Error("Database connection failed");
+      mockReq.user.id = 42;
+      mockGetReportsAssignedToOfficer.mockRejectedValue(serviceError);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
       expect(mockNext).toHaveBeenCalledWith(serviceError);
       expect(mockRes.status).not.toHaveBeenCalled();
     });

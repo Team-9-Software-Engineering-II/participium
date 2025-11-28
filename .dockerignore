@@ -1,0 +1,15 @@
+.git
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+server/public
+server/coverage
+.DS_Store
+*.log
+cypress
+coverage
+tmp
+dist
+reports
+

@@ -1,50 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../components/common/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { User, Shield, Palette, Bell, CalendarIcon } from 'lucide-react';
+import { User, Shield, Palette, Bell, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { uploadAPI } from '@/services/api';
+import { toast } from 'sonner';
+
+// Helper per visualizzare correttamente le immagini dal backend locale
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('blob:')) return path;
+  return `http://localhost:3000${path}`;
+};
 
 export default function Settings() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile } = useAuth(); 
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
+  
   const [formData, setFormData] = useState({
-    photoUrl: user?.photoUrl || '',
+    // FIX: Supporta sia photoUrl (sanitizzato) che photoURL (grezzo) per sicurezza
+    photoUrl: user?.photoUrl || user?.photoURL || '',
     username: user?.username || '',
     email: user?.email || '',
     telegramUsername: user?.telegramUsername || '',
   });
+  
   const [accountData, setAccountData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || '',
-    dateOfBirth: null,
   });
-  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  
   const [loading, setLoading] = useState(false);
+  
+  // FIX: Supporta sia emailNotificationsEnabled che emailConfiguration
   const [notificationSettings, setNotificationSettings] = useState({
-    communicationEmail: true,
-    messageEmail: true,
-    telegram: false,
+    communicationEmail: user?.emailNotificationsEnabled ?? user?.emailConfiguration ?? false,
   });
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 1900 + 1 }, (_, i) => 1900 + i);
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  // Sincronizza lo stato locale se l'utente cambia (es. dopo refresh o update)
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        photoUrl: user.photoUrl || user.photoURL || '',
+        telegramUsername: user.telegramUsername || '',
+      }));
+      
+      setNotificationSettings({
+        communicationEmail: user.emailNotificationsEnabled ?? user.emailConfiguration ?? false
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({
@@ -60,67 +75,105 @@ export default function Settings() {
     });
   };
 
+  // GESTIONE UPLOAD FOTO
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const toastId = toast.loading("Uploading image...");
+      try {
+        const response = await uploadAPI.uploadPhoto(file);
+        const newPhotoUrl = response.data.url;
+
+        const result = await updateProfile({ photoUrl: newPhotoUrl });
+
+        if (result.success) {
+          toast.success("Profile picture updated successfully.", {
+            id: toastId,
+          });
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error("Upload failed", error);
+        toast.error("Failed to upload image.", {
+          id: toastId,
+        });
+      }
+    }
+  };
+
+  // GESTIONE UPDATE PROFILO
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     
-    // Filter only editable fields
-    const updateData = {
-      photoUrl: formData.photoUrl,
-      email: formData.email,
-      telegramUsername: formData.telegramUsername,
-    };
-    
-    await updateProfile(updateData);
-    setLoading(false);
+    try {
+      const updateData = {};
+
+      if (formData.photoUrl && formData.photoUrl.trim() !== '') {
+        updateData.photoUrl = formData.photoUrl;
+      }
+
+      if (!formData.telegramUsername || formData.telegramUsername.trim() === '') {
+        updateData.telegramUsername = null;
+      } else {
+        updateData.telegramUsername = formData.telegramUsername.trim();
+      }
+
+      const result = await updateProfile(updateData);
+      
+      if (result.success) {
+        toast.success("Profile updated successfully.");
+      } else {
+        toast.error(result.error || "Failed to update profile.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // GESTIONE UPDATE ACCOUNT
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
-    // TODO: Implement account data update
-    console.log('Account data:', accountData);
-    
-    setLoading(false);
+    try {
+      toast.info("Personal details are managed by your organization and cannot be changed here.");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // TODO: Implement image upload to server
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          photoUrl: reader.result,
+  // GESTIONE UPDATE NOTIFICHE
+  const handleNotificationsSubmit = async () => {
+    setLoading(true);
+    try {
+        const result = await updateProfile({
+            emailNotificationsEnabled: notificationSettings.communicationEmail
         });
-      };
-      reader.readAsDataURL(file);
+
+        if (result.success) {
+          toast.success("Notification preferences updated successfully.");
+        } else {
+          throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error(error);
+        toast.error("Failed to update notification preferences.");
+    } finally {
+        setLoading(false);
     }
   };
 
   const menuItems = [
-    {
-      id: 'profile',
-      label: 'Profile',
-      icon: User,
-    },
-    {
-      id: 'account',
-      label: 'Account',
-      icon: Shield,
-    },
-    {
-      id: 'appearance',
-      label: 'Appearance',
-      icon: Palette,
-    },
-    {
-      id: 'notifications',
-      label: 'Notifications',
-      icon: Bell,
-    },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'account', label: 'Account', icon: Shield },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
   return (
@@ -162,6 +215,7 @@ export default function Settings() {
 
           {/* Main Content */}
           <main className="flex-1 bg-card rounded-lg border p-4 sm:p-6 lg:p-8">
+            {/* --- TAB PROFILE --- */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
                 <div>
@@ -174,12 +228,11 @@ export default function Settings() {
                 <Separator />
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Photo Upload */}
                   <div className="space-y-3">
                     <Label>Photo</Label>
                     <div className="flex items-center gap-4">
                       <Avatar className="h-20 w-20">
-                        <AvatarImage src={formData.photoUrl} />
+                        <AvatarImage src={getImageUrl(formData.photoUrl)} />
                         <AvatarFallback>
                           <User className="h-8 w-8" />
                         </AvatarFallback>
@@ -204,7 +257,6 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  {/* Username */}
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
                     <Input
@@ -219,7 +271,6 @@ export default function Settings() {
                     </p>
                   </div>
 
-                  {/* Email */}
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -228,13 +279,13 @@ export default function Settings() {
                       type="email"
                       value={formData.email}
                       onChange={handleChange}
+                      disabled 
                     />
                     <p className="text-sm text-muted-foreground">
                       You can manage verified email addresses in your email settings.
                     </p>
                   </div>
 
-                  {/* Telegram Username */}
                   <div className="space-y-2">
                     <Label htmlFor="telegramUsername">Telegram Username</Label>
                     <Input
@@ -250,307 +301,88 @@ export default function Settings() {
                   </div>
 
                   <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {loading ? 'Updating...' : 'Update profile'}
                   </Button>
                 </form>
               </div>
             )}
-
+            
+            {/* --- TAB ACCOUNT --- */}
             {activeTab === 'account' && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold mb-1">Account</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Manage your account settings and preferences.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Manage your account settings and preferences.</p>
                 </div>
                 <Separator />
-                
                 <form onSubmit={handleAccountSubmit} className="space-y-6">
-                  {/* First Name and Last Name - side by side, disabled */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        placeholder="Your first name"
-                        value={accountData.firstName}
-                        onChange={handleAccountChange}
-                        disabled
-                      />
+                      <Input id="firstName" name="firstName" value={accountData.firstName} onChange={handleAccountChange} disabled />
                     </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        placeholder="Your last name"
-                        value={accountData.lastName}
-                        onChange={handleAccountChange}
-                        disabled
-                      />
+                      <Input id="lastName" name="lastName" value={accountData.lastName} onChange={handleAccountChange} disabled />
                     </div>
                   </div>
-
-                  {/* Name - editable */}
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="Your display name"
-                      value={accountData.name}
-                      onChange={handleAccountChange}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      This is the name that will be displayed on your profile and in emails.
-                    </p>
+                    <Input id="name" name="name" value={accountData.name} onChange={handleAccountChange} disabled />
+                    <p className="text-sm text-muted-foreground">This is the name that will be displayed on your profile and in emails.</p>
                   </div>
-
-                  {/* Date of birth */}
-                  <div className="space-y-2">
-                    <Label>Date of birth</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            'w-full justify-start text-left font-normal',
-                            !accountData.dateOfBirth && 'text-muted-foreground'
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {accountData.dateOfBirth ? (
-                            format(accountData.dateOfBirth, 'PPP')
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-                        <div className="p-3 space-y-3">
-                          {/* Month and Year Selectors */}
-                          <div className="flex gap-2">
-                            <Select
-                              value={calendarMonth.getMonth().toString()}
-                              onValueChange={(value) => {
-                                const newDate = new Date(calendarMonth);
-                                newDate.setMonth(parseInt(value));
-                                setCalendarMonth(newDate);
-                              }}
-                            >
-                              <SelectTrigger className="w-[140px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {months.map((month, index) => (
-                                  <SelectItem key={month} value={index.toString()}>
-                                    {month}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-
-                            <Select
-                              value={calendarMonth.getFullYear().toString()}
-                              onValueChange={(value) => {
-                                const newDate = new Date(calendarMonth);
-                                newDate.setFullYear(parseInt(value));
-                                setCalendarMonth(newDate);
-                              }}
-                            >
-                              <SelectTrigger className="w-[100px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-[200px]">
-                                {years.reverse().map((year) => (
-                                  <SelectItem key={year} value={year.toString()}>
-                                    {year}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Calendar */}
-                          <Calendar
-                            mode="single"
-                            selected={accountData.dateOfBirth}
-                            onSelect={(date) => setAccountData({ ...accountData, dateOfBirth: date })}
-                            month={calendarMonth}
-                            onMonthChange={setCalendarMonth}
-                            disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                            initialFocus
-                          />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <p className="text-sm text-muted-foreground">
-                      Your date of birth is used to calculate your age.
-                    </p>
-                  </div>
-
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Updating...' : 'Update account'}
-                  </Button>
+                  
+                  <Button type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update account'}</Button>
                 </form>
               </div>
             )}
 
+            {/* --- TAB APPEARANCE --- */}
             {activeTab === 'appearance' && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold mb-1">Appearance</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Customize the appearance of the app. Automatically switch between day and night themes.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Customize the appearance of the app. Automatically switch between day and night themes.</p>
                 </div>
                 <Separator />
-                
-                {/* Theme Selection */}
                 <div className="space-y-3">
                   <Label>Theme</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Select the theme for the dashboard.
-                  </p>
-                  
+                  <p className="text-sm text-muted-foreground">Select the theme for the dashboard.</p>
                   <div className="grid grid-cols-2 gap-4 max-w-md">
-                    {/* Light Theme */}
-                    <button
-                      type="button"
-                      onClick={() => setTheme('light')}
-                      className={cn(
-                        'relative rounded-lg border-2 p-1 transition-all',
-                        theme === 'light' 
-                          ? 'border-primary ring-2 ring-primary/20' 
-                          : 'border-border hover:border-primary/50'
-                      )}
-                    >
-                      <div className="rounded-md bg-white p-4 space-y-2">
-                        <div className="h-2 w-3/4 bg-neutral-200 rounded"></div>
-                        <div className="h-2 w-full bg-neutral-200 rounded"></div>
-                        <div className="h-2 w-2/3 bg-neutral-200 rounded"></div>
-                        <div className="flex gap-2 mt-3">
-                          <div className="h-6 w-6 rounded-full bg-neutral-200"></div>
-                          <div className="flex-1">
-                            <div className="h-2 w-3/4 bg-neutral-200 rounded mb-1"></div>
-                            <div className="h-2 w-1/2 bg-neutral-200 rounded"></div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-center text-sm font-medium">
-                        Light
-                      </div>
+                    <button type="button" onClick={() => setTheme('light')} className={cn('relative rounded-lg border-2 p-1 transition-all', theme === 'light' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50')}>
+                      <div className="rounded-md bg-white p-4 space-y-2"><div className="h-2 w-3/4 bg-neutral-200 rounded"></div><div className="h-2 w-full bg-neutral-200 rounded"></div><div className="h-2 w-2/3 bg-neutral-200 rounded"></div><div className="flex gap-2 mt-3"><div className="h-6 w-6 rounded-full bg-neutral-200"></div><div className="flex-1"><div className="h-2 w-3/4 bg-neutral-200 rounded mb-1"></div><div className="h-2 w-1/2 bg-neutral-200 rounded"></div></div></div></div>
+                      <div className="mt-2 text-center text-sm font-medium">Light</div>
                     </button>
-
-                    {/* Dark Theme */}
-                    <button
-                      type="button"
-                      onClick={() => setTheme('dark')}
-                      className={cn(
-                        'relative rounded-lg border-2 p-1 transition-all',
-                        theme === 'dark' 
-                          ? 'border-primary ring-2 ring-primary/20' 
-                          : 'border-border hover:border-primary/50'
-                      )}
-                    >
-                      <div className="rounded-md bg-neutral-900 p-4 space-y-2">
-                        <div className="h-2 w-3/4 bg-neutral-700 rounded"></div>
-                        <div className="h-2 w-full bg-neutral-700 rounded"></div>
-                        <div className="h-2 w-2/3 bg-neutral-700 rounded"></div>
-                        <div className="flex gap-2 mt-3">
-                          <div className="h-6 w-6 rounded-full bg-neutral-700"></div>
-                          <div className="flex-1">
-                            <div className="h-2 w-3/4 bg-neutral-700 rounded mb-1"></div>
-                            <div className="h-2 w-1/2 bg-neutral-700 rounded"></div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-center text-sm font-medium">
-                        Dark
-                      </div>
+                    <button type="button" onClick={() => setTheme('dark')} className={cn('relative rounded-lg border-2 p-1 transition-all', theme === 'dark' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50')}>
+                      <div className="rounded-md bg-neutral-900 p-4 space-y-2"><div className="h-2 w-3/4 bg-neutral-700 rounded"></div><div className="h-2 w-full bg-neutral-700 rounded"></div><div className="h-2 w-2/3 bg-neutral-700 rounded"></div><div className="flex gap-2 mt-3"><div className="h-6 w-6 rounded-full bg-neutral-700"></div><div className="flex-1"><div className="h-2 w-3/4 bg-neutral-700 rounded mb-1"></div><div className="h-2 w-1/2 bg-neutral-700 rounded"></div></div></div></div>
+                      <div className="mt-2 text-center text-sm font-medium">Dark</div>
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* --- TAB NOTIFICATIONS --- */}
             {activeTab === 'notifications' && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold mb-1">Notifications</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Configure how you receive notifications.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Configure how you receive notifications.</p>
                 </div>
                 <Separator />
-
-                {/* Notify me about section */}
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="text-base font-medium mb-4">Notify me about...</h3>
-                  </div>
-
-                  {/* Communication emails */}
+                  <div><h3 className="text-base font-medium mb-4">Notify me about...</h3></div>
                   <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-base font-medium">Communication emails</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive emails about your reports activity and updates.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notificationSettings.communicationEmail}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({ ...notificationSettings, communicationEmail: checked })
-                      }
-                    />
-                  </div>
-
-                  {/* Message emails */}
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-base font-medium">Message emails</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive emails about messages on your reports.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notificationSettings.messageEmail}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({ ...notificationSettings, messageEmail: checked })
-                      }
-                    />
-                  </div>
-
-                  {/* Telegram notifications */}
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-base font-medium">Telegram</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive notifications via Telegram for important updates.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notificationSettings.telegram}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({ ...notificationSettings, telegram: checked })
-                      }
+                    <div className="space-y-0.5"><Label className="text-base font-medium">Communication emails</Label><p className="text-sm text-muted-foreground">Receive emails about your reports activity and updates.</p></div>
+                    <Switch 
+                      checked={notificationSettings.communicationEmail} 
+                      onCheckedChange={(checked) => setNotificationSettings({ communicationEmail: checked })} 
                     />
                   </div>
                 </div>
-
-                <Button 
-                  type="button"
-                  onClick={() => {
-                    // TODO: Implement notification preferences save
-                    console.log('Notification settings:', notificationSettings);
-                    alert('Notification preferences updated!');
-                  }}
-                >
-                  Update notifications
+                <Button type="button" disabled={loading} onClick={handleNotificationsSubmit}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Update notifications
                 </Button>
               </div>
             )}

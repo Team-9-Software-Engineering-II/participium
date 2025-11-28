@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Home from './pages/Home';
@@ -14,24 +14,35 @@ import Overview from './pages/admin/Overview';
 import MunicipalityUsers from './pages/admin/MunicipalityUsers';
 import Reports from './pages/admin/Reports';
 import CreateReport from './pages/CreateReport';
+import ReportDetails from './pages/ReportDetails';
+import OfficerLayout from './pages/officer/OfficerLayout';
+import OfficerReports from './pages/officer/OfficerReports';
+import TechnicianLayout from './pages/technician/TechnicianLayout';
+import TechnicianReports from './pages/technician/TechnicianReports';
+import { Toaster } from "@/components/ui/sonner"
 
 function App() {
+  const HomeRoute = () => {
+    const { user } = useAuth();
+    if (user && (user.role === 'municipal' || user.role === 'officer')) {
+      return <Navigate to="/municipal/dashboard" replace />;
+    }
+    if (user && user.role === 'technical') {
+      return <Navigate to="/technical/dashboard" replace />;
+    }
+    return <Home />;
+  };
+
   return (
     <Router>
       <ThemeProvider>
         <AuthProvider>
           <Routes>
-          {/* Rotta pubblica - Home page */}
-          <Route path="/" element={<Home />} />
-          
-          {/* Pagina Info */}
+          <Route path="/" element={<HomeRoute />} />
           <Route path="/info" element={<Info />} />
-          
-          {/* Rotte di autenticazione */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
-          {/* Rotte protette */}
           <Route 
             path="/dashboard" 
             element={
@@ -64,6 +75,7 @@ function App() {
             <Route path="municipality-users" element={<MunicipalityUsers />} />
             <Route path="reports" element={<Reports />} />
           </Route>
+          
           <Route 
             path="/reports/new" 
             element={
@@ -72,7 +84,42 @@ function App() {
               </ProtectedRoute>
             } 
           />
+
+          {/* Nuova rotta per il dettaglio report */}
+          <Route 
+            path="/reports/:id" 
+            element={
+              <ProtectedRoute>
+                <ReportDetails />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route path="/municipal" element={
+            <ProtectedRoute>
+              <OfficerLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<OfficerReports status="pending" />} />
+            <Route path="assigned" element={<OfficerReports status="assigned" />} />
+            <Route path="rejected" element={<OfficerReports status="rejected" />} />
+          </Route>
+
+          <Route path="/technical" element={
+              <ProtectedRoute>
+                <TechnicianLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="reports/active" replace />} />
+              <Route path="reports/active" element={<TechnicianReports type="active" />} />
+              <Route path="reports/history" element={<TechnicianReports type="history" />} />
+            </Route>
+
         </Routes>
+
+        <Toaster />
+
         </AuthProvider>
       </ThemeProvider>
     </Router>
