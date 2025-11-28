@@ -1,5 +1,5 @@
 
-RETROSPECTIVE DEMO 1 (Team 09)
+RETROSPECTIVE DEMO 2 (Team 09)
 =====================================
 ﻿
 The retrospective should include _at least_ the following
