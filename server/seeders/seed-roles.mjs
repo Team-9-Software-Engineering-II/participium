@@ -15,6 +15,7 @@ export const seedRoles = async () => {
       { id: 2, name: "admin" },
       { id: 3, name: "municipal_public_relations_officer" },
       { id: 4, name: "technical_staff" },
+      { id: 5, name: "external_maintainer" },
     ]);
 
     console.log("Roles seeded successfully.");
