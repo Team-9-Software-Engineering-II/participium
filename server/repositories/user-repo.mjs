@@ -80,6 +80,19 @@ export async function findUserByUsername(username) {
 }
 
 /**
+ * Finds all users belonging to a specific company.
+ * Include role.
+ * * @param {number} companyId - The ID of the company.
+ * @returns {Promise<Array<object>>} A list of users.
+ */
+export async function findUsersByCompanyId(companyId) {
+  return db.User.findAll({
+    where: { companyId },
+    include: [{ model: db.Role, as: "role" }],
+  });
+}
+
+/**
  * Updates a user by its ID.
  */
 export async function updateUser(id, userData) {
@@ -99,21 +112,6 @@ export async function deleteUser(id) {
   return deletedRows > 0;
 }
 
-/**
- * Retrieves the number of currently active reports assigned to a staff member
- * based on their user ID.
- * * @param {number} id - The ID of the staff member (User).
- * @returns {Promise<number|null>} The count of active reports, or null if the user is not found.
- */
-export async function getNumberOfCurrentActiveReportsByStaffMemberId(id) {
-  const user = await db.User.findByPk(id);
-
-  if (!user) {
-    return null;
-  }
-  return user.counterActiveReports;
-}
-
 // --- 2. NUOVA FUNZIONE PER L'ALGORITMO DI ASSEGNAZIONE ---
 
 /**
@@ -130,8 +128,8 @@ export async function getNumberOfCurrentActiveReportsByStaffMemberId(id) {
 export async function findStaffWithFewestReports(technicalOfficeId) {
   // Recupera tutti gli utenti dell'ufficio tecnico specificato
   const staffMembers = await db.User.findAll({
-    where: { 
-      technicalOfficeId: technicalOfficeId 
+    where: {
+      technicalOfficeId,
     },
     include: [
       {
@@ -141,7 +139,7 @@ export async function findStaffWithFewestReports(technicalOfficeId) {
           // Contiamo solo i report che sono ancora "attivi" (carico di lavoro corrente)
           // Escludiamo quelli chiusi o non ancora assegnati
           status: {
-            [Op.notIn]: ["Resolved", "Rejected", "Pending Approval"]
+            [Op.notIn]: ["Resolved", "Rejected", "Pending Approval"],
           },
         },
         required: false, // LEFT JOIN: Importante per includere anche chi ha 0 report!

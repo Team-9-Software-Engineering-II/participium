@@ -5,6 +5,8 @@ import initRoleModel from "./role.mjs";
 import initTechnicalOfficeModel from "./technical-office.mjs";
 import initProblemCategoryModel from "./problem-category.mjs";
 import initReportModel from "./report.mjs";
+import initCompany from "./company.mjs";
+import initCompanyCategory from "./company-category.mjs";
 
 const db = {};
 
@@ -17,6 +19,8 @@ db.Role = initRoleModel(sequelize);
 db.TechnicalOffice = initTechnicalOfficeModel(sequelize);
 db.Category = initProblemCategoryModel(sequelize);
 db.Report = initReportModel(sequelize);
+db.Company = initCompany(sequelize);
+db.CompanyCategory = initCompanyCategory(sequelize);
 
 /* User - Role relationship (1:N) */
 db.User.belongsTo(db.Role, {
@@ -26,6 +30,17 @@ db.User.belongsTo(db.Role, {
 
 db.Role.hasMany(db.User, {
   foreignKey: "roleId",
+  as: "users",
+});
+
+/* User - Company relationship (1:N) */
+db.User.belongsTo(db.Company, {
+  foreignKey: "companyId",
+  as: "company",
+});
+
+db.Company.hasMany(db.User, {
+  foreignKey: "companyId",
   as: "users",
 });
 
@@ -85,6 +100,17 @@ db.Report.belongsTo(db.User, {
   as: "technicalOfficer",
 });
 
+/* User (External_Maintainer) - Report relationship (1:N) */
+db.Report.belongsTo(db.User, {
+  foreignKey: "externalMaintainerId",
+  as: "externalMaintainer",
+});
+
+db.User.hasMany(db.Report, {
+  foreignKey: "externalMaintainerId",
+  as: "externalReports",
+});
+
 /* Problem_Category - Report relationship (1:N) */
 db.Category.hasMany(db.Report, {
   foreignKey: {
@@ -97,6 +123,21 @@ db.Category.hasMany(db.Report, {
 db.Report.belongsTo(db.Category, {
   foreignKey: "categoryId",
   as: "category",
+});
+
+// Company - Category relationship (N:M)
+db.Company.belongsToMany(db.Category, {
+  through: db.CompanyCategory,
+  foreignKey: "company_id",
+  otherKey: "category_id",
+  as: "categories",
+});
+
+db.Category.belongsToMany(db.Company, {
+  through: db.CompanyCategory,
+  foreignKey: "category_id",
+  otherKey: "company_id",
+  as: "companies",
 });
 
 export default db;
