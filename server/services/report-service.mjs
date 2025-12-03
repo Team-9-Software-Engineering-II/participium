@@ -8,7 +8,8 @@ import {
   findReportsByTechnicalOfficerId,
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
-import { findStaffWithFewestReports } from "../repositories/user-repo.mjs";
+import { findStaffWithFewestReports, findExternalMaintainerWithFewestReports } from "../repositories/user-repo.mjs";
+import { findCompanyById } from "../repositories/company-repo.mjs";
 import {
   sanitizeReport,
   sanitizeReports,
@@ -269,5 +270,59 @@ export class ReportService {
       console.error("Error fetching address from OSM:", error);
       return null;
     }
+  }
+
+  /**
+   * Assigns a report to an external maintainer from a specific company.
+   * Uses load balancing to select the maintainer with the fewest active reports.
+   * @param {number} reportId - The ID of the report to assign.
+   * @param {number} companyId - The ID of the company to assign the report to.
+   * @returns {Promise<object>} The updated sanitized report.
+   */
+  static async assignReportToExternalMaintainer(reportId, companyId) {
+    // 1. Validate that the report exists
+    const report = await findReportById(reportId);
+    if (!report) {
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 2. Validate that the company exists
+    const company = await findCompanyById(companyId);
+    if (!company) {
+      const error = new Error(`Company with id "${companyId}" not found.`);
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 3. Validate that the report is in a state that allows external assignment
+    // Reports should be "Assigned" or "In Progress" to be assigned to external maintainers
+    if (report.status === "Pending Approval" || report.status === "Rejected") {
+      const error = new Error(
+        `Cannot assign report to external maintainer. Current status is '${report.status}'. Report must be 'Assigned' or 'In Progress'.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 4. Find the external maintainer with the fewest active reports
+    const bestMaintainer = await findExternalMaintainerWithFewestReports(companyId);
+
+    if (!bestMaintainer) {
+      const error = new Error(
+        `No external maintainers found in company '${company.name}'.`
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // 5. Update the report: assign to the external maintainer
+    await updateReport(reportId, {
+      externalMaintainerId: bestMaintainer.id,
+    });
+
+    // Return the updated report
+    return this.getReportById(reportId);
   }
 }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { isAuthenticated, isAdmin, isTechnicalStaff } from "../middlewares/auth.mjs";
 import { getAllTechnicalOffices } from "../controllers/technical-office-controller.mjs";
-import { getMyAssignedReports, updateReportStatus } from "../controllers/report-controller.js";
+import { getMyAssignedReports, updateReportStatus, assignReportToExternalMaintainer } from "../controllers/report-controller.js";
 
 const router = Router();
 
@@ -30,6 +30,17 @@ router.put(
   isAuthenticated,
   isTechnicalStaff,
   updateReportStatus
+);
+
+/**
+ * Assign a report to an external maintainer from a company.
+ * Route: PUT /offices/reports/:reportId/assign-external
+ */
+router.put(
+  "/reports/:reportId/assign-external",
+  isAuthenticated,
+  isTechnicalStaff,
+  assignReportToExternalMaintainer
 );
 
 export default router;

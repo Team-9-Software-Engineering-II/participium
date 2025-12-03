@@ -557,6 +557,49 @@ paths:
         '403':
           description: Forbidden (technical staff only)
 
+  /offices/reports/{reportId}/assign-external:
+    put:
+      summary: (Technical Staff) Assign a report to an external maintainer
+      description: >
+        Allows a technical staff member to assign a report to an external maintainer from a specific company.
+        The system uses load balancing to automatically select the external maintainer with the fewest active reports
+        within the specified company. Only reports in 'Assigned' or 'In Progress' status can be assigned to external maintainers.
+      tags: [Technical Offices]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report to assign
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalMaintainerAssignment'
+      responses:
+        '200':
+          description: Report successfully assigned to external maintainer. Returns the updated report object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId, invalid companyId, or report is not in a valid status for external assignment
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (technical staff only)
+        '404':
+          description: Report or company not found
+        '409':
+          description: No external maintainers found in the specified company
+
 components:
   securitySchemes:
     CookieAuth:
@@ -1077,6 +1120,15 @@ components:
         name:
           type: string
           description: Name of the Technical Office.
+
+    ExternalMaintainerAssignment:
+      type: object
+      required: [companyId]
+      properties:
+        companyId:
+          type: integer
+          minimum: 1
+          description: The ID of the company from which to select an external maintainer. The system will automatically assign the report to the maintainer with the fewest active reports.
           
           
 

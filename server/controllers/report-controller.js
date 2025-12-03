@@ -230,3 +230,36 @@ export async function updateReportStatus(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Allows technical staff to assign a report to an external maintainer from a company.
+ * Uses load balancing to select the maintainer with the fewest active reports.
+ */
+export async function assignReportToExternalMaintainer(req, res, next) {
+  try {
+    const reportId = Number(req.params.reportId);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      return res.status(400).json({ message: "reportId must be a positive integer." });
+    }
+
+    const { companyId } = req.body;
+    
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required." });
+    }
+
+    const companyIdNumber = Number(companyId);
+    if (!Number.isInteger(companyIdNumber) || companyIdNumber <= 0) {
+      return res.status(400).json({ message: "companyId must be a positive integer." });
+    }
+
+    const updatedReport = await ReportService.assignReportToExternalMaintainer(
+      reportId,
+      companyIdNumber
+    );
+    
+    return res.status(200).json(updatedReport);
+  } catch (error) {
+    return next(error);
+  }
+}
