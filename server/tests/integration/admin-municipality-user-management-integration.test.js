@@ -15,7 +15,7 @@ import {
   loginAndGetCookie,
   municipalityUser,
   uniqueId,
-} from "./test-utils.js"; // Ensure the path is correct
+} from "./test-utils.js";
 
 /** @type {string} The session cookie for the logged-in admin user. */
 let adminCookie;
