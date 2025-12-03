@@ -175,7 +175,7 @@ export default function Navbar() {
 
               {/* Settings button - hidden on mobile - NASCOSTO per Officer e Admin*/}
               {isCitizen && (
-                <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
+                <Button variant="ghost" size="icon" asChild className="hidden sm:flex" data-cy="settings-button">
                   <Link to="/settings">
                     <Settings className="h-5 w-5" />
                   </Link>
