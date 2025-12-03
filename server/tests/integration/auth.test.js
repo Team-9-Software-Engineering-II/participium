@@ -7,7 +7,7 @@ process.env.NODE_ENV = "test";
 
 import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
-import { app } from "../../index.mjs"; // app must be imported here for supertest
+import { app } from "../../index.mjs";
 
 // Import necessary utilities, setup, teardown, and test data
 import {

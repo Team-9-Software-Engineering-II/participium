@@ -10,6 +10,7 @@ import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
 import { seedDatabase } from "../../seeders/index.mjs";
 import db from "../../models/index.mjs";
+import technicalOffice from "../../models/technical-office.mjs";
 
 // --- 1. GLOBAL SETUP & TEARDOWN ---
 
@@ -38,7 +39,7 @@ export async function teardownTestDatabase() {
 /**
  * @type {number} A unique ID based on the current timestamp to ensure uniqueness of usernames and emails.
  */
-const uniqueId = Date.now(); 
+export const uniqueId = Date.now(); 
 
 /**
  * @type {object} Credentials for the default Admin user.
@@ -84,6 +85,8 @@ export const municipalityUser = {
   firstName: "Municipal",
   lastName: "User",
   password: "MunicipalPass123!",
+  roleId: 3,
+  technicalOfficeId: 1,
 };
 
 /**

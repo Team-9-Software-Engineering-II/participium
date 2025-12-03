@@ -3,7 +3,7 @@ import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
 import { seedDatabase } from "../../seeders/index.mjs";
-import path from "path";
+import path from "node:path";
 
 let citizenCookie;
 
