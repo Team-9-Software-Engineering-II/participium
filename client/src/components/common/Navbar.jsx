@@ -122,9 +122,9 @@ export default function Navbar() {
                       </div>
                     ) : (
                       <div className="max-h-[400px] overflow-y-auto">
-                        {notifications.slice(0, 10).map((notification, index) => (
+                        {notifications.slice(0, 10).map((notification) => (
                           <div
-                            key={index}
+                            key={notification.id}
                             className="flex gap-3 px-4 py-3 hover:bg-accent cursor-pointer border-b last:border-b-0 relative"
                           >
                             {/* Avatar/Icon */}
