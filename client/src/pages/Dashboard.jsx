@@ -16,6 +16,10 @@ const getImageUrl = (photoPath) => {
   return `${API_BASE_URL}${photoPath}`;
 };
 
+const handleImageError = (e) => {
+  e.target.style.display = 'none';
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -88,6 +92,102 @@ export default function Dashboard() {
     }
   }, [user?.id]);
 
+  const renderReportsContent = () => {
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-xs text-muted-foreground mt-4">Updating...</p>
+        </div>
+      );
+    }
+
+    if (myReports.length === 0) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
+          <p className="font-medium">No reports yet</p>
+          <p className="text-sm mt-1">Create your first report above.</p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {myReports.map((report) => (
+      <div 
+        key={report.id} 
+        className="bg-card border border-border rounded-xl shadow-sm p-4 transition-all hover:shadow-md hover:border-primary/50 group"
+      >
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mr-2">
+            {report.title}
+          </h3>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate(`/reports/${report.id}`)}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="mb-4 border-b border-border pb-2">
+          <ReportStatus currentStatus={report.status} />
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 space-y-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
+              <span 
+                className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-xs font-medium text-foreground/80"
+                title={addresses[report.id]} 
+              >
+                {addresses[report.id] || "Loading address..."}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-xs sm:text-sm">
+                {new Date(report.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+
+            {report.description && (
+              <p className="text-xs sm:text-sm mt-1 bg-muted/50 p-2 rounded text-foreground/90 line-clamp-2 border border-border/50 italic">
+                {report.description}
+              </p>
+            )}
+          </div>
+
+          {report.photos && report.photos.length > 0 && (
+            <div className="flex gap-2 sm:grid sm:grid-cols-2 sm:w-32 shrink-0 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
+              {report.photos.slice(0, 2).map((photo, idx) => (
+                <img
+                  key={photo || `photo-${report.id}-${idx}`}
+                  src={getImageUrl(photo)}
+                  alt="Evidence"
+                  className="h-16 w-16 sm:h-auto sm:w-full aspect-square object-cover rounded-md border border-border shrink-0"
+                  onError={handleImageError}
+                />
+              ))}
+              {report.photos.length > 2 && (
+                <div className="h-16 w-16 sm:h-auto sm:w-full aspect-square flex items-center justify-center bg-muted rounded-md border border-border text-xs font-medium shrink-0 text-muted-foreground">
+                  +{report.photos.length - 2}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="h-[100dvh] flex flex-col bg-muted/20 dark:bg-background overflow-hidden transition-colors duration-300">
       
@@ -130,90 +230,7 @@ export default function Dashboard() {
           
           <div className="flex-1 overflow-y-auto bg-muted/30 dark:bg-muted/10 p-0">
             <CardContent className="p-3 sm:p-4 space-y-4">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <p className="text-xs text-muted-foreground mt-4">Updating...</p>
-                </div>
-              ) : myReports.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p className="font-medium">No reports yet</p>
-                  <p className="text-sm mt-1">Create your first report above.</p>
-                </div>
-              ) : (
-                myReports.map((report) => (
-                  <div 
-                    key={report.id} 
-                    className="bg-card border border-border rounded-xl shadow-sm p-4 transition-all hover:shadow-md hover:border-primary/50 group"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mr-2">
-                        {report.title}
-                      </h3>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground"
-                        onClick={() => navigate(`/reports/${report.id}`)}
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </Button>
-                    </div>
-
-                    <div className="mb-4 border-b border-border pb-2">
-                      <ReportStatus currentStatus={report.status} />
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="flex-1 space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
-                          {/* Tooltip nativo per vedere l'indirizzo completo se troncato */}
-                          <span 
-                            className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-xs font-medium text-foreground/80"
-                            title={addresses[report.id]} 
-                          >
-                            {addresses[report.id] || "Loading address..."}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5 shrink-0" />
-                          <span className="text-xs sm:text-sm">
-                            {new Date(report.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        {report.description && (
-                          <p className="text-xs sm:text-sm mt-1 bg-muted/50 p-2 rounded text-foreground/90 line-clamp-2 border border-border/50 italic">
-                            {report.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {report.photos && report.photos.length > 0 && (
-                        <div className="flex gap-2 sm:grid sm:grid-cols-2 sm:w-32 shrink-0 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
-                          {report.photos.slice(0, 2).map((photo, idx) => (
-                            <img
-                              key={idx}
-                              src={getImageUrl(photo)}
-                              alt="Evidence"
-                              className="h-16 w-16 sm:h-auto sm:w-full aspect-square object-cover rounded-md border border-border shrink-0"
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          ))}
-                          {report.photos.length > 2 && (
-                            <div className="h-16 w-16 sm:h-auto sm:w-full aspect-square flex items-center justify-center bg-muted rounded-md border border-border text-xs font-medium shrink-0 text-muted-foreground">
-                              +{report.photos.length - 2}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+              {renderReportsContent()}
             </CardContent>
           </div>
         </Card>

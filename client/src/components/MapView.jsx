@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, GeoJSON } from "react-leaflet";
@@ -5,7 +7,7 @@ import MarkerClusterGroup from "react-leaflet-markercluster";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./MapView.css";
-import { Search, Info, MapPin, Crosshair, X, AlertTriangle, Plus, Minus } from "lucide-react";
+import { Search, Info, MapPin, Crosshair, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,9 +51,17 @@ const createReportIcon = (status) => {
   });
 };
 
+const getClusterColor = (count) => {
+  if (count < 10) return '#10B981';
+  if (count < 25) return '#EAB308';
+  if (count < 50) return '#F59E0B';
+  if (count < 100) return '#EF4444';
+  return '#991B1B';
+};
+
 const createClusterCustomIcon = (cluster) => {
   const count = cluster.getChildCount();
-  let color = count < 10 ? '#10B981' : count < 25 ? '#EAB308' : count < 50 ? '#F59E0B' : count < 100 ? '#EF4444' : '#991B1B';
+  let color = getClusterColor(count);
   return L.divIcon({
     html: `<div style="width: 50px; height: 50px; background-color: ${color}; border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">${count}</div>`,
     className: 'custom-cluster-icon',
@@ -88,7 +98,7 @@ function ZoomControl() {
   useEffect(() => {
     // Rimuovi eventuali controlli zoom esistenti per evitare duplicati
     if (controlRef.current) {
-      try { map.removeControl(controlRef.current); } catch (e) {}
+      try { map.removeControl(controlRef.current); } catch (e) { console.log("Exception while removing control:", e); }
     }
     
     // Crea il controllo nativo
@@ -101,7 +111,7 @@ function ZoomControl() {
 
     return () => {
       if (controlRef.current) {
-        try { map.removeControl(controlRef.current); } catch (e) {}
+        try { map.removeControl(controlRef.current); } catch (e) { console.log("Exception while removing control:", e); }
       }
     };
   }, [map, isMobile]);
@@ -113,8 +123,8 @@ function MapUpdater({ position }) {
   const map = useMap();
   useEffect(() => {
     if (!position || !Array.isArray(position) || position.length !== 2) return;
-    const lat = parseFloat(position[0]);
-    const lng = parseFloat(position[1]);
+    const lat = Number.parseFloat(position[0]);
+    const lng = Number.parseFloat(position[1]);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
     if (lat === DEFAULT_CENTER[0] && lng === DEFAULT_CENTER[1]) return;
@@ -144,7 +154,7 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
     if (markerRef.current && !isDefault) {
       markerRef.current.openPopup();
     }
-
+    
     if (inside) {
       // Non fetchare l'indirizzo se siamo fermi al default (evita chiamate inutili all'avvio)
       if (!isDefault) {
@@ -190,9 +200,9 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
 function CenterOnReport({ selectedReport }) {
   const map = useMap();
   useEffect(() => { 
-      if (selectedReport && selectedReport.latitude && selectedReport.longitude) {
-          const lat = parseFloat(selectedReport.latitude);
-          const lng = parseFloat(selectedReport.longitude);
+      if (selectedReport?.latitude && selectedReport?.longitude) {
+          const lat = Number.parseFloat(selectedReport.latitude);
+          const lng = Number.parseFloat(selectedReport.longitude);
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
              map.setView([lat, lng], 16, { animate: true, duration: 1.5 }); 
           }
@@ -204,7 +214,6 @@ function CenterOnReport({ selectedReport }) {
 // --- MAIN COMPONENT ---
 
 export function MapView({ reports = [], selectedReport = null }) {
-  const navigate = useNavigate();
   const { theme } = useTheme();
   const [position, setPosition] = useState(DEFAULT_CENTER); 
   const [address, setAddress] = useState("");
@@ -224,10 +233,12 @@ export function MapView({ reports = [], selectedReport = null }) {
     };
     loadData();
   }, []);
-
+  
+  // Geolocation is used to help users quickly select their current location for reporting urban issues
+  // eslint-disable-next-line sonarjs/geolocation
   const handleUseMyLocation = () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition((pos) => { // NOSONAR
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setPosition([lat, lng]);
@@ -244,8 +255,8 @@ export function MapView({ reports = [], selectedReport = null }) {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ', Torino')}&addressdetails=1&limit=1&countrycodes=it`);
       const results = await res.json();
       if (results.length > 0) {
-        const lat = parseFloat(results[0].lat);
-        const lon = parseFloat(results[0].lon);
+        const lat = Number.parseFloat(results[0].lat);
+        const lon = Number.parseFloat(results[0].lon);
         isSearching.current = true;
         setPosition([lat, lon]);
         setAddress(results[0].display_name);
@@ -271,7 +282,7 @@ export function MapView({ reports = [], selectedReport = null }) {
 
   const selectSearchResult = (result) => {
     isSearching.current = true;
-    setPosition([parseFloat(result.lat), parseFloat(result.lon)]);
+    setPosition([Number.parseFloat(result.lat), Number.parseFloat(result.lon)]);
     setAddress(result.display_name);
     setSearchQuery(result.display_name);
     setShowSearchResults(false);
@@ -319,7 +330,7 @@ export function MapView({ reports = [], selectedReport = null }) {
         {showSearchResults && searchResults.length > 0 && (
           <div className="mt-2 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden">
             {searchResults.map((result, index) => (
-              <button key={index} onClick={() => selectSearchResult(result)} className="w-full px-4 py-3 text-left text-sm hover:bg-accent border-b border-border last:border-b-0">{result.display_name}</button>
+              <button key={result || `result${index}`} onClick={() => selectSearchResult(result)} className="w-full px-4 py-3 text-left text-sm hover:bg-accent border-b border-border last:border-b-0">{result.display_name}</button>
             ))}
           </div>
         )}

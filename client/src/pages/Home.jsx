@@ -35,7 +35,6 @@ import {
   User,
   Moon,
   Sun,
-  X,
   SlidersHorizontal,
   ListTree,
   Info,
@@ -234,10 +233,10 @@ export default function Home() {
 
   const handleNewReport = () => {
     // Manteniamo questo controllo UX per evitare redirect o errori 401 durante la navigazione
-    if (!isAuthenticated) {
-      setShowLoginPrompt(true);
-    } else {
+    if (isAuthenticated) {
       navigate("/reports/new");
+    } else {
+      setShowLoginPrompt(true);
     }
   };
 
@@ -487,7 +486,7 @@ export default function Home() {
           variant="outline"
           size="icon"
           className={`absolute left-4 z-[1001] h-12 w-12 rounded-full bg-white dark:bg-black backdrop-blur border-border ${
-            !isAuthenticated ? "bottom-[76px]" : "bottom-6"
+            isAuthenticated ? "bottom-6" : "bottom-[76px]"
           }`}
         >
           <Info style={{ width: "20px", height: "20px" }} />

@@ -34,9 +34,9 @@ export default function Navbar() {
     roleName.toLowerCase().includes('municipal') || 
     roleName.toLowerCase().includes('officer')
   );
-  const isAdmin = roleName && roleName.toLowerCase().includes('admin');
-  const isTechnician = roleName && roleName.toLowerCase().includes('technical');
-  const isCitizen = roleName && roleName.toLowerCase().includes('citizen');
+  const isAdmin = roleName?.toLowerCase().includes('admin');
+  const isTechnician = roleName?.toLowerCase().includes('technical');
+  const isCitizen = roleName?.toLowerCase().includes('citizen');
 
   // Funzione per determinare il link della Home/Logo
   const getHomeLink = () => {

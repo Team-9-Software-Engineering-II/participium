@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,16 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
-import { Camera, Image as ImageIcon, File, X, Upload, ChevronLeft, ChevronRight, MapPin, Search, Crosshair, AlertTriangle, Plus, Minus } from 'lucide-react';
+import { Camera, Image as ImageIcon, File, X, Upload, ChevronLeft, ChevronRight, MapPin, Search, Crosshair, AlertTriangle } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../components/MapView.css"; 
 import { reportAPI, uploadAPI } from '../services/api';
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
+import { toast } from 'sonner';
 
-//const CATEGORIES = ['Water Supply', 'Architectural Barriers', 'Sewer System', 'Public Lighting', 'Waste', 'Road Signs', 'Roads and Urban Furnishings', 'Public Green Areas', 'Other'];
-//const CATEGORY_TO_ID = { 'Water Supply': 1, 'Architectural Barriers': 2, 'Sewer System': 3, 'Public Lighting': 4, 'Waste': 5, 'Road Signs': 6, 'Roads and Urban Furnishings': 7, 'Public Green Areas': 8, 'Other': 9 };
 const DEFAULT_CENTER = [45.0703, 7.6869]; // Torino Centro
 
 const turinBoundaryStyle = {
@@ -56,34 +56,58 @@ function LocationMarker({ position, setPosition, setFormData, address, setSearch
   const markerRef = useRef(null);
   const [isInsideBoundary, setIsInsideBoundary] = useState(true);
   
+  // Funzione helper da definire all'interno del componente (prima dell'useEffect)
+  // o fuori se non dipende da altro stato locale
+  const updateLocationData = (inside, currentPos) => {
+    if (!setFormData) return;
+
+    if (!inside) {
+      setFormData(prev => ({
+        ...prev,
+        latitude: null,
+    longitude: null,
+        address: "",
+        location: "Area not supported"
+      }));
+    return;
+}
+
+    // Se siamo dentro i confini
+    setFormData(prev => ({ ...prev, latitude: currentPos[0], longitude: currentPos[1] }));
+  
+    fetchAddress(currentPos[0], currentPos[1], (addr) => {
+      setFormData(prev => ({ ...prev, address: addr, location: addr }));
+    });
+  };
+
   useEffect(() => {
-    if (position && turinGeoJSON) {
-      const inside = isPointInTurin(position[0], position[1], turinGeoJSON);
-      setIsInsideBoundary(inside);
-      
-      const isDefaultPosition = position[0] === DEFAULT_CENTER[0] && position[1] === DEFAULT_CENTER[1];
-      
-      if (markerRef.current && !isDefaultPosition) {
-        markerRef.current.openPopup();
-      }
+    // 1. Guard Clause: Pre-condizioni
+    if (!position || !turinGeoJSON) return;
 
-      if (isSearching && isSearching.current) {
-        isSearching.current = false; 
-      } else {
-        if (isDefaultPosition && !address) {
-            return;
-        }
+    const inside = isPointInTurin(position[0], position[1], turinGeoJSON);
+    setIsInsideBoundary(inside);
 
-        if (inside) {
-          if (setFormData) { setFormData(prev => ({ ...prev, latitude: position[0], longitude: position[1] })); }
-          fetchAddress(position[0], position[1], (addr) => { 
-             if (setFormData) setFormData(prev => ({ ...prev, address: addr, location: addr })); 
-          });
-        } else {
-          if (setFormData) { setFormData(prev => ({ ...prev, latitude: null, longitude: null, address: "", location: "Area not supported" })); }
-        }
-      }
+const isDefaultPosition = position[0] === DEFAULT_CENTER[0] && position[1] === DEFAULT_CENTER[1];
+
+    // 2. Gestione Marker
+    if (markerRef.current && !isDefaultPosition) {
+      markerRef.current.openPopup();
     }
+
+    // 3. Gestione Search Lock
+    if (isSearching?.current) {
+      isSearching.current = false;
+      return; // Stop immediato
+    }
+
+    // 4. Controllo posizione di default
+    if (isDefaultPosition && !address) {
+      return;
+    }
+
+    // 5. Aggiornamento Dati (logica estratta)
+    updateLocationData(inside, position);
+
   }, [position, turinGeoJSON, isSearching, setFormData]); // removed address from dep
 
   const handleMapClick = (lat, lng) => {
@@ -140,7 +164,7 @@ function ZoomControl() {
   }, []);
 
   useEffect(() => {
-    if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {} }
+    if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {console.log("Exception removing control:", e) } }
     
     // Mobile: bottomleft (Left Handed Thumb)
     // Desktop: bottomright (Standard)
@@ -148,7 +172,7 @@ function ZoomControl() {
 
     controlRef.current = L.control.zoom({ position });
     controlRef.current.addTo(map);
-    return () => { if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {} } };
+    return () => { if (controlRef.current) { try { map.removeControl(controlRef.current); } catch (e) {console.log("Exception removing control:", e) } } };
   }, [map, isMobile]);
   return null;
 }
@@ -163,8 +187,8 @@ function MapUpdater({ position }) {
     if (posKey === prevKey) return;
     prevPosition.current = position;
     
-    const lat = parseFloat(position[0]);
-    const lng = parseFloat(position[1]);
+    const lat = Number.parseFloat(position[0]);
+    const lng = Number.parseFloat(position[1]);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
     if (lat === DEFAULT_CENTER[0] && lng === DEFAULT_CENTER[1]) return;
@@ -172,6 +196,51 @@ function MapUpdater({ position }) {
     try { map.setView([lat, lng], 16, { animate: true, duration: 1.5 }); } catch (error) { console.error('Error in setView:', error); }
   }, [position, map]);
   return null;
+}
+
+// Photo upload components extracted outside parent to avoid re-creation on each render
+function MobilePhotoUpload({ formData, onPhotoInputClick }) {
+  const hasPhotos = formData.photos.length > 0;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          type="button" 
+          variant={hasPhotos ? "default" : "outline"} 
+          size={hasPhotos ? "icon" : "lg"} 
+          className={hasPhotos ? "rounded-full h-12 w-12" : "gap-2"}
+        >
+          <Camera className="h-5 w-5" />
+          {!hasPhotos && "Add Photo"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem onSelect={() => onPhotoInputClick('photo-camera')}>
+          <Camera className="mr-2 h-4 w-4" /> Camera
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onPhotoInputClick('photo-library')}>
+          <ImageIcon className="mr-2 h-4 w-4" /> Photo Library
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onPhotoInputClick('photo-file')}>
+          <File className="mr-2 h-4 w-4" /> File
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function DesktopPhotoUpload({ onPhotoInputClick }) {
+  return (
+    <Button 
+      type="button" 
+      variant="outline" 
+      size="lg" 
+      className="gap-2" 
+      onClick={() => onPhotoInputClick('photo-upload')}
+    >
+      <Upload className="h-5 w-5" /> Add Photo
+    </Button>
+  );
 }
 
 export default function CreateReport() {
@@ -245,7 +314,6 @@ export default function CreateReport() {
   }, [location.state]);
 
   const handleChange = (e) => { const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: value })); };
-  const handleCategoryChange = (value) => { setFormData((prev) => ({ ...prev, category: value })); };
   const handleAnonymousToggle = (checked) => { setFormData((prev) => ({ ...prev, anonymous: checked })); };
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -262,18 +330,36 @@ export default function CreateReport() {
   const handlePhotoClick = (index) => { setCurrentPhotoIndex(index); setShowPhotoViewer(true); setImageScale(1); };
   const handleTouchStart = (e) => { if (e.touches.length === 1) { const touch = e.touches[0]; setTouchStart({ x: touch.clientX, y: touch.clientY }); setTouchEnd({ x: touch.clientX, y: touch.clientY }); if (imageScale > 1) setIsPanning(true); } else if (e.touches.length === 2) { e.preventDefault(); const distance = Math.sqrt(Math.pow(e.touches[0].clientX - e.touches[1].clientX, 2) + Math.pow(e.touches[0].clientY - e.touches[1].clientY, 2)); setInitialPinchDistance(distance); setLastScale(imageScale); } };
   const handleTouchMove = (e) => { if (e.touches.length === 1) { const touch = e.touches[0]; setTouchEnd({ x: touch.clientX, y: touch.clientY }); if (imageScale > 1 && isPanning) { const deltaX = touch.clientX - touchStart.x; const deltaY = touch.clientY - touchStart.y; setImagePan({ x: deltaX, y: deltaY }); e.preventDefault(); } } else if (e.touches.length === 2) { e.preventDefault(); const distance = Math.sqrt(Math.pow(e.touches[0].clientX - e.touches[1].clientX, 2) + Math.pow(e.touches[0].clientY - e.touches[1].clientY, 2)); if (initialPinchDistance > 0) { const scale = (distance / initialPinchDistance) * lastScale; setImageScale(Math.min(Math.max(scale, 1), 4)); if (scale <= 1) setImagePan({ x: 0, y: 0 }); } } };
-  const handleTouchEnd = (e) => { if (e.touches.length === 0) { if (!touchStart.x || !touchEnd.x) { setIsPanning(false); setInitialPinchDistance(0); return; } if (imageScale === 1) { const distance = touchStart.x - touchEnd.x; if (distance > 50 && photoPreviewUrls.length > 1) handleNextPhoto(); if (distance < -50 && photoPreviewUrls.length > 1) handlePreviousPhoto(); } setIsPanning(false); setTouchStart({ x: 0, y: 0 }); setTouchEnd({ x: 0, y: 0 }); setInitialPinchDistance(0); } };
+  const handleTouchEnd = (e) => { if (e.touches.length === 0) { if (!touchStart.x || !touchEnd.x) { setIsPanning(false); setInitialPinchDistance(0); return; } if (imageScale === 1) { const distance = touchStart.x - touchEnd.x; if (distance > 50 && photoPreviewUrls.length > 1) { handleNextPhoto(); } if (distance < -50 && photoPreviewUrls.length > 1) { handlePreviousPhoto(); } } setIsPanning(false); setTouchStart({ x: 0, y: 0 }); setTouchEnd({ x: 0, y: 0 }); setInitialPinchDistance(0); } };
   const handlePreviousPhoto = () => { setCurrentPhotoIndex((prev) => (prev === 0 ? photoPreviewUrls.length - 1 : prev - 1)); setImageScale(1); setImagePan({ x: 0, y: 0 }); };
   const handleNextPhoto = () => { setCurrentPhotoIndex((prev) => (prev === photoPreviewUrls.length - 1 ? 0 : prev + 1)); setImageScale(1); setImagePan({ x: 0, y: 0 }); };
   const handleClosePhotoViewer = () => { setShowPhotoViewer(false); setImageScale(1); setImagePan({ x: 0, y: 0 }); };
   const handleImageDoubleClick = () => { imageScale === 1 ? setImageScale(2) : setImageScale(1); };
-  const handlePhotoViewerKeyDown = (e) => { if (e.key === 'ArrowLeft') handlePreviousPhoto(); else if (e.key === 'ArrowRight') handleNextPhoto(); };
-  const handleSearchInput = (value) => { setSearchQuery(value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); if (value.trim().length < 3) { setSearchResults([]); setShowSearchResults(false); return; } searchTimeoutRef.current = setTimeout(async () => { try { const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value + ', Torino')}&addressdetails=1&limit=30&countrycodes=it&dedupe=1`); const results = await res.json(); setSearchResults(results.slice(0, 5)); setShowSearchResults(true); } catch (error) { console.error('Search error:', error); } }, 250); };
+  const handlePhotoViewerKeyDown = (e) => { if (e.key === 'ArrowLeft') { handlePreviousPhoto(); } else if (e.key === 'ArrowRight') { handleNextPhoto(); } };
+  const handleSearchInput = (value) => { 
+    setSearchQuery(value); 
+    if (searchTimeoutRef.current) { clearTimeout(searchTimeoutRef.current); }
+    if (value.trim().length < 3) { 
+      setSearchResults([]); 
+      setShowSearchResults(false); 
+      return; 
+    } 
+    searchTimeoutRef.current = setTimeout(async () => { 
+      try { 
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value + ', Torino')}&addressdetails=1&limit=30&countrycodes=it&dedupe=1`); 
+        const results = await res.json(); 
+        setSearchResults(results.slice(0, 5)); 
+        setShowSearchResults(true); 
+      } catch (error) { 
+        console.error('Search error:', error); 
+      } 
+    }, 250); 
+  };
   
   const handleSearchResultClick = (result) => { 
     if (!result.lat || !result.lon) return; 
-    const lat = parseFloat(result.lat); 
-    const lon = parseFloat(result.lon); 
+    const lat = Number.parseFloat(result.lat); 
+    const lon = Number.parseFloat(result.lon); 
     
     isSearching.current = true;
     setMapPosition([lat, lon]); 
@@ -298,15 +384,64 @@ export default function CreateReport() {
   };
   
   const clearSearch = () => { setSearchQuery(""); setSearchResults([]); setShowSearchResults(false); };
-  const handleUseMyLocation = () => { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((position) => { const lat = position.coords.latitude; const lng = position.coords.longitude; setMapPosition([lat, lng]); 
-    if (isMobile && showMapDialog) {
-        setTempLocationData(prev => ({ ...prev, latitude: lat, longitude: lng })); 
-    } else {
-        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
-    }
-    }, (error) => alert('Unable to get location.')); } };
+  // Geolocation is used to help users quickly select their current location for reporting urban issues
+  // eslint-disable-next-line sonarjs/geolocation
+  const handleUseMyLocation = () => { 
+    if (navigator.geolocation) { 
+      // Aggiunto // NOSONAR per indicare che l'uso della geolocalizzazione è intenzionale e necessario
+      navigator.geolocation.getCurrentPosition( // NOSONAR
+        (position) => { 
+          const lat = position.coords.latitude; 
+          const lng = position.coords.longitude; 
+          setMapPosition([lat, lng]); 
+          
+          if (isMobile && showMapDialog) {
+              setTempLocationData(prev => ({ ...prev, latitude: lat, longitude: lng })); 
+          } else {
+              setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+          }
+        }, 
+        (error) => { 
+          console.error('Geolocation error:', error); 
+          // Opzionale: Potresti voler usare toast.error invece di alert in futuro
+          toast.error('Unable to get location.'); 
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 } // Best practice: Aggiungi opzioni per precisione e timeout
+      ); 
+    } 
+  };
   const handleSubmit = (e) => { e.preventDefault(); if (formData.anonymous) setShowAnonymousDialog(true); else submitReport(); };
-  const submitReport = async () => { try { if (!formData.latitude || !formData.longitude) { alert('Please select a valid location within the Municipality of Turin.'); return; } let photoUrls = []; if (formData.photos.length > 0) { const uploadResponse = await uploadAPI.uploadPhotos(formData.photos); photoUrls = uploadResponse.data.files.map(file => file.url); } else { alert('At least one photo is required'); return; } const reportData = { title: formData.title, description: formData.description, categoryId: parseInt(formData.category), latitude: formData.latitude, longitude: formData.longitude, anonymous: formData.anonymous || false, photos: photoUrls }; await reportAPI.create(reportData); alert('Report submitted successfully!'); navigate('/'); } catch (error) { console.error('Error submitting report:', error); alert('Failed to submit report.'); } };
+  const submitReport = async () => {
+    try { 
+        if (!formData.latitude || !formData.longitude) {
+          toast.error('Please select a valid location within the Municipality of Turin.');
+          return;
+        }
+        let photoUrls = [];
+        if (formData.photos.length > 0) {
+          const uploadResponse = await uploadAPI.uploadPhotos(formData.photos);
+          photoUrls = uploadResponse.data.files.map(file => file.url);
+        } else {
+            toast.error('At least one photo is required');
+            return;
+        }
+        const reportData = {
+            title: formData.title,
+            description: formData.description,
+            categoryId: Number.parseInt(formData.category),
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            anonymous: formData.anonymous || false,
+            photos: photoUrls
+        };
+        await reportAPI.create(reportData);
+        toast.success('Report submitted successfully!');
+        navigate('/');
+    } catch (error) {
+        console.error('Error submitting report:', error);
+        toast.error('Failed to submit report.');
+    }
+  };
   const handleAnonymousConfirm = () => { submitReport(); };
   const handleAnonymousCancel = () => { setShowAnonymousDialog(false); };
   
@@ -336,37 +471,9 @@ export default function CreateReport() {
     setShowMapDialog(false);
   };
 
-  const MobilePhotoUpload = () => {
-    const hasPhotos = formData.photos.length > 0;
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            type="button" 
-            variant={hasPhotos ? "default" : "outline"} 
-            size={hasPhotos ? "icon" : "lg"} 
-            className={hasPhotos ? "rounded-full h-12 w-12" : "gap-2"}
-          >
-            <Camera className={hasPhotos ? "h-5 w-5" : "h-5 w-5"} />
-            {!hasPhotos && "Add Photo"}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onSelect={() => document.getElementById('photo-camera')?.click()}>
-            <Camera className="mr-2 h-4 w-4" /> Camera
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => document.getElementById('photo-library')?.click()}>
-            <ImageIcon className="mr-2 h-4 w-4" /> Photo Library
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => document.getElementById('photo-file')?.click()}>
-            <File className="mr-2 h-4 w-4" /> File
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
+  const handlePhotoInputClick = (inputId) => {
+    document.getElementById(inputId)?.click();
   };
-
-  const DesktopPhotoUpload = () => ( <Button type="button" variant="outline" size="lg" className="gap-2" onClick={() => document.getElementById('photo-upload')?.click()}> <Upload className="h-5 w-5" /> Add Photo </Button> );
 
   return (
     <div className="min-h-screen bg-background">
@@ -417,7 +524,7 @@ export default function CreateReport() {
                     </MapContainer>
                   <div className="absolute top-4 left-4 right-4 z-[500]">
                     <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="text" placeholder="Search for an address..." value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} className="pl-10 pr-10 bg-white dark:bg-gray-900 shadow-lg" />{searchQuery && <button type="button" onClick={clearSearch} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"><X className="h-4 w-4 text-muted-foreground" /></button>}</div>
-                    {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result, index) => ( <button key={index} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
+                    {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result) => ( <button key={result.place_id || `${result.lat}-${result.lon}`} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
                   </div>
                   <button type="button" onClick={handleUseMyLocation} className="absolute bottom-4 left-4 z-[500] bg-white dark:bg-gray-900 p-3 rounded-full shadow-lg"><Crosshair className="h-5 w-5" /></button>
                 </div>
@@ -454,8 +561,10 @@ export default function CreateReport() {
               {formData.photos.length > 0 && ( 
                 <div className="grid grid-cols-3 gap-4"> 
                   {photoPreviewUrls.map((url, index) => ( 
-                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border">
-                      <img src={url} alt="Preview" className="w-full h-full object-cover" onClick={() => handlePhotoClick(index)} />
+                    <div key={formData.photos[index] ? `${formData.photos[index].lastModified}-${formData.photos[index].name}` : `photo-${index}`} className="relative aspect-square rounded-lg overflow-hidden border">
+                      <button type="button" onClick={() => handlePhotoClick(index)} className="w-full h-full p-0 border-0 bg-transparent cursor-pointer">
+                        <img src={url} alt="Report attachment" className="w-full h-full object-cover" />
+                      </button>
                       <button type="button" onClick={() => handleRemovePhoto(index)} className="absolute top-2 right-2 bg-destructive text-white rounded-full p-1"><X className="h-4 w-4" /></button>
                     </div> 
                   ))} 
@@ -463,7 +572,7 @@ export default function CreateReport() {
               )} 
               <div className={`flex ${formData.photos.length > 0 ? 'justify-end' : 'justify-center'}`}> 
                 {formData.photos.length < 3 && ( 
-                  <> {isMobile ? <MobilePhotoUpload /> : <DesktopPhotoUpload />} 
+                  <> {isMobile ? <MobilePhotoUpload formData={formData} onPhotoInputClick={handlePhotoInputClick} /> : <DesktopPhotoUpload onPhotoInputClick={handlePhotoInputClick} />} 
                      {isMobile ? ( 
                         <> <input id="photo-camera" type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} className="hidden" multiple /><input id="photo-library" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /><input id="photo-file" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" multiple /> </> 
                      ) : ( 
@@ -499,7 +608,7 @@ export default function CreateReport() {
         </div>
       </div>
       <Dialog open={showAnonymousDialog} onOpenChange={setShowAnonymousDialog}><DialogContent><DialogHeader><DialogTitle>Anonymous Report</DialogTitle><DialogDescription>You are submitting this report anonymously, are you sure?</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={handleAnonymousCancel}>No</Button><Button onClick={handleAnonymousConfirm}>Yes</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={showPhotoViewer} onOpenChange={handleClosePhotoViewer}><DialogContent className="max-w-4xl w-full p-0 bg-black/99 border-0" onKeyDown={handlePhotoViewerKeyDown}><div className="relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}><button onClick={handleClosePhotoViewer} className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><X className="h-5 w-5" /></button>{photoPreviewUrls.length > 1 && <div className="absolute top-4 left-4 z-10 bg-white/20 text-white px-3 py-1 rounded-full text-sm">{currentPhotoIndex + 1} / {photoPreviewUrls.length}</div>}<div className="flex items-center justify-center min-h-[400px] max-h-[80vh] overflow-hidden"><img src={photoPreviewUrls[currentPhotoIndex]} alt="Photo" className="max-w-full max-h-[80vh] object-contain transition-transform duration-200" style={{ transform: `scale(${imageScale}) translate(${imagePan.x / imageScale}px, ${imagePan.y / imageScale}px)`, cursor: imageScale > 1 ? 'move' : 'default', touchAction: 'none' }} onDoubleClick={handleImageDoubleClick} /></div>{photoPreviewUrls.length > 1 && (<><button onClick={handlePreviousPhoto} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><ChevronLeft className="h-6 w-6" /></button><button onClick={handleNextPhoto} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><ChevronRight className="h-6 w-6" /></button></>)}</div></DialogContent></Dialog>
+      <Dialog open={showPhotoViewer} onOpenChange={handleClosePhotoViewer}><DialogContent className="max-w-4xl w-full p-0 bg-black/99 border-0" onKeyDown={handlePhotoViewerKeyDown}><div className="relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}><button onClick={handleClosePhotoViewer} className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><X className="h-5 w-5" /></button>{photoPreviewUrls.length > 1 && <div className="absolute top-4 left-4 z-10 bg-white/20 text-white px-3 py-1 rounded-full text-sm">{currentPhotoIndex + 1} / {photoPreviewUrls.length}</div>}<div className="flex items-center justify-center min-h-[400px] max-h-[80vh] overflow-hidden"><img src={photoPreviewUrls[currentPhotoIndex]} alt="Uploaded attachment" className="max-w-full max-h-[80vh] object-contain transition-transform duration-200" style={{ transform: `scale(${imageScale}) translate(${imagePan.x / imageScale}px, ${imagePan.y / imageScale}px)`, cursor: imageScale > 1 ? 'move' : 'default', touchAction: 'none' }} onDoubleClick={handleImageDoubleClick} /></div>{photoPreviewUrls.length > 1 && (<><button onClick={handlePreviousPhoto} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><ChevronLeft className="h-6 w-6" /></button><button onClick={handleNextPhoto} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2"><ChevronRight className="h-6 w-6" /></button></>)}</div></DialogContent></Dialog>
       <Dialog open={showMapDialog} onOpenChange={setShowMapDialog}>
         <DialogContent className="max-w-full w-full h-full p-0 m-0">
           <DialogTitle className="sr-only">Select Location</DialogTitle>
@@ -531,7 +640,7 @@ export default function CreateReport() {
                   <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
                   <button type="button" onClick={handleUseMyLocation} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-1"><Crosshair className="h-5 w-5 text-primary" /></button>
                 </div>
-                {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result, index) => ( <button key={index} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
+                {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result) => ( <button key={result.place_id || `${result.lat}-${result.lon}`} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
               </div>
             </div>
             <div className="p-4 border-t bg-background space-y-2">
