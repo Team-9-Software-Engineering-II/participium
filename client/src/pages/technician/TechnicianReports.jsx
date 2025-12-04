@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { staffAPI } from "@/services/api";
@@ -24,7 +26,7 @@ const ALLOWED_TRANSITIONS = [
   { value: "Resolved", label: "Resolved", color: "bg-green-500" },
 ];
 
-const FINISHED_STATUSES = ["Resolved", "Rejected"];
+const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function TechnicianReports({ type = "active" }) {
   const { toast } = useToast();
@@ -45,7 +47,7 @@ export default function TechnicianReports({ type = "active" }) {
 
       // 2. Filtra in base al tipo di vista richiesto
       const filteredData = allData.filter((report) => {
-        const isFinished = FINISHED_STATUSES.includes(report.status);
+        const isFinished = FINISHED_STATUSES.has(report.status);
         
         if (type === "active") {
           // Mostra: Assigned, In Progress, Suspended
@@ -173,8 +175,8 @@ function ReportCard({ report, type, onUpdateStatus }) {
             <Badge 
               className={`md:hidden ${
                  report.status === "Assigned" ? "bg-blue-500" : 
-                 report.status === "In Progress" ? "bg-amber-500" :
-                 report.status === "Resolved" ? "bg-green-500" : "bg-gray-500"
+                 (report.status === "In Progress" ? "bg-amber-500" :
+                 (report.status === "Resolved" ? "bg-green-500" : "bg-gray-500"))
               }`}
             >
               {report.status}
@@ -213,8 +215,8 @@ function ReportCard({ report, type, onUpdateStatus }) {
             <Badge 
               className={`text-white px-3 py-1 ${
                  report.status === "Assigned" ? "bg-blue-600" : 
-                 report.status === "In Progress" ? "bg-amber-500" :
-                 report.status === "Resolved" ? "bg-green-600" : "bg-gray-500"
+                 (report.status === "In Progress" ? "bg-amber-500" :
+                 (report.status === "Resolved" ? "bg-green-600" : "bg-gray-500"))
               }`}
             >
               {report.status}

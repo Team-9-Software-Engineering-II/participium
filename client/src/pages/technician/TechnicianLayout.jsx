@@ -7,7 +7,7 @@ import { staffAPI } from "@/services/api"; // Usa staffAPI per i report assegnat
 import { Badge } from "@/components/ui/badge";
 
 // Definiamo gli stati considerati "finiti"
-const FINISHED_STATUSES = ["Resolved", "Rejected"];
+const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function TechnicianLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -24,11 +24,11 @@ export default function TechnicianLayout() {
         const allReports = response.data;
 
         const activeCount = allReports.filter(
-          (r) => !FINISHED_STATUSES.includes(r.status)
+          (r) => !FINISHED_STATUSES.has(r.status)
         ).length;
 
         const historyCount = allReports.filter(
-          (r) => FINISHED_STATUSES.includes(r.status)
+          (r) => FINISHED_STATUSES.has(r.status)
         ).length;
 
         setCounts({ active: activeCount, history: historyCount });
@@ -133,9 +133,11 @@ export default function TechnicianLayout() {
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <button
+            type="button"
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Close sidebar"
           />
           <div className="relative flex h-full w-72 flex-col gap-4 border-r bg-background p-6 shadow-xl">
             <div className="flex items-center justify-between">

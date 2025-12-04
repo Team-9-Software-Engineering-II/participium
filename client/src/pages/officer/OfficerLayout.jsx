@@ -133,9 +133,9 @@ export default function OfficerLayout() {
                   data-cy={
                     idx === 0
                       ? "nav-pending"
-                      : idx === 1
+                      : (idx === 1
                       ? "nav-assigned"
-                      : "nav-rejected"
+                      : "nav-rejected")
                   }
                 >
                   <div className="flex items-center gap-3">
@@ -151,9 +151,9 @@ export default function OfficerLayout() {
                       data-cy={
                         idx === 0
                           ? "badge-pending"
-                          : idx === 1
+                          : (idx === 1
                           ? "badge-assigned"
-                          : "badge-rejected"
+                          : "badge-rejected")
                       }
                     >
                       {item.count}
@@ -187,9 +187,11 @@ export default function OfficerLayout() {
       {/* Mobile Sidebar */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <button
+            type="button"
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Close sidebar"
           />
           <div className="relative flex h-full w-72 flex-col gap-4 border-r bg-background p-6 shadow-xl">
             <div className="flex items-center justify-between">

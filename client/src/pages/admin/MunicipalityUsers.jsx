@@ -182,7 +182,7 @@ export default function MunicipalityUsers() {
     if (!formValues.roleId) return false;
     const selectedRole = roleOptions.find(r => String(r.id) === String(formValues.roleId));
     // Controlla il nome del ruolo (case insensitive e parziale per sicurezza)
-    return selectedRole && selectedRole.name.toLowerCase().includes('technical_staff');
+    return selectedRole?.name.toLowerCase().includes('technical_staff');
   }, [formValues.roleId, roleOptions]);
 
   const handleCreateUser = async (event) => {
@@ -472,37 +472,39 @@ export default function MunicipalityUsers() {
                     Loading municipality users...
                   </td>
                 </tr>
-              ) : displayedUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    No municipality users found.
-                  </td>
-                </tr>
               ) : (
-                displayedUsers.map((user) => (
-                  <tr key={user.id} className="transition hover:bg-background/80">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-sm font-semibold text-muted-foreground">
-                          <UserRound className="h-5 w-5" aria-hidden="true" />
-                        </span>
-                        <div>
-                          <p className="font-semibold text-foreground">{formatDisplayName(user)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {user.email || user.username || `ID: ${user.id}`}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-muted-foreground">
-                      {extractRoleName(user?.role)}
-                    </td>
-                    {/* Cella Office con logica di visualizzazione */}
-                    <td className="px-4 py-4 text-muted-foreground font-medium">
-                      {getOfficeDisplay(user)}
+                displayedUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No municipality users found matching your criteria.
                     </td>
                   </tr>
-                ))
+                ) : (
+                  displayedUsers.map((user) => (
+                    <tr key={user.id} className="transition hover:bg-background/80">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-sm font-semibold text-muted-foreground">
+                            <UserRound className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                          <div>
+                            <p className="font-semibold text-foreground">{formatDisplayName(user)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {user.email || user.username || `ID: ${user.id}`}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-muted-foreground">
+                        {extractRoleName(user?.role)}
+                      </td>
+                      {/* Cella Office con logica di visualizzazione */}
+                      <td className="px-4 py-4 text-muted-foreground font-medium">
+                        {getOfficeDisplay(user)}
+                      </td>
+                    </tr>
+                  ))
+                )
               )}
             </tbody>
           </table>

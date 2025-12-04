@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/common/Navbar";
@@ -44,6 +45,120 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { reportAPI } from "@/services/api";
 
+// Reusable Reports List component
+const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, navigate }) => {
+  // Se non autenticato, mostra il box di login
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+        <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No reports</h3>
+        <p className="text-sm text-muted-foreground max-w-xs mb-6">
+          Log in to view and manage reports in your area.
+        </p>
+        <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
+          <p className="text-sm font-medium">Log in to see reports</p>
+          <Button
+            onClick={() => navigate("/login")}
+            className="w-full"
+            size="sm"
+          >
+            Log in
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="text-sm text-muted-foreground mt-4">
+          Loading reports...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {displayReports.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full text-center py-12">
+          <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No reports</h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            {showMyReports
+              ? "You haven't created any reports yet"
+              : "No reports found matching your criteria."}
+          </p>
+        </div>
+      ) : (
+        displayReports.map((report) => (
+          <button
+            key={report.id}
+            className="w-full p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors text-left"
+            onClick={() => navigate(`/reports/${report.id}`)}
+          >
+            <h3 className="font-semibold mb-2">{report.title}</h3>
+            <div className="space-y-1 text-sm text-muted-foreground">
+              {/* Street Address */}
+              {report.address && (
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  <span
+                    className="font-medium truncate"
+                    title={report.address}
+                  >
+                    {report.address}
+                  </span>
+                </div>
+              )}
+
+              {/* Coordinates */}
+              {report.latitude && report.longitude && (
+                <div className="flex items-center gap-1 text-xs">
+                  <MapPin className="h-3 w-3 opacity-50" />
+                  <span className="opacity-70">
+                    {report.latitude.toFixed(6)},{" "}
+                    {report.longitude.toFixed(6)}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                <span>{new Date(report.createdAt).toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                <span>{report.reporterName || "Anonymous"}</span>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {/* Status Badge removed for brevity if not used, or add back if needed */}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // handleViewInMap would need to be passed as prop
+                }}
+                className="text-xs"
+              >
+                <MapPin className="h-3 w-3 mr-1" />
+                View in map
+              </Button>
+            </div>
+          </button>
+        ))
+      )}
+    </div>
+  );
+};
+
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -58,7 +173,7 @@ export default function Home() {
   const [allReports, setAllReports] = useState([]);
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReport, setSelectedReport] = useState(null);
+  const [selectedReport] = useState(null);
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -250,121 +365,6 @@ export default function Home() {
     setShowFilters(false);
   };
 
-  const handleViewInMap = (report, e) => {
-    e.stopPropagation();
-    setSelectedReport(report);
-  };
-
-  // Reusable Reports List component
-  const ReportsList = () => {
-    // Se non autenticato, mostra il box di login
-    if (!isAuthenticated) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center py-12">
-          <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No reports</h3>
-          <p className="text-sm text-muted-foreground max-w-xs mb-6">
-            Log in to view and manage reports in your area.
-          </p>
-          <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
-            <p className="text-sm font-medium">Log in to see reports</p>
-            <Button
-              onClick={() => navigate("/login")}
-              className="w-full"
-              size="sm"
-            >
-              Log in
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    if (loading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-sm text-muted-foreground mt-4">
-            Loading reports...
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        {displayReports.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No reports</h3>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              {showMyReports
-                ? "You haven't created any reports yet"
-                : "No reports found matching your criteria."}
-            </p>
-          </div>
-        ) : (
-          displayReports.map((report) => (
-            <div
-              key={report.id}
-              className="p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors"
-              onClick={() => navigate(`/reports/${report.id}`)}
-            >
-              <h3 className="font-semibold mb-2">{report.title}</h3>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                {/* Street Address */}
-                {report.address && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span
-                      className="font-medium truncate"
-                      title={report.address}
-                    >
-                      {report.address}
-                    </span>
-                  </div>
-                )}
-
-                {/* Coordinates */}
-                {report.latitude && report.longitude && (
-                  <div className="flex items-center gap-1 text-xs">
-                    <MapPin className="h-3 w-3 opacity-50" />
-                    <span className="opacity-70">
-                      {report.latitude.toFixed(6)},{" "}
-                      {report.longitude.toFixed(6)}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>{new Date(report.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  <span>{report.reporterName || "Anonymous"}</span>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {/* Status Badge removed for brevity if not used, or add back if needed */}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => handleViewInMap(report, e)}
-                  className="text-xs"
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  View in map
-                </Button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -420,7 +420,13 @@ export default function Home() {
             )}
           </div>
           <div className="flex-1 overflow-y-auto px-4">
-            <ReportsList />
+            <ReportsList 
+              isAuthenticated={isAuthenticated}
+              loading={loading}
+              displayReports={displayReports}
+              showMyReports={showMyReports}
+              navigate={navigate}
+            />
           </div>
 
           {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
@@ -557,7 +563,13 @@ export default function Home() {
                   className="overflow-y-auto"
                   style={{ maxHeight: "calc(80vh - 400px)" }}
                 >
-                  <ReportsList />
+                  <ReportsList 
+                    isAuthenticated={isAuthenticated}
+                    loading={loading}
+                    displayReports={displayReports}
+                    showMyReports={showMyReports}
+                    navigate={navigate}
+                  />
                 </div>
               </div>
 
@@ -596,9 +608,9 @@ export default function Home() {
             <div className="space-y-6 py-4">
               {/* Category */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
+                <span className="text-sm font-medium text-muted-foreground block">
                   Category
-                </label>
+                </span>
                 <Select
                   value={selectedCategory}
                   onValueChange={setSelectedCategory}
@@ -621,7 +633,7 @@ export default function Home() {
 
               {/* Report status */}
               <div className="space-y-3">
-                <label className="text-sm font-medium">Report status</label>
+                <span className="text-sm font-medium block">Report status</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={selectedStatus === "" ? "default" : "outline"}
@@ -649,7 +661,7 @@ export default function Home() {
 
               {/* Date */}
               <div className="space-y-3">
-                <label className="text-sm font-medium">Date</label>
+                <span className="text-sm font-medium block">Date</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={selectedDate === "" ? "default" : "outline"}
@@ -710,9 +722,9 @@ export default function Home() {
             >
               {/* Category */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
+                <span className="text-sm font-medium text-muted-foreground block">
                   Category
-                </label>
+                </span>
                 <Select
                   value={selectedCategory}
                   onValueChange={setSelectedCategory}
@@ -735,7 +747,7 @@ export default function Home() {
 
               {/* Report status */}
               <div className="space-y-3">
-                <label className="text-sm font-medium">Report status</label>
+                <span className="text-sm font-medium block">Report status</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={selectedStatus === "" ? "default" : "outline"}
@@ -763,7 +775,7 @@ export default function Home() {
 
               {/* Date */}
               <div className="space-y-3">
-                <label className="text-sm font-medium">Date</label>
+                <span className="text-sm font-medium block">Date</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={selectedDate === "" ? "default" : "outline"}

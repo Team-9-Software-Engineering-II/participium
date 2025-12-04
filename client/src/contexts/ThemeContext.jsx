@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
 const ThemeContext = createContext({
   theme: 'light',
@@ -35,8 +35,10 @@ export const ThemeProvider = ({ children }) => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
 
+  const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

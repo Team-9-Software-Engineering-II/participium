@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
+import { toast } from "sonner";
 
 const REPORT_STATUS = {
   "Pending Approval": { color: '#3B82F6', label: 'Pending Approval', icon: '●' }, // Blu
@@ -243,7 +244,7 @@ export function MapView({ reports = [], selectedReport = null }) {
           const lng = pos.coords.longitude;
           setPosition([lat, lng]);
         },
-        (error) => { console.error("Geolocation error:", error); alert("Unable to retrieve your location. Please check permissions."); }
+        (error) => { console.error("Geolocation error:", error); toast.error("Unable to retrieve your location. Please check permissions."); }
       );
     } else { alert("Geolocation is not supported by your browser."); }
   };
