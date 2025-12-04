@@ -600,6 +600,40 @@ paths:
         '409':
           description: No external maintainers found in the specified company
 
+  /offices/reports/{reportId}/companies:
+    get:
+      summary: (Technical Staff) Get eligible companies for a report
+      description: Retrieves the list of external maintainer companies capable of handling a specific report based on its category.
+      tags: [Technical Offices]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report.
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff
+      responses:
+        '200':
+          description: List of eligible companies found.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyDetails'
+        '400':
+          description: Invalid report ID supplied.
+        '401':
+          description: User not authenticated.
+        '403':
+          description: Forbidden (technical staff only).
+        '404':
+          description: Report not found.
+
 components:
   securitySchemes:
     CookieAuth:
@@ -1129,6 +1163,24 @@ components:
           type: integer
           minimum: 1
           description: The ID of the company from which to select an external maintainer. The system will automatically assign the report to the maintainer with the fewest active reports.
+
+    CompanyDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the company.
+        name:
+          type: string
+          description: Name of the company (e.g., Enel X).
+        address:
+          type: string
+          description: Physical address of the company.
+        region:
+          type: string
+        country:
+          type: string
+      required: [id, name, address, region, country]
           
           
 

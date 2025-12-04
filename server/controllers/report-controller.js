@@ -263,3 +263,21 @@ export async function assignReportToExternalMaintainer(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Returns the list of external maintainer companies capable of handling a specific report.
+ */
+export async function getEligibleCompanies(req, res, next) {
+  try {
+    const reportId = Number(req.params.reportId);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      return res.status(400).json({ message: "reportId must be a positive integer." });
+    }
+
+    const companies = await ReportService.getEligibleCompaniesForReport(reportId);
+    
+    return res.status(200).json(companies);
+  } catch (error) {
+    return next(error);
+  }
+}

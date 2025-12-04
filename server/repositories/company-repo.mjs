@@ -25,7 +25,7 @@ export async function findCompanyById(id) {
         as: "users",
       },
       {
-        model: db.ProblemCategory,
+        model: db.Category,
         as: "categories",
         through: { attributes: [] },
       },
@@ -45,7 +45,7 @@ export async function findCompanyByName(name) {
         as: "users",
       },
       {
-        model: db.ProblemCategory,
+        model: db.Category,
         as: "categories",
         through: { attributes: [] },
       },
@@ -94,4 +94,21 @@ export async function removeCategoryFromCompany(companyId, categoryId) {
   if (!company) throw new Error("Company not found");
 
   return company.removeCategory(categoryId);
+}
+
+/**
+ * Finds all companies associated with a specific category ID.
+ */
+export async function findCompaniesByCategoryId(categoryId) {
+  return db.Company.findAll({
+    include: [
+      {
+        model: db.Category,
+        as: "categories",
+        where: { id: categoryId },
+        through: { attributes: [] },
+      },
+    ],
+    order: [["name", "ASC"]],
+  });
 }

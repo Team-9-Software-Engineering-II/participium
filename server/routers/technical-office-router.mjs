@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { isAuthenticated, isAdmin, isTechnicalStaff } from "../middlewares/auth.mjs";
 import { getAllTechnicalOffices } from "../controllers/technical-office-controller.mjs";
-import { getMyAssignedReports, updateReportStatus, assignReportToExternalMaintainer } from "../controllers/report-controller.js";
+import { getMyAssignedReports, updateReportStatus, assignReportToExternalMaintainer, getEligibleCompanies } from "../controllers/report-controller.js";
 
 const router = Router();
 
@@ -42,5 +42,18 @@ router.put(
   isTechnicalStaff,
   assignReportToExternalMaintainer
 );
+
+/**
+ * Get eligible companies for a specific report.
+ * Route: GET /offices/reports/:reportId/companies
+ */
+// <-- 2. NUOVA ROTTA
+router.get(
+  "/reports/:reportId/companies",
+  isAuthenticated,
+  isTechnicalStaff,
+  getEligibleCompanies
+);
+
 
 export default router;

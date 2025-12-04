@@ -9,7 +9,7 @@ import {
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
 import { findStaffWithFewestReports, findExternalMaintainerWithFewestReports } from "../repositories/user-repo.mjs";
-import { findCompanyById } from "../repositories/company-repo.mjs";
+import { findCompanyById, findCompaniesByCategoryId } from "../repositories/company-repo.mjs";
 import {
   sanitizeReport,
   sanitizeReports,
@@ -324,5 +324,24 @@ export class ReportService {
 
     // Return the updated report
     return this.getReportById(reportId);
+  }
+
+  /**
+   * Retrieves the list of external maintainer companies capable of handling a specific report
+   * based on the report's category.
+   * @param {number} reportId - The ID of the report.
+   * @returns {Promise<object[]>} List of eligible companies.
+   */
+  static async getEligibleCompaniesForReport(reportId) {
+    const report = await findReportById(reportId);
+    if (!report) {
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const companies = await findCompaniesByCategoryId(report.categoryId);
+    
+    return companies;
   }
 }
