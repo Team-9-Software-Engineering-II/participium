@@ -37,6 +37,22 @@ jest.unstable_mockModule("../../../shared/utils/report-utils.mjs", () => ({
     sanitizeReports: mockSanitizeReports,
 }));
 
+const mockFindStaffWithFewestReports = jest.fn();
+const mockFindExternalMaintainerWithFewestReports = jest.fn();
+
+jest.unstable_mockModule("../../../repositories/user-repo.mjs", () => ({
+  findStaffWithFewestReports: mockFindStaffWithFewestReports,
+  findExternalMaintainerWithFewestReports: mockFindExternalMaintainerWithFewestReports,
+}));
+
+const mockFindCompanyById = jest.fn();
+const mockFindCompaniesByCategoryId = jest.fn();
+
+jest.unstable_mockModule("../../../repositories/company-repo.mjs", () => ({
+  findCompanyById: mockFindCompanyById,
+  findCompaniesByCategoryId: mockFindCompaniesByCategoryId,
+}));
+
 // Dynamic import of the Report Service
 let ReportService;
 
@@ -72,6 +88,16 @@ describe("ReportService (Unit)", () => {
         // Default mock behavior for sanitization
         mockSanitizeReport.mockReturnValue(mockSanitizedReport);
         mockSanitizeReports.mockImplementation(reports => reports.map(() => mockSanitizedReport));
+
+        global.fetch = jest.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ 
+                    display_name: "Via Roma 10, Torino", // Indirizzo finto
+                    address: { road: "Via Roma", house_number: "10" }
+                }),
+            })
+        );
     });
 
     // ----------------------------------------------------------------------
@@ -102,6 +128,7 @@ describe("ReportService (Unit)", () => {
                 photosLinks: mockPayload.photos,
                 userId: userId,
                 categoryId: mockPayload.categoryId,
+                address: "Via Roma 10",
             });
 
             // 3. Verify Hydration
@@ -237,6 +264,72 @@ describe("ReportService (Unit)", () => {
             expect(mockFindReportsByTechnicalOfficerId).toHaveBeenCalledWith(officerId);
             expect(mockSanitizeReports).toHaveBeenCalledWith([]);
             expect(result).toEqual([]);
+        });
+    });
+
+    describe("assignReportToExternalMaintainer", () => {
+        const reportId = 10;
+        const companyId = 5;
+
+        const mockReportAssigned = { id: reportId, status: "Assigned", categoryId: 1 };
+        const mockCompany = { id: companyId, name: "Enel X" };
+        const mockMaintainer = { id: 100, firstName: "Luigi" };
+        const mockUpdatedReport = { ...mockReportAssigned, externalMaintainerId: 100 };
+
+        it("should successfully assign report to the best maintainer", async () => {
+        mockFindReportById.mockResolvedValue(mockReportAssigned);
+        const { findCompanyById } = await import("../../../repositories/company-repo.mjs");
+        findCompanyById.mockResolvedValue(mockCompany);
+
+        const { findExternalMaintainerWithFewestReports } = await import("../../../repositories/user-repo.mjs");
+        findExternalMaintainerWithFewestReports.mockResolvedValue(mockMaintainer);
+
+        mockUpdateReport.mockResolvedValue([1]);
+
+        const result = await ReportService.assignReportToExternalMaintainer(reportId, companyId);
+
+        expect(findExternalMaintainerWithFewestReports).toHaveBeenCalledWith(companyId);
+        expect(mockUpdateReport).toHaveBeenCalledWith(reportId, { externalMaintainerId: 100 });
+        expect(result).toBeDefined();
+        });
+
+        it("should throw 404 if report not found", async () => {
+        mockFindReportById.mockResolvedValue(null);
+        await expect(ReportService.assignReportToExternalMaintainer(999, companyId))
+            .rejects.toHaveProperty("statusCode", 404);
+        });
+
+        it("should throw 400 if report status is invalid (e.g. Pending Approval)", async () => {
+        const pendingReport = { ...mockReportAssigned, status: "Pending Approval" };
+        mockFindReportById.mockResolvedValue(pendingReport);
+        
+        const { findCompanyById } = await import("../../../repositories/company-repo.mjs");
+        findCompanyById.mockResolvedValue(mockCompany);
+
+        await expect(ReportService.assignReportToExternalMaintainer(reportId, companyId))
+            .rejects.toThrow("Cannot assign report to external maintainer");
+        });
+
+        it("should throw 404 if company not found", async () => {
+        mockFindReportById.mockResolvedValue(mockReportAssigned);
+        
+        const { findCompanyById } = await import("../../../repositories/company-repo.mjs");
+        findCompanyById.mockResolvedValue(null);
+
+        await expect(ReportService.assignReportToExternalMaintainer(reportId, 999))
+            .rejects.toThrow('Company with id "999" not found.');
+        });
+
+        it("should throw 409 if no maintainers are found in company", async () => {
+        mockFindReportById.mockResolvedValue(mockReportAssigned);
+        const { findCompanyById } = await import("../../../repositories/company-repo.mjs");
+        findCompanyById.mockResolvedValue(mockCompany);
+        
+        const { findExternalMaintainerWithFewestReports } = await import("../../../repositories/user-repo.mjs");
+        findExternalMaintainerWithFewestReports.mockResolvedValue(null);
+
+        await expect(ReportService.assignReportToExternalMaintainer(reportId, companyId))
+            .rejects.toHaveProperty("statusCode", 409);
         });
     });
 });

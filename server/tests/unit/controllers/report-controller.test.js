@@ -10,6 +10,13 @@ const mockAcceptReport = jest.fn();
 const mockRejectReport = jest.fn();
 const mockUpdateReportCategory = jest.fn();
 const mockGetReportsAssignedToOfficer = jest.fn();
+const mockAssignReportToExternalMaintainer = jest.fn();
+const mockFindAllProblemsCategories = jest.fn();
+const mockUpdateReport = jest.fn();
+
+jest.unstable_mockModule("../../../repositories/problem-category-repo.mjs", () => ({
+  findAllProblemsCategories: mockFindAllProblemsCategories,
+}));
 
 jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
   ReportService: {
@@ -22,6 +29,8 @@ jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
     rejectReport: mockRejectReport,
     updateReportCategory: mockUpdateReportCategory,
     getReportsAssignedToOfficer: mockGetReportsAssignedToOfficer,
+    assignReportToExternalMaintainer: mockAssignReportToExternalMaintainer,
+    updateReport: mockUpdateReport,
   },
 }));
 
@@ -585,4 +594,181 @@ describe("Report Controllers (Unit)", () => {
       expect(mockRes.status).not.toHaveBeenCalled();
     });
   });
+
+  describe("assignReportToExternalMaintainer", () => {
+    const mockUpdatedReport = { id: 10, status: "Assigned", externalMaintainerId: 99 };
+
+    it("should assign report to external maintainer and return 200", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { companyId: 5 };
+      mockAssignReportToExternalMaintainer.mockResolvedValue(mockUpdatedReport);
+
+      await ReportControllers.assignReportToExternalMaintainer(mockReq, mockRes, mockNext);
+
+      expect(mockAssignReportToExternalMaintainer).toHaveBeenCalledWith(10, 5);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockUpdatedReport);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if companyId is missing", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = {}; // companyId mancante
+
+      await ReportControllers.assignReportToExternalMaintainer(mockReq, mockRes, mockNext);
+
+      expect(mockAssignReportToExternalMaintainer).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "companyId is required." });
+    });
+
+    it("should return 400 if companyId is not a valid integer", async () => {
+      mockReq.params.reportId = '10';
+      mockReq.body = { companyId: "abc" };
+
+      await ReportControllers.assignReportToExternalMaintainer(mockReq, mockRes, mockNext);
+
+      expect(mockAssignReportToExternalMaintainer).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "companyId must be a positive integer." });
+    });
+
+    it.each([
+      ['0'],
+      ['-5'],
+      ['not-a-number']
+    ])("should return 400 for invalid reportId: %s", async (invalidId) => {
+      mockReq.params.reportId = invalidId;
+      mockReq.body = { companyId: 5 };
+
+      await ReportControllers.assignReportToExternalMaintainer(mockReq, mockRes, mockNext);
+
+      expect(mockAssignReportToExternalMaintainer).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    it("should call next() if service throws an error", async () => {
+      const serviceError = new Error("No maintainers available");
+      serviceError.statusCode = 409;
+      mockReq.params.reportId = '10';
+      mockReq.body = { companyId: 5 };
+      mockAssignReportToExternalMaintainer.mockRejectedValue(serviceError);
+
+      await ReportControllers.assignReportToExternalMaintainer(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: getPendingApprovalReports
+  // --------------------------------------------------------------------------
+  describe("getPendingApprovalReports", () => {
+    it("should return pending reports with status 200", async () => {
+      const mockReports = [{ id: 1, status: "Pending Approval" }];
+      mockGetAllReportsFilteredByStatus.mockResolvedValue(mockReports);
+
+      await ReportControllers.getPendingApprovalReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetAllReportsFilteredByStatus).toHaveBeenCalledWith("Pending Approval", true);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockReports);
+    });
+
+    it("should call next(error) if service throws", async () => {
+      const error = new Error("DB Error");
+      mockGetAllReportsFilteredByStatus.mockRejectedValue(error);
+      await ReportControllers.getPendingApprovalReports(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: getCategories
+  // --------------------------------------------------------------------------
+  describe("getCategories", () => {
+    it("should return all categories with status 200", async () => {
+      const mockCategories = [{ id: 1, name: "Roads" }, { id: 2, name: "Lighting" }];
+      mockFindAllProblemsCategories.mockResolvedValue(mockCategories);
+
+      await ReportControllers.getCategories(mockReq, mockRes, mockNext);
+
+      expect(mockFindAllProblemsCategories).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockCategories);
+    });
+
+    it("should call next(error) if repository throws", async () => {
+      const error = new Error("Database connection failed");
+      mockFindAllProblemsCategories.mockRejectedValue(error);
+
+      await ReportControllers.getCategories(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: updateReportStatus
+  // --------------------------------------------------------------------------
+  describe("updateReportStatus", () => {
+    const freshReport = { id: 10, status: "In Progress" };
+
+    it("should update status to 'In Progress' and return 200", async () => {
+      mockReq.params.reportId = "10";
+      mockReq.body = { status: "In Progress" };
+      
+      mockUpdateReport.mockResolvedValue(true);
+      mockGetReportById.mockResolvedValue(freshReport);
+
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+
+      expect(mockUpdateReport).toHaveBeenCalledWith(10, { status: "In Progress" });
+      expect(mockGetReportById).toHaveBeenCalledWith(10);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(freshReport);
+    });
+
+    it("should return 400 for invalid reportId", async () => {
+      mockReq.params.reportId = "abc";
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "Invalid report ID." });
+    });
+
+    it("should return 400 for invalid status", async () => {
+      mockReq.params.reportId = "10";
+      mockReq.body = { status: "InvalidStatus" };
+
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+
+      expect(mockUpdateReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        message: expect.stringContaining("Invalid status")
+      }));
+    });
+
+    it("should return 400 if status is missing", async () => {
+      mockReq.params.reportId = "10";
+      mockReq.body = {};
+
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    it("should call next(error) if service throws", async () => {
+      mockReq.params.reportId = "10";
+      mockReq.body = { status: "Resolved" };
+      const error = new Error("Service Error");
+      mockUpdateReport.mockRejectedValue(error);
+
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
 });

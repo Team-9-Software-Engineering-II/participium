@@ -185,29 +185,6 @@ describe("User Repository (Unit)", () => {
     });
   });
 
-  // --------------------------------------------------------------------------
-  // getNumberOfCurrentActiveReportsByStaffMemberId
-  // --------------------------------------------------------------------------
-  describe("getNumberOfCurrentActiveReportsByStaffMemberId", () => {
-    it("should return counterActiveReports if user is found", async () => {
-      const mockUserWithCount = { id: 1, counterActiveReports: 5 };
-      mockUserModel.findByPk.mockResolvedValue(mockUserWithCount);
-
-      const result = await UserRepo.getNumberOfCurrentActiveReportsByStaffMemberId(1);
-
-      expect(mockUserModel.findByPk).toHaveBeenCalledWith(1);
-      expect(result).toBe(5);
-    });
-
-    it("should return null if user is not found", async () => {
-      mockUserModel.findByPk.mockResolvedValue(null);
-
-      const result = await UserRepo.getNumberOfCurrentActiveReportsByStaffMemberId(999);
-
-      expect(mockUserModel.findByPk).toHaveBeenCalledWith(999);
-      expect(result).toBeNull();
-    });
-  });
 
   describe("findStaffWithFewestReports", () => {
     const technicalOfficeId = 1;
@@ -271,6 +248,70 @@ describe("User Repository (Unit)", () => {
       mockUserModel.findAll.mockResolvedValueOnce([staffEmpty, staffFull]);
       const result2 = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
       expect(result2).toEqual(staffEmpty);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: findExternalMaintainerWithFewestReports
+  // --------------------------------------------------------------------------
+  describe("findExternalMaintainerWithFewestReports", () => {
+    const companyId = 10;
+
+    it("should return null if no maintainers found in company", async () => {
+      mockUserModel.findAll.mockResolvedValue([]); // Nessuno staff
+
+      const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+
+      expect(mockUserModel.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: { companyId }
+      }));
+      expect(result).toBeNull();
+    });
+
+    it("should return maintainer with fewest active reports", async () => {
+      const staffBusy = { id: 1, firstName: "Busy", lastName: "Guy", externalReports: [1, 2, 3] }; 
+      const staffFree = { id: 2, firstName: "Free", lastName: "Guy", externalReports: [] };       
+      
+      mockUserModel.findAll.mockResolvedValue([staffBusy, staffFree]);
+
+      const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+
+      expect(result).toEqual(staffFree);
+    });
+
+    it("should resolve tie by alphabetical order (LastName)", async () => {
+      const staffA = { id: 1, firstName: "John", lastName: "Doe", externalReports: [] };
+      const staffB = { id: 2, firstName: "Jane", lastName: "Aloha", externalReports: [] }; 
+      
+      mockUserModel.findAll.mockResolvedValue([staffA, staffB]);
+
+      const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+
+      expect(result).toEqual(staffB);
+    });
+    
+    it("should resolve tie by alphabetical order (FirstName) if LastName is same", async () => {
+        const staffA = { id: 1, firstName: "Albert", lastName: "Doe", externalReports: [] };
+        const staffB = { id: 2, firstName: "John", lastName: "Doe", externalReports: [] };
+        
+        mockUserModel.findAll.mockResolvedValue([staffB, staffA]);
+  
+        const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+  
+        expect(result).toEqual(staffA);
+    });
+
+    it("should handle null/undefined externalReports array", async () => {
+      const staffNull = { id: 1, firstName: "A", lastName: "A", externalReports: undefined };
+      const staffOne = { id: 2, firstName: "B", lastName: "B", externalReports: [1] };
+      
+      mockUserModel.findAll.mockResolvedValueOnce([staffOne, staffNull]);
+      let result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+      expect(result).toEqual(staffNull);
+
+      mockUserModel.findAll.mockResolvedValueOnce([staffNull, staffOne]);
+      result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+      expect(result).toEqual(staffNull);
     });
   });
 });
