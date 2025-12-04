@@ -28,6 +28,15 @@ jest.unstable_mockModule("../../../repositories/problem-category-repo.mjs", () =
     findProblemCategoryById: mockFindProblemCategoryById,
 }));
 
+// Mocking the Company Repository functions
+const mockFindCompaniesByCategoryId = jest.fn();
+const mockFindCompanyById = jest.fn();
+
+jest.unstable_mockModule("../../../repositories/company-repo.mjs", () => ({
+    findCompaniesByCategoryId: mockFindCompaniesByCategoryId,
+    findCompanyById: mockFindCompanyById,
+}));
+
 // Mocking the Utility functions (sanitize)
 const mockSanitizeReport = jest.fn();
 const mockSanitizeReports = jest.fn();
@@ -237,6 +246,119 @@ describe("ReportService (Unit)", () => {
             expect(mockFindReportsByTechnicalOfficerId).toHaveBeenCalledWith(officerId);
             expect(mockSanitizeReports).toHaveBeenCalledWith([]);
             expect(result).toEqual([]);
+        });
+    });
+
+    // ----------------------------------------------------------------------
+    // getEligibleCompaniesForReport
+    // ----------------------------------------------------------------------
+    describe("getEligibleCompaniesForReport", () => {
+        const reportId = 10;
+        const mockReport = {
+            id: 10,
+            title: "Pothole Report",
+            categoryId: 5,
+            status: "Assigned",
+        };
+        const mockCompanies = [
+            {
+                id: 1,
+                name: "Enel X",
+                address: "Via Roma 1",
+                region: "Piemonte",
+                country: "Italy",
+            },
+            {
+                id: 2,
+                name: "Acea",
+                address: "Via Milano 2",
+                region: "Lazio",
+                country: "Italy",
+            },
+        ];
+
+        it("should return eligible companies when report exists", async () => {
+            mockFindReportById.mockResolvedValue(mockReport);
+            mockFindCompaniesByCategoryId.mockResolvedValue(mockCompanies);
+
+            const result = await ReportService.getEligibleCompaniesForReport(reportId);
+
+            expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+            expect(mockFindCompaniesByCategoryId).toHaveBeenCalledWith(mockReport.categoryId);
+            expect(result).toEqual(mockCompanies);
+        });
+
+        it("should return empty array when no companies are eligible", async () => {
+            mockFindReportById.mockResolvedValue(mockReport);
+            mockFindCompaniesByCategoryId.mockResolvedValue([]);
+
+            const result = await ReportService.getEligibleCompaniesForReport(reportId);
+
+            expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+            expect(mockFindCompaniesByCategoryId).toHaveBeenCalledWith(mockReport.categoryId);
+            expect(result).toEqual([]);
+        });
+
+        it("should throw 404 error when report does not exist", async () => {
+            mockFindReportById.mockResolvedValue(null);
+
+            await expect(ReportService.getEligibleCompaniesForReport(reportId))
+                .rejects.toMatchObject({
+                    message: "Report not found.",
+                    statusCode: 404,
+                });
+
+            expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+            expect(mockFindCompaniesByCategoryId).not.toHaveBeenCalled();
+        });
+
+        it("should propagate errors from findReportById", async () => {
+            const repoError = new Error("Database connection error");
+            mockFindReportById.mockRejectedValue(repoError);
+
+            await expect(ReportService.getEligibleCompaniesForReport(reportId))
+                .rejects.toThrow("Database connection error");
+
+            expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+            expect(mockFindCompaniesByCategoryId).not.toHaveBeenCalled();
+        });
+
+        it("should propagate errors from findCompaniesByCategoryId", async () => {
+            const repoError = new Error("Category lookup failed");
+            mockFindReportById.mockResolvedValue(mockReport);
+            mockFindCompaniesByCategoryId.mockRejectedValue(repoError);
+
+            await expect(ReportService.getEligibleCompaniesForReport(reportId))
+                .rejects.toThrow("Category lookup failed");
+
+            expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+            expect(mockFindCompaniesByCategoryId).toHaveBeenCalledWith(mockReport.categoryId);
+        });
+
+        it("should handle report with different categoryId correctly", async () => {
+            const reportWithDifferentCategory = {
+                id: 20,
+                title: "Another Report",
+                categoryId: 8,
+                status: "In Progress",
+            };
+            const companiesForCategory8 = [
+                {
+                    id: 3,
+                    name: "Company C",
+                    address: "Via Torino 3",
+                    region: "Piemonte",
+                    country: "Italy",
+                },
+            ];
+            mockFindReportById.mockResolvedValue(reportWithDifferentCategory);
+            mockFindCompaniesByCategoryId.mockResolvedValue(companiesForCategory8);
+
+            const result = await ReportService.getEligibleCompaniesForReport(20);
+
+            expect(mockFindReportById).toHaveBeenCalledWith(20);
+            expect(mockFindCompaniesByCategoryId).toHaveBeenCalledWith(8);
+            expect(result).toEqual(companiesForCategory8);
         });
     });
 });

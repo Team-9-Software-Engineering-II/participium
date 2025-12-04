@@ -10,6 +10,7 @@ const mockAcceptReport = jest.fn();
 const mockRejectReport = jest.fn();
 const mockUpdateReportCategory = jest.fn();
 const mockGetReportsAssignedToOfficer = jest.fn();
+const mockGetEligibleCompaniesForReport = jest.fn();
 
 jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
   ReportService: {
@@ -22,6 +23,7 @@ jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
     rejectReport: mockRejectReport,
     updateReportCategory: mockUpdateReportCategory,
     getReportsAssignedToOfficer: mockGetReportsAssignedToOfficer,
+    getEligibleCompaniesForReport: mockGetEligibleCompaniesForReport,
   },
 }));
 
@@ -581,6 +583,96 @@ describe("Report Controllers (Unit)", () => {
       await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
 
       expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: getEligibleCompanies
+  // --------------------------------------------------------------------------
+  describe("getEligibleCompanies", () => {
+    const mockCompanies = [
+      {
+        id: 1,
+        name: "Enel X",
+        address: "Via Roma 1",
+        region: "Piemonte",
+        country: "Italy",
+      },
+      {
+        id: 2,
+        name: "Acea",
+        address: "Via Milano 2",
+        region: "Lazio",
+        country: "Italy",
+      },
+    ];
+
+    it("should return eligible companies with status 200 for valid reportId", async () => {
+      mockReq.params.reportId = "10";
+      mockGetEligibleCompaniesForReport.mockResolvedValue(mockCompanies);
+
+      await ReportControllers.getEligibleCompanies(mockReq, mockRes, mockNext);
+
+      expect(mockGetEligibleCompaniesForReport).toHaveBeenCalledWith(10);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockCompanies);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array when no companies are eligible", async () => {
+      mockReq.params.reportId = "10";
+      mockGetEligibleCompaniesForReport.mockResolvedValue([]);
+
+      await ReportControllers.getEligibleCompanies(mockReq, mockRes, mockNext);
+
+      expect(mockGetEligibleCompaniesForReport).toHaveBeenCalledWith(10);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith([]);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["0"],
+      ["-5"],
+      ["not-a-number"],
+      ["3.14"],
+    ])("should return 400 for invalid reportId: %s", async (invalidId) => {
+      mockReq.params.reportId = invalidId;
+
+      await ReportControllers.getEligibleCompanies(mockReq, mockRes, mockNext);
+
+      expect(mockGetEligibleCompaniesForReport).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "reportId must be a positive integer.",
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should call next() if service throws 404 error (report not found)", async () => {
+      const serviceError = new Error("Report not found.");
+      serviceError.statusCode = 404;
+      mockReq.params.reportId = "999";
+      mockGetEligibleCompaniesForReport.mockRejectedValue(serviceError);
+
+      await ReportControllers.getEligibleCompanies(mockReq, mockRes, mockNext);
+
+      expect(mockGetEligibleCompaniesForReport).toHaveBeenCalledWith(999);
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+
+    it("should call next() if service throws any other error", async () => {
+      const serviceError = new Error("Database connection failed");
+      serviceError.statusCode = 500;
+      mockReq.params.reportId = "10";
+      mockGetEligibleCompaniesForReport.mockRejectedValue(serviceError);
+
+      await ReportControllers.getEligibleCompanies(mockReq, mockRes, mockNext);
+
+      expect(mockGetEligibleCompaniesForReport).toHaveBeenCalledWith(10);
       expect(mockNext).toHaveBeenCalledWith(serviceError);
       expect(mockRes.status).not.toHaveBeenCalled();
     });
