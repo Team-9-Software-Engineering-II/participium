@@ -248,22 +248,7 @@ describe("Report External Assignment (Integration)", () => {
   // TEST CASE 7: Test Load Balancing
   // --------------------------------------------------------------------------
   it("should assign the report to the external maintainer with the fewest active reports", async () => {
-    // 1. Create a second External Maintainer for the same company (starting with 0 reports)
-    const externalMaintainerRole = await db.Role.findOne({
-      where: { name: "external_maintainer" },
-    });
-    const maintainerUserB = await db.User.create({
-      email: `maintainerB${Date.now()}@test.com`,
-      username: `maintainerB${Date.now()}`,
-      firstName: "ExtB",
-      lastName: "ManB",
-      hashedPassword: "hashedPassword123",
-      roleId: externalMaintainerRole.id,
-      companyId: testData.companyId,
-      emailConfiguration: true,
-    });
-
-    // 2. Assign 2 reports directly to Maintainer A (created in beforeAll) to increase their workload
+    // 1. Assign 2 reports directly to Maintainer A (created in beforeAll) to increase their workload
     const reportToAssignId1 = await createAndAssignReportToTechnicalOfficer();
     const reportToAssignId2 = await createAndAssignReportToTechnicalOfficer();
     await db.Report.update(
@@ -277,10 +262,10 @@ describe("Report External Assignment (Integration)", () => {
 
     // Maintainer A has 2 active reports. Maintainer B has 0 active reports.
 
-    // 3. Create a NEW report to be assigned
+    // 2. Create a NEW report to be assigned
     const newReportId = await createAndAssignReportToTechnicalOfficer();
 
-    // 4. Perform external assignment. The load balancer MUST choose B.
+    // 3. Perform external assignment. The load balancer MUST choose B.
     const res = await request(app)
       .put(`/offices/reports/${newReportId}/assign-external`)
       .set("Cookie", technicalOfficerCookie)
