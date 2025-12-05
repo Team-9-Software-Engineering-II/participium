@@ -252,6 +252,53 @@ export default function MunicipalityUsers() {
     });
   }, [users, searchTerm]);
 
+  const renderTableBody = () => {
+    if (isLoading) {
+      return [
+        <tr key="loading">
+          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+            Loading municipality users...
+          </td>
+        </tr>
+      ];
+    }
+
+    if (displayedUsers.length === 0) {
+      return [
+        <tr key="empty">
+          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+            No municipality users found matching your criteria.
+          </td>
+        </tr>
+      ];
+    }
+
+    return displayedUsers.map((user) => (
+      <tr key={user.id} className="transition hover:bg-background/80">
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-sm font-semibold text-muted-foreground">
+              <UserRound className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-semibold text-foreground">{formatDisplayName(user)}</p>
+              <p className="text-xs text-muted-foreground">
+                {user.email || user.username || `ID: ${user.id}`}
+              </p>
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-4 text-muted-foreground">
+          {extractRoleName(user?.role)}
+        </td>
+        {/* Cella Office con logica di visualizzazione */}
+        <td className="px-4 py-4 text-muted-foreground font-medium">
+          {getOfficeDisplay(user)}
+        </td>
+      </tr>
+    ));
+  };
+
   return (
     <div className="space-y-10">
       <header className="flex flex-col gap-4 rounded-2xl border border-border bg-card/80 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 md:flex-row md:items-center md:justify-between">
@@ -371,9 +418,11 @@ export default function MunicipalityUsers() {
                   >
                     <SelectTrigger id="roleId" data-cy="select-role">
                       <SelectValue
-                        placeholder={
-                          isRolesLoading ? 'Loading roles…' : rolesError ? 'Roles unavailable' : 'Select a role'
-                        }
+                        placeholder={(() => {
+                          if (isRolesLoading) return 'Loading roles…';
+                          if (rolesError) return 'Roles unavailable';
+                          return 'Select a role';
+                        })()}
                       />
                     </SelectTrigger>
                     <SelectContent>
@@ -466,46 +515,7 @@ export default function MunicipalityUsers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50 bg-card/60">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    Loading municipality users...
-                  </td>
-                </tr>
-              ) : (
-                displayedUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                      No municipality users found matching your criteria.
-                    </td>
-                  </tr>
-                ) : (
-                  displayedUsers.map((user) => (
-                    <tr key={user.id} className="transition hover:bg-background/80">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-sm font-semibold text-muted-foreground">
-                            <UserRound className="h-5 w-5" aria-hidden="true" />
-                          </span>
-                          <div>
-                            <p className="font-semibold text-foreground">{formatDisplayName(user)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {user.email || user.username || `ID: ${user.id}`}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-muted-foreground">
-                        {extractRoleName(user?.role)}
-                      </td>
-                      {/* Cella Office con logica di visualizzazione */}
-                      <td className="px-4 py-4 text-muted-foreground font-medium">
-                        {getOfficeDisplay(user)}
-                      </td>
-                    </tr>
-                  ))
-                )
-              )}
+              {renderTableBody()}
             </tbody>
           </table>
         </div>

@@ -28,6 +28,13 @@ const ALLOWED_TRANSITIONS = [
 
 const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
+const getStatusBadgeClass = (status, variant = 'default') => {
+  if (status === "Assigned") return variant === 'mobile' ? "bg-blue-500" : "bg-blue-600";
+  if (status === "In Progress") return "bg-amber-500";
+  if (status === "Resolved") return variant === 'mobile' ? "bg-green-500" : "bg-green-600";
+  return "bg-gray-500";
+};
+
 export default function TechnicianReports({ type = "active" }) {
   const { toast } = useToast();
   const [reports, setReports] = useState([]);
@@ -173,11 +180,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
             </Badge>
             {/* Mobile Badge */}
             <Badge 
-              className={`md:hidden ${
-                 report.status === "Assigned" ? "bg-blue-500" : 
-                 (report.status === "In Progress" ? "bg-amber-500" :
-                 (report.status === "Resolved" ? "bg-green-500" : "bg-gray-500"))
-              }`}
+              className={`md:hidden ${getStatusBadgeClass(report.status, 'mobile')}`}
             >
               {report.status}
             </Badge>
@@ -213,11 +216,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
           <div className="hidden md:flex items-center gap-2 mb-1">
             <span className="text-xs font-medium text-muted-foreground">Current:</span>
             <Badge 
-              className={`text-white px-3 py-1 ${
-                 report.status === "Assigned" ? "bg-blue-600" : 
-                 (report.status === "In Progress" ? "bg-amber-500" :
-                 (report.status === "Resolved" ? "bg-green-600" : "bg-gray-500"))
-              }`}
+              className={`text-white px-3 py-1 ${getStatusBadgeClass(report.status, 'desktop')}`}
             >
               {report.status}
             </Badge>
