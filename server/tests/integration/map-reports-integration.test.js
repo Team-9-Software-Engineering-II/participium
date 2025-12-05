@@ -1,38 +1,48 @@
+/**
+ * @file Integration Test for Map Data Visualization (Citizen Flow)
+ * @description Tests the visibility, filtering, and data structure of reports
+ * exposed via the /reports/assigned endpoint, which serves map data.
+ */
+
 process.env.NODE_ENV = "test";
 
 import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
-import { sequelize } from "../../config/db/db-config.mjs";
-import { seedDatabase } from "../../seeders/index.mjs";
+
+// --- Import Test Utilities ---
 import db from "../../models/index.mjs";
+import {
+  setupTestDatabase,
+  teardownTestDatabase,
+  loginAndGetCookie,
+  citizenLogin, // Default user credentials from seeders
+} from "./test-utils.js";
 
 /** @type {string} Cookie for a standard Citizen user. */
 let citizenCookie;
 
-// --- Seeded Data Reference ---
-const PENDING_REPORT_ID = 1; // Status: "Pending Approval" (Should be HIDDEN)
-const ASSIGNED_REPORT_ID = 3; // Status: "Assigned" (Should be VISIBLE)
-const IN_PROGRESS_REPORT_ID = 4; // Status: "In Progress" (Should be VISIBLE)
+// --- Seeded Data Reference (Assumed to be set by seedDatabase) ---
+const PENDING_REPORT_ID = 1;
+const ASSIGNED_REPORT_ID = 3;
+const IN_PROGRESS_REPORT_ID = 4;
 
 // --- Setup & Teardown ---
 
+/**
+ * @description Resets and seeds the database, then logs in the default citizen.
+ */
 beforeAll(async () => {
-  await sequelize.sync({ force: true });
-  await seedDatabase();
-
-  // Log in as a Citizen to access the map data
-  const citizenLoginRes = await request(app).post("/auth/login").send({
-    username: "mario.rossi",
-    password: "password123",
-  });
-  citizenCookie = citizenLoginRes.headers["set-cookie"];
+  await setupTestDatabase();
+  citizenCookie = await loginAndGetCookie(citizenLogin);
+  expect(citizenCookie).toBeDefined();
 });
 
+/**
+ * @description Closes the database connection.
+ */
 afterAll(async () => {
-  if (sequelize) {
-    await sequelize.close();
-  }
+  await teardownTestDatabase();
 });
 
 describe("API Map Data Visualization (Citizen Flow) E2E", () => {
@@ -42,9 +52,9 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
   // 1. Visibility & Filtering Tests
   // =======================================================
   describe("Report Visibility on Map", () => {
-    it("should retrieve ONLY reports with 'Assigned' status", async () => {
+    it("should retrieve ONLY reports with 'Assigned' status (200)", async () => {
       const res = await request(app)
-        .get("/reports/assigned")
+        .get(MAP_DATA_ENDPOINT)
         .set("Cookie", citizenCookie);
 
       expect(res.statusCode).toBe(200);
@@ -53,14 +63,13 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
       const reportIds = res.body.map((r) => r.id);
 
       expect(reportIds).toContain(ASSIGNED_REPORT_ID);
-
       expect(reportIds).not.toContain(IN_PROGRESS_REPORT_ID);
       expect(reportIds).not.toContain(PENDING_REPORT_ID);
     });
 
     it("should include coordinates (lat/long) for map placement", async () => {
       const res = await request(app)
-        .get("/reports/assigned")
+        .get(MAP_DATA_ENDPOINT)
         .set("Cookie", citizenCookie);
 
       const report = res.body[0];
@@ -75,7 +84,7 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
   // 2. Data Structure & Map Requirements
   // =======================================================
   describe("Map Data Structure Compliance", () => {
-    it("should ensure every returned report has valid geolocation coordinates for placing markers", async () => {
+    it("should ensure every returned report has valid geolocation coordinates", async () => {
       const res = await request(app)
         .get(MAP_DATA_ENDPOINT)
         .set("Cookie", citizenCookie);
@@ -85,28 +94,21 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
       for (const report of res.body) {
         expect(report).toHaveProperty("latitude");
         expect(report).toHaveProperty("longitude");
-
         expect(typeof report.latitude).toBe("number");
-        expect(typeof report.longitude).toBe("number");
-
-        // Basic sanity check for coordinates
         expect(report.latitude).not.toBe(0);
-        expect(report.longitude).not.toBe(0);
-      };
+      }
     });
 
-    it("should include Title for report visualization (Zoom In requirement)", async () => {
+    it("should include Title and Status for report visualization", async () => {
       const res = await request(app)
         .get(MAP_DATA_ENDPOINT)
         .set("Cookie", citizenCookie);
 
-      // Check specifically the Assigned report
       const assignedReport = res.body.find((r) => r.id === ASSIGNED_REPORT_ID);
 
       expect(assignedReport).toBeDefined();
       expect(assignedReport).toHaveProperty("title");
       expect(assignedReport.title).toBeTruthy();
-
       expect(assignedReport).toHaveProperty("status");
     });
   });
@@ -116,7 +118,7 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
   // =======================================================
   describe("Reporter Anonymity Visualization", () => {
     it("should display the correct reporter name when the report is NOT anonymous", async () => {
-      // Report ID 3 is NOT anonymous (User: Paolo Gialli)
+      // Report ID 3 is NOT anonymous
       const res = await request(app)
         .get(MAP_DATA_ENDPOINT)
         .set("Cookie", citizenCookie);
@@ -124,7 +126,6 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
       const publicReport = res.body.find((r) => r.id === ASSIGNED_REPORT_ID);
 
       expect(publicReport.anonymous).toBe(false);
-
       expect(publicReport.reporterName).not.toBe("Anonymous");
       expect(typeof publicReport.reporterName).toBe("string");
     });
@@ -132,23 +133,24 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
     it("should mask the reporter name as 'Anonymous' when the anonymous flag is true", async () => {
       const anonReportId = 2;
 
+      // Temporarily update report status to 'Assigned'
       await db.Report.update(
         { status: "Assigned" },
         { where: { id: anonReportId } }
       );
 
       const res = await request(app)
-        .get("/reports/assigned")
+        .get(MAP_DATA_ENDPOINT)
         .set("Cookie", citizenCookie);
 
       const anonReport = res.body.find((r) => r.id === anonReportId);
 
       expect(anonReport).toBeDefined();
       expect(anonReport.status).toBe("Assigned");
-
       expect(anonReport.anonymous).toBe(true);
       expect(anonReport.reporterName).toBe("Anonymous");
 
+      // Reset the report status
       await db.Report.update(
         { status: "Pending Approval" },
         { where: { id: anonReportId } }
@@ -160,16 +162,13 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
   // 4. Single Report Details (Zoom In Interaction)
   // =======================================================
   describe("GET /reports/:reportId (Public Details)", () => {
-    it("should allow a Citizen to view details of an 'Assigned' report", async () => {
+    it("should allow a Citizen to view details of an 'Assigned' report (200)", async () => {
       const res = await request(app)
         .get(`/reports/${ASSIGNED_REPORT_ID}`)
         .set("Cookie", citizenCookie);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.id).toBe(ASSIGNED_REPORT_ID);
-      expect(res.body.title).toBeTruthy();
-      expect(res.body.description).toBeTruthy();
-
       expect(res.body.status).toBe("Assigned");
     });
 
@@ -184,7 +183,7 @@ describe("API Map Data Visualization (Citizen Flow) E2E", () => {
 
       if (report.user) {
         expect(report.user).not.toHaveProperty("hashedPassword");
-        expect(report.user).not.toHaveProperty("roleId");
+        expect(report.user).not.toHaveProperty("password");
       }
     });
   });

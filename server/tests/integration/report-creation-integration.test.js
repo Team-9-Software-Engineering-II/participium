@@ -1,80 +1,88 @@
+/**
+ * @file Integration Test for POST /reports - Report Creation
+ * @description Covers the full flow for a citizen creating a new report,
+ * including security and validation checks.
+ */
+
 process.env.NODE_ENV = "test";
 
 import request from "supertest";
-import {
-  beforeAll,
-  afterAll,
-  describe,
-  it,
-  expect,
-} from "@jest/globals";
+import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
-import { sequelize } from "../../config/db/db-config.mjs";
-import { seedDatabase } from "../../seeders/index.mjs";
 
+// --- Import Test Utilities ---
+import {
+  setupTestDatabase,
+  teardownTestDatabase,
+  loginAndGetCookie,
+  uniqueId,
+  validReportPayload as defaultReportPayload,
+} from "./test-utils.js";
+
+// --- Global variables for storing session cookies and user data ---
+/** @type {string} */
 let cookie;
+/** @type {number} */
 let loggedInUserId;
 
-const uniqueId = Date.now();
+// Define a test-specific user based on the imported uniqueId
+/** @type {object} */
 const citizenUser = {
-  email: `e2e-citizen-${uniqueId}@example.com`,
-  username: `e2e-citizen${uniqueId}`,
-  firstName: "E2E",
+  email: `citizen-${uniqueId}@example.com`,
+  username: `citizen${uniqueId}`,
+  firstName: "User",
   lastName: "Citizen",
   password: "Password123!",
 };
 
-const validReportPayload = {
-  title: "Buca pericolosa in strada",
-  description: "C'è una buca enorme davanti al civico 10 in Via Roma.",
-  categoryId: 7,
-  latitude: 45.0703,
-  longitude: 7.6869,
-  anonymous: false,
-  photos: [
-    "https://example.com/photos/buca1.jpg",
-    "https://example.com/photos/buca2.jpg",
-  ],
-};
+// Use the standardized payload from test-utils, but local copy for modifications
+/** @type {object} */
+const validReportPayload = { ...defaultReportPayload };
 
+// --- Test Hooks (Setup & Teardown) ---
+
+/** @description Setup the test database and seed initial data. */
 beforeAll(async () => {
-  await sequelize.sync({ force: true });
-  await seedDatabase();
+  await setupTestDatabase();
 });
 
+/** @description Close the database connection. */
 afterAll(async () => {
-  if (sequelize) {
-    await sequelize.close();
-  }
+  await teardownTestDatabase();
 });
 
 /**
- * Preamble: User Authentication
+ * @description Preamble: User Authentication
  */
 describe("Preamble: Authentication", () => {
-  it("should register a new citizen user", async () => {
+  it("should register a new citizen user (201)", async () => {
     const res = await request(app).post("/auth/register").send(citizenUser);
     expect(res.statusCode).toBe(201);
   });
 
-  it("should login as the new citizen and store the cookie", async () => {
-    const res = await request(app).post("/auth/login").send({
+  it("should login as the new citizen and store the cookie and user ID (200)", async () => {
+    const loginCredentials = {
       username: citizenUser.username,
       password: citizenUser.password,
-    });
+    };
+
+    // Use the utility function to get the cookie
+    cookie = await loginAndGetCookie(loginCredentials);
+    expect(cookie).toBeDefined();
+
+    // Perform a second request or check the body from a standard login flow
+    // The utility function only returns the cookie, so we log in again to get the ID
+    const res = await request(app).post("/auth/login").send(loginCredentials);
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty("authenticated", true);
 
-    cookie = res.headers["set-cookie"];
     loggedInUserId = res.body.user.id;
-
-    expect(cookie).toBeDefined();
     expect(loggedInUserId).toBeDefined();
   });
 });
 
-describe("POST /reports (E2E Test)", () => {
+describe("POST /reports (Integration Test)", () => {
   describe("Happy Path (User Story Success)", () => {
     it("should create a new report successfully (201)", async () => {
       const res = await request(app)
@@ -84,15 +92,18 @@ describe("POST /reports (E2E Test)", () => {
 
       expect(res.statusCode).toBe(201);
 
+      // Verify returned data matches the payload and defaults
       expect(res.body.title).toBe(validReportPayload.title);
       expect(res.body.description).toBe(validReportPayload.description);
       expect(res.body.latitude).toBe(validReportPayload.latitude);
-      
+
       expect(res.body.status).toBe("Pending Approval");
       expect(res.body.photos).toEqual(validReportPayload.photos);
-      
+
+      // Verify foreign key associations are correctly populated
       expect(res.body.user.id).toBe(loggedInUserId);
       expect(res.body.category.id).toBe(validReportPayload.categoryId);
+      // NOTE: This check assumes the category ID 7 corresponds to this specific name.
       expect(res.body.category.name).toBe("Roads and Urban Furnishings");
     });
   });
@@ -100,7 +111,7 @@ describe("POST /reports (E2E Test)", () => {
   describe("Sad Paths (Security & Validation)", () => {
     it("should fail to create a report without authentication (401)", async () => {
       const res = await request(app).post("/reports").send(validReportPayload);
-      
+
       expect(res.statusCode).toBe(401);
     });
 
@@ -115,8 +126,8 @@ describe("POST /reports (E2E Test)", () => {
       expect(res.body.errors).toContain("Title is required.");
     });
 
-    it("should fail with invalid 'categoryId' (400)", async () => {
-      const payload = { ...validReportPayload, categoryId: "non-un-numero" };
+    it("should fail with invalid 'categoryId' type (400)", async () => {
+      const payload = { ...validReportPayload, categoryId: "not-a-number" };
       const res = await request(app)
         .post("/reports")
         .set("Cookie", cookie)
@@ -126,32 +137,36 @@ describe("POST /reports (E2E Test)", () => {
       expect(res.body.errors).toContain("Valid categoryId is required.");
     });
 
-    it("should fail with invalid 'latitude' (400)", async () => {
-      const payload = { ...validReportPayload, latitude: 200 }; // > 90
+    it("should fail with invalid 'latitude' value (400)", async () => {
+      const payload = { ...validReportPayload, latitude: 200 }; // Value > 90
       const res = await request(app)
         .post("/reports")
         .set("Cookie", cookie)
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Latitude must be a number between -90 and 90.");
+      expect(res.body.errors).toContain(
+        "Latitude must be a number between -90 and 90."
+      );
     });
 
     it("should fail if 'photos' array is empty (min 1) (400)", async () => {
-      const payload = { ...validReportPayload, photos: [] }; // 0 foto
+      const payload = { ...validReportPayload, photos: [] }; // 0 photos
       const res = await request(app)
         .post("/reports")
         .set("Cookie", cookie)
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Photos array must contain between 1 and 3 items.");
+      expect(res.body.errors).toContain(
+        "Photos array must contain between 1 and 3 items."
+      );
     });
 
-    it("should fail if 'photos' array has more than 3 items (max 3) (400)", async () => {
+    it("should fail if 'photos' array has too many items (max 3) (400)", async () => {
       const payload = {
         ...validReportPayload,
-        photos: ["foto1.jpg", "foto2.jpg", "foto3.jpg", "foto4.jpg"], // 4 foto
+        photos: ["foto1.jpg", "foto2.jpg", "foto3.jpg", "foto4.jpg"], // 4 photos
       };
       const res = await request(app)
         .post("/reports")
@@ -159,16 +174,19 @@ describe("POST /reports (E2E Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Photos array must contain between 1 and 3 items.");
+      expect(res.body.errors).toContain(
+        "Photos array must contain between 1 and 3 items."
+      );
     });
-    
-    it("should fail if 'categoryId' does not exist in the DB (400)", async () => {
+
+    it("should fail if 'categoryId' does not exist in the DB (404)", async () => {
       const payload = { ...validReportPayload, categoryId: 9999 };
       const res = await request(app)
         .post("/reports")
         .set("Cookie", cookie)
         .send(payload);
-        
+
+      // Changed status code expectation based on typical foreign key/resource lookup failure
       expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe('Category with id "9999" not found.');
     });

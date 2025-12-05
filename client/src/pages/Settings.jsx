@@ -246,6 +246,7 @@ export default function Settings() {
                           className="hidden"
                         />
                         <Button
+                          data-cy="photo-upload-button"
                           type="button"
                           variant="default"
                           size="sm"
@@ -289,6 +290,7 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="telegramUsername">Telegram Username</Label>
                     <Input
+                      data-cy="telegram-username"
                       id="telegramUsername"
                       name="telegramUsername"
                       placeholder="@username"
@@ -300,7 +302,7 @@ export default function Settings() {
                     </p>
                   </div>
 
-                  <Button type="submit" disabled={loading}>
+                  <Button data-cy="profile-submit" type="submit" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {loading ? 'Updating...' : 'Update profile'}
                   </Button>
@@ -333,7 +335,7 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">This is the name that will be displayed on your profile and in emails.</p>
                   </div>
                   
-                  <Button type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update account'}</Button>
+                  <Button data-cy="account-submit" type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update account'}</Button>
                 </form>
               </div>
             )}
@@ -376,12 +378,13 @@ export default function Settings() {
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="space-y-0.5"><Label className="text-base font-medium">Communication emails</Label><p className="text-sm text-muted-foreground">Receive emails about your reports activity and updates.</p></div>
                     <Switch 
+                      data-cy="switch-communication-emails"
                       checked={notificationSettings.communicationEmail} 
                       onCheckedChange={(checked) => setNotificationSettings({ communicationEmail: checked })} 
                     />
                   </div>
                 </div>
-                <Button type="button" disabled={loading} onClick={handleNotificationsSubmit}>
+                <Button data-cy="notifications-submit" type="button" disabled={loading} onClick={handleNotificationsSubmit}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Update notifications
                 </Button>
               </div>
