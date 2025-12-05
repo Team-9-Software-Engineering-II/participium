@@ -10,7 +10,6 @@ import { app } from "../../index.mjs";
 import { sequelize } from "../../config/db/db-config.mjs";
 import { seedDatabase } from "../../seeders/index.mjs";
 import db from "../../models/index.mjs";
-import technicalOffice from "../../models/technical-office.mjs";
 
 // --- 1. GLOBAL SETUP & TEARDOWN ---
 
@@ -39,7 +38,7 @@ export async function teardownTestDatabase() {
 /**
  * @type {number} A unique ID based on the current timestamp to ensure uniqueness of usernames and emails.
  */
-export const uniqueId = Date.now(); 
+export const uniqueId = Date.now();
 
 /**
  * @type {object} Credentials for the default Admin user.
@@ -62,6 +61,14 @@ export const prOfficerLogin = {
  */
 export const citizenLogin = {
   username: "mario.rossi",
+  password: "password123",
+};
+
+/**
+ * @type {object} Credentials for the default Technical Staff user (Roads Office, ID 7).
+ */
+export const technicalStaffLogin = {
+  username: "tech_roads",
   password: "password123",
 };
 
@@ -95,7 +102,7 @@ export const municipalityUser = {
 export const validReportPayload = {
   title: "Pothole on Main Street",
   description: "There is a huge pothole in front of building 10 on Via Roma.",
-  categoryId: 7, 
+  categoryId: 7,
   latitude: 45.0703,
   longitude: 7.6869,
   anonymous: false,
@@ -117,14 +124,16 @@ export async function loginAndGetCookie(userCredentials) {
   const res = await request(app).post("/auth/login").send(userCredentials);
 
   if (res.statusCode !== 200) {
-    throw new Error(`Login failed for user ${userCredentials.username}: Status ${res.statusCode}`);
+    throw new Error(
+      `Login failed for user ${userCredentials.username}: Status ${res.statusCode}`
+    );
   }
-  
+
   const cookie = res.headers["set-cookie"];
   if (!cookie) {
-      throw new Error(`Login failed: No session cookie received.`);
+    throw new Error(`Login failed: No session cookie received.`);
   }
-  
+
   return cookie;
 }
 
@@ -136,10 +145,10 @@ export async function loginAndGetCookie(userCredentials) {
  */
 export async function findAnotherTechnicalOfficer(excludeUsername) {
   return db.User.findOne({
-    where: { 
+    where: {
       // Assuming Role ID 4 is the Technical Officer role based on File 7
-      roleId: 4, 
-      username: { [db.Sequelize.Op.ne]: excludeUsername } 
+      roleId: 4,
+      username: { [db.Sequelize.Op.ne]: excludeUsername },
     },
   });
 }
