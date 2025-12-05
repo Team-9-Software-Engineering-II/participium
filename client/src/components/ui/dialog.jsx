@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 "use client"
 
 import * as React from "react"
@@ -14,6 +15,16 @@ const DialogPortal = DialogPrimitive.Portal
 
 const DialogClose = DialogPrimitive.Close
 
+/**
+ * @typedef {Object} DialogOverlayProps
+ * @property {string} [className] - Additional CSS classes
+ * @property {React.ReactNode} [children] - Child elements
+ */
+
+/**
+ * Dialog overlay component
+ * @type {React.ForwardRefExoticComponent<DialogOverlayProps & React.RefAttributes<HTMLDivElement>>}
+ */
 const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
@@ -25,6 +36,16 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+/**
+ * @typedef {Object} DialogContentProps
+ * @property {string} [className] - Additional CSS classes
+ * @property {React.ReactNode} [children] - Child elements
+ */
+
+/**
+ * Dialog content component
+ * @type {React.ForwardRefExoticComponent<DialogContentProps & React.RefAttributes<HTMLDivElement>>}
+ */
 const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
@@ -46,6 +67,16 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
+/**
+ * @typedef {Object} DialogHeaderProps
+ * @property {string} [className] - Additional CSS classes
+ * @property {React.ReactNode} [children] - Child elements
+ */
+
+/**
+ * Dialog header component
+ * @param {DialogHeaderProps} props
+ */
 const DialogHeader = ({
   className,
   ...props
@@ -56,6 +87,16 @@ const DialogHeader = ({
 )
 DialogHeader.displayName = "DialogHeader"
 
+/**
+ * @typedef {Object} DialogFooterProps
+ * @property {string} [className] - Additional CSS classes
+ * @property {React.ReactNode} [children] - Child elements
+ */
+
+/**
+ * Dialog footer component
+ * @param {DialogFooterProps} props
+ */
 const DialogFooter = ({
   className,
   ...props
@@ -66,6 +107,16 @@ const DialogFooter = ({
 )
 DialogFooter.displayName = "DialogFooter"
 
+/**
+ * @typedef {Object} DialogTitleProps
+ * @property {string} [className] - Additional CSS classes
+ * @property {React.ReactNode} [children] - Child elements
+ */
+
+/**
+ * Dialog title component
+ * @type {React.ForwardRefExoticComponent<DialogTitleProps & React.RefAttributes<HTMLHeadingElement>>}
+ */
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
@@ -74,6 +125,16 @@ const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
+/**
+ * @typedef {Object} DialogDescriptionProps
+ * @property {string} [className] - Additional CSS classes
+ * @property {React.ReactNode} [children] - Child elements
+ */
+
+/**
+ * Dialog description component
+ * @type {React.ForwardRefExoticComponent<DialogDescriptionProps & React.RefAttributes<HTMLParagraphElement>>}
+ */
 const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}

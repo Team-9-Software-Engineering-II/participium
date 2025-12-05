@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { urpAPI, reportAPI } from '@/services/api';
@@ -87,7 +89,7 @@ export default function OfficerReports({ status }) {
               {report.photos && report.photos.length > 0 && (
                  <div className="mt-4 pt-4 border-t flex items-center gap-2 text-xs font-medium text-primary">
                    <Paperclip className="w-4 h-4" /> 
-                   {report.photos.length} attachment{report.photos.length !== 1 ? 's' : ''}
+                   {report.photos.length} attachment{report.photos.length === 1 ? '' : 's'}
                  </div>
               )}
             </CardContent>

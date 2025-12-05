@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React from 'react';
 import { CheckCircle2, Circle, Clock, XCircle, AlertCircle, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";

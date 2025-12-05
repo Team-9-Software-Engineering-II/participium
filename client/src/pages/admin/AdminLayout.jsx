@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Menu, X, LayoutDashboard, Building2, Users, FileText } from 'lucide-react';
+import { Menu, X, LayoutDashboard, Users, FileText } from 'lucide-react';
 import Navbar from '@/components/common/Navbar';
 
 const navigationItems = [
@@ -116,10 +116,9 @@ export default function AdminLayout() {
 
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <nav
             className="h-full w-72 max-w-full border-r bg-card/95 p-5 shadow-xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/80"
-            role="dialog"
-            aria-modal="true"
+            aria-label="Mobile admin navigation"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -150,11 +149,12 @@ export default function AdminLayout() {
                 </NavLink>
               ))}
             </nav>
-          </div>
-          <div
+          </nav>
+          <button
+            type="button"
             className="flex-1 bg-background/70 backdrop-blur-sm"
             onClick={closeMobileSidebar}
-            aria-hidden="true"
+            aria-label="Close sidebar"
           />
         </div>
       )}
