@@ -105,6 +105,49 @@ describe("AuthService (Unit)", () => {
         
         await expect(AuthService.registerUser(mockUserInput)).rejects.toThrow("Default citizen role not found");
     });
+
+    it("should throw 400 if email format is invalid", async () => {
+      const invalidInput = { ...mockUserInput, email: "invalid-email-string" };
+
+      await expect(AuthService.registerUser(invalidInput))
+        .rejects.toMatchObject({ 
+          message: "Invalid email format.", 
+          statusCode: 400 
+        });
+    });
+
+    it("should throw 409 if username is already registered", async () => {
+      mockFindUserByEmail.mockResolvedValue(null);
+      
+      mockFindUserByUsername.mockResolvedValue({ id: 5 }); 
+
+      await expect(AuthService.registerUser(mockUserInput))
+        .rejects.toMatchObject({
+          message: "Username is already registered.",
+          statusCode: 409
+        });
+        
+      expect(mockFindUserByUsername).toHaveBeenCalledWith(mockUserInput.username);
+    });
+
+    it("should fallback to createdUser if hydration (findUserById) fails", async () => {
+      // Setup standard per successo
+      mockFindUserByEmail.mockResolvedValue(null);
+      mockFindUserByUsername.mockResolvedValue(null);
+      mockFindRoleByName.mockResolvedValue({ id: 1 }); // Ruolo citizen esiste
+      mockHash.mockResolvedValue("hashed");
+      
+      // Creazione OK
+      mockCreateUser.mockResolvedValue(mockSequelizeUser);
+      
+      // MA... la rilettura fallisce (ritorna null)
+      mockFindUserById.mockResolvedValue(null); 
+
+      const result = await AuthService.registerUser(mockUserInput);
+
+      // Verifica che restituisca comunque l'utente (usando createdUser)
+      expect(result).toEqual(expectedSanitizedUser);
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -153,7 +196,7 @@ describe("AuthService (Unit)", () => {
       mockFindUserByEmail.mockResolvedValue(null);
       mockFindUserByUsername.mockResolvedValue(null);
       mockFindTechnicalOfficeById.mockResolvedValue({ id: 1 });
-      mockFindRoleById.mockResolvedValue(null); // Role missing
+      mockFindRoleById.mockResolvedValue(null);
 
       await expect(AuthService.registerMunicipalOrStaffUser(mockStaffInput))
         .rejects.toThrow("Role with id 4 not found");
@@ -164,6 +207,30 @@ describe("AuthService (Unit)", () => {
        await expect(AuthService.registerMunicipalOrStaffUser(mockStaffInput))
          .rejects.toHaveProperty("statusCode", 409);
     });
+
+    it("should fallback to createdUser if hydration fails", async () => {
+      mockFindUserByEmail.mockResolvedValue(null);
+      mockFindUserByUsername.mockResolvedValue(null);
+      mockFindTechnicalOfficeById.mockResolvedValue({ id: 1 });
+      mockFindRoleById.mockResolvedValue({ id: 4 });
+      mockHash.mockResolvedValue("hashed");
+      
+      const staffPlain = { ...mockPlainUser, roleId: 4, technicalOfficeId: 1 };
+      const staffUser = { 
+          ...mockSequelizeUser, 
+          ...staffPlain,
+          get: jest.fn().mockReturnValue(staffPlain)
+      };
+
+      mockCreateUser.mockResolvedValue(staffUser);
+
+      mockFindUserById.mockResolvedValue(null);
+
+      const result = await AuthService.registerMunicipalOrStaffUser(mockStaffInput);
+
+      expect(result.roleId).toBe(4);
+    });
+
   });
 
   // --------------------------------------------------------------------------
@@ -176,17 +243,84 @@ describe("AuthService (Unit)", () => {
         const res = await AuthService.validateCredentials("user", "pass");
         expect(res).toEqual(expectedSanitizedUser);
     });
-    // ... altri test ...
+    
+    it("should return null if user is not found by username OR email", async () => {
+      mockFindUserByUsername.mockResolvedValue(null);
+      mockFindUserByEmail.mockResolvedValue(null);
+
+      const result = await AuthService.validateCredentials("wrong", "pass");
+      
+      expect(result).toBeNull();
+    });
+
+    it("should return null if password mismatch", async () => {
+      mockFindUserByUsername.mockResolvedValue(mockSequelizeUser);
+      // Fondamentale: bcrypt dice che la password è SBAGLIATA
+      mockCompare.mockResolvedValue(false); 
+
+      const result = await AuthService.validateCredentials("testuser", "wrong");
+
+      expect(mockCompare).toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("should correctly sanitize a plain object user (branch coverage for no .get method)", async () => {
+      const plainUser = { 
+        id: 1, 
+        username: "test", 
+        email: "test@test.com",
+        firstName: "T",
+        lastName: "U",
+        roleId: 1,
+        hashedPassword: "hashed-password-123" 
+      };
+
+      mockFindUserByUsername.mockResolvedValue(plainUser);
+      mockCompare.mockResolvedValue(true);
+
+      const result = await AuthService.validateCredentials("test", "pass");
+
+      expect(result.hashedPassword).toBeUndefined();
+      expect(result.username).toBe("test");
+    });
   });
 
   // --------------------------------------------------------------------------
   // findUserById
   // --------------------------------------------------------------------------
   describe("findUserById", () => {
-    it("should return user if found", async () => {
-        mockFindUserById.mockResolvedValue(mockSequelizeUser);
-        const res = await AuthService.findUserById(1);
-        expect(res).toEqual(expectedSanitizedUser);
+
+    it("should return sanitized user if found", async () => {
+      mockFindUserById.mockResolvedValue(mockSequelizeUser);
+      const result = await AuthService.findUserById(1);
+      expect(mockFindUserById).toHaveBeenCalledWith(1);
+      expect(result).toEqual(expectedSanitizedUser);
+    });
+
+    it("should return null if user is not found", async () => {
+      mockFindUserById.mockResolvedValue(null);
+      const result = await AuthService.findUserById(999);
+      expect(mockFindUserById).toHaveBeenCalledWith(999);
+      expect(result).toBeNull();
+    });
+
+    it("should sanitize user including nested role object", async () => {
+      const userWithRole = {
+        ...mockPlainUser,
+        role: { id: 1, name: "citizen", description: "ignore me" }
+      };
+      
+      const mockUserInstance = {
+        ...userWithRole,
+        get: jest.fn().mockReturnValue(userWithRole)
+      };
+
+      mockFindUserById.mockResolvedValue(mockUserInstance);
+
+      const result = await AuthService.findUserById(1);
+
+      expect(result.hashedPassword).toBeUndefined();
+      expect(result.role).toEqual({ id: 1, name: "citizen" });
     });
   });
 

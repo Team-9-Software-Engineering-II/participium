@@ -53,6 +53,12 @@ jest.unstable_mockModule("../../../repositories/company-repo.mjs", () => ({
   findCompaniesByCategoryId: mockFindCompaniesByCategoryId,
 }));
 
+const mockMapReportsCollectionToAssignedListDTO = jest.fn();
+
+jest.unstable_mockModule("../../../shared/dto/report-dto.mjs", () => ({
+  mapReportsCollectionToAssignedListDTO: mockMapReportsCollectionToAssignedListDTO,
+}));
+
 // Dynamic import of the Report Service
 let ReportService;
 
@@ -330,6 +336,200 @@ describe("ReportService (Unit)", () => {
 
         await expect(ReportService.assignReportToExternalMaintainer(reportId, companyId))
             .rejects.toHaveProperty("statusCode", 409);
+        });
+    });
+
+    describe("acceptReport", () => {
+        const reportId = 1;
+        const categoryId = 5;
+        const officeId = 10;
+        
+        const mockPendingReport = { id: reportId, status: "Pending Approval", categoryId: categoryId };
+        const mockCategory = { id: categoryId, technicalOffice: { id: officeId, name: "Roads Office" } };
+        const mockStaff = { id: 99 };
+
+        it("should successfully accept and assign report", async () => {
+        // Setup
+        mockFindReportById.mockResolvedValue(mockPendingReport);
+        mockFindProblemCategoryById.mockResolvedValue(mockCategory);
+        mockFindStaffWithFewestReports.mockResolvedValue(mockStaff);
+        mockUpdateReport.mockResolvedValue([1]);
+
+        await ReportService.acceptReport(reportId);
+
+        expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+        expect(mockFindProblemCategoryById).toHaveBeenCalledWith(categoryId);
+        expect(mockFindStaffWithFewestReports).toHaveBeenCalledWith(officeId);
+        expect(mockUpdateReport).toHaveBeenCalledWith(reportId, {
+            status: "Assigned",
+            technicalOfficerId: mockStaff.id
+        });
+        });
+
+        it("should throw 404 if report not found", async () => {
+        mockFindReportById.mockResolvedValue(null);
+        await expect(ReportService.acceptReport(999))
+            .rejects.toHaveProperty("statusCode", 404);
+        });
+
+        it("should throw 400 if report status is not Pending Approval", async () => {
+        mockFindReportById.mockResolvedValue({ ...mockPendingReport, status: "Assigned" });
+        await expect(ReportService.acceptReport(reportId))
+            .rejects.toThrow("Cannot accept report");
+        });
+
+        it("should throw 500 if category has no technical office", async () => {
+        mockFindReportById.mockResolvedValue(mockPendingReport);
+        mockFindProblemCategoryById.mockResolvedValue({ id: categoryId, technicalOffice: null });
+        
+        await expect(ReportService.acceptReport(reportId))
+            .rejects.toHaveProperty("statusCode", 500);
+        });
+
+        it("should throw 409 if no staff is available", async () => {
+        mockFindReportById.mockResolvedValue(mockPendingReport);
+        mockFindProblemCategoryById.mockResolvedValue(mockCategory);
+        mockFindStaffWithFewestReports.mockResolvedValue(null);
+
+        await expect(ReportService.acceptReport(reportId))
+            .rejects.toHaveProperty("statusCode", 409);
+        });
+    });
+
+    describe("rejectReport", () => {
+        const reportId = 1;
+        const reason = "Not valid";
+        const mockPendingReport = { id: reportId, status: "Pending Approval" };
+
+        it("should successfully reject report", async () => {
+        mockFindReportById.mockResolvedValue(mockPendingReport);
+        mockUpdateReport.mockResolvedValue([1]);
+
+        await ReportService.rejectReport(reportId, reason);
+
+        expect(mockUpdateReport).toHaveBeenCalledWith(reportId, {
+            status: "Rejected",
+            rejection_reason: reason
+        });
+        });
+
+        it("should throw 404 if report not found", async () => {
+        mockFindReportById.mockResolvedValue(null);
+        await expect(ReportService.rejectReport(999, reason))
+            .rejects.toHaveProperty("statusCode", 404);
+        });
+
+        it("should throw 400 if report status is not Pending Approval", async () => {
+        mockFindReportById.mockResolvedValue({ id: 1, status: "Assigned" });
+        await expect(ReportService.rejectReport(reportId, reason))
+            .rejects.toThrow("Cannot reject report");
+        });
+    });
+
+    describe("getAllReportsFilteredByStatus", () => {
+        const status = "Pending Approval";
+        const includeUser = true;
+        
+        // Dati simulati
+        const mockRawReports = [{ id: 1, status: "Pending Approval", user: { id: 1 } }];
+        const mockMappedReports = [{ id: 1, status: "Pending Approval", reporterName: "Mario" }];
+
+        it("should return filtered reports mapped to DTO", async () => {
+        // Setup
+        // Nota: Verifica se nel tuo file il mock si chiama 'mockFindAllReportsFilteredByStatus' 
+        // o 'mockfindAllReportsFilteredByStatus' (con la f minuscola, come nel tuo copia-incolla precedente)
+        mockfindAllReportsFilteredByStatus.mockResolvedValue(mockRawReports);
+        mockMapReportsCollectionToAssignedListDTO.mockReturnValue(mockMappedReports);
+
+        // Esecuzione
+        const result = await ReportService.getAllReportsFilteredByStatus(status, includeUser);
+
+        // Verifiche
+        expect(mockfindAllReportsFilteredByStatus).toHaveBeenCalledWith(status);
+        expect(mockMapReportsCollectionToAssignedListDTO).toHaveBeenCalledWith(mockRawReports, includeUser);
+        expect(result).toEqual(mockMappedReports);
+        });
+
+        it("should use default false for includeUser if not provided", async () => {
+        mockfindAllReportsFilteredByStatus.mockResolvedValue(mockRawReports);
+        mockMapReportsCollectionToAssignedListDTO.mockReturnValue(mockMappedReports);
+
+        await ReportService.getAllReportsFilteredByStatus(status);
+
+        // Verifica che il secondo parametro sia false (default)
+        expect(mockMapReportsCollectionToAssignedListDTO).toHaveBeenCalledWith(mockRawReports, false);
+        });
+    });
+
+    describe("updateReport", () => {
+        const reportId = 1;
+        const payload = { status: "Resolved" };
+        const mockReport = { id: reportId };
+
+        it("should update report if it exists", async () => {
+        // Setup: Report trovato
+        mockFindReportById.mockResolvedValue(mockReport);
+        mockUpdateReport.mockResolvedValue([1]);
+
+        const result = await ReportService.updateReport(reportId, payload);
+
+        expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+        expect(mockUpdateReport).toHaveBeenCalledWith(reportId, payload);
+        expect(result).toEqual([1]);
+        });
+
+        it("should throw 404 if report does not exist", async () => {
+        // Setup: Report non trovato
+        mockFindReportById.mockResolvedValue(null);
+
+        await expect(ReportService.updateReport(reportId, payload))
+            .rejects.toHaveProperty("statusCode", 404);
+
+        expect(mockUpdateReport).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("updateReportCategory", () => {
+        const reportId = 1;
+        const categoryId = 5;
+        const payload = { categoryId: categoryId };
+        const mockReport = { id: reportId };
+        const mockCategory = { id: categoryId, name: "Waste" };
+
+        it("should update report category if both report and category exist", async () => {
+        // Setup: Tutto esiste
+        mockFindReportById.mockResolvedValue(mockReport);
+        mockFindProblemCategoryById.mockResolvedValue(mockCategory);
+        mockUpdateReport.mockResolvedValue([1]);
+
+        const result = await ReportService.updateReportCategory(reportId, payload);
+
+        expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+        expect(mockFindProblemCategoryById).toHaveBeenCalledWith(categoryId);
+        expect(mockUpdateReport).toHaveBeenCalledWith(reportId, payload);
+        expect(result).toEqual([1]);
+        });
+
+        it("should throw 404 if report does not exist", async () => {
+        // Setup: Report manca
+        mockFindReportById.mockResolvedValue(null);
+
+        await expect(ReportService.updateReportCategory(reportId, payload))
+            .rejects.toHaveProperty("statusCode", 404);
+
+        // Verifica che si fermi prima di cercare la categoria
+        expect(mockFindProblemCategoryById).not.toHaveBeenCalled();
+        });
+
+        it("should throw 404 if category does not exist", async () => {
+        // Setup: Report c'è, ma Categoria manca
+        mockFindReportById.mockResolvedValue(mockReport);
+        mockFindProblemCategoryById.mockResolvedValue(null);
+
+        await expect(ReportService.updateReportCategory(reportId, payload))
+            .rejects.toThrow('Category with id "5" not found.');
+
+        expect(mockUpdateReport).not.toHaveBeenCalled();
         });
     });
 });

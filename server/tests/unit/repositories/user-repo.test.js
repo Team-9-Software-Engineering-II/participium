@@ -314,4 +314,25 @@ describe("User Repository (Unit)", () => {
       expect(result).toEqual(staffNull);
     });
   });
+
+  // --------------------------------------------------------------------------
+  // TEST: findUsersByCompanyId
+  // --------------------------------------------------------------------------
+  describe("findUsersByCompanyId", () => {
+    it("should find users by companyId with role included", async () => {
+      const companyId = 5;
+      const mockUsers = [{ id: 1, username: "maintainer", companyId: 5 }];
+      
+      mockUserModel.findAll.mockResolvedValue(mockUsers);
+
+      const result = await UserRepo.findUsersByCompanyId(companyId);
+
+      expect(mockUserModel.findAll).toHaveBeenCalledWith({
+        where: { companyId },
+        include: [{ model: mockDb.Role, as: "role" }]
+      });
+      
+      expect(result).toEqual(mockUsers);
+    });
+  });
 });
