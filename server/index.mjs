@@ -9,6 +9,7 @@ import cors from "cors";
 import { seedDatabase } from "./seeders/index.mjs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { connectRedis } from "./config/redis.mjs";
 
 const app = express();
 
@@ -84,10 +85,10 @@ function bootstrapExpress() {
         secure: sessionCookieSecure,
         sameSite: sessionSameSite,
         maxAge: 1000 * 60 * 60 * 24,
-        path: '/',
+        path: "/",
         domain: undefined, // Let browser handle domain for same-origin
       },
-      name: 'connect.sid',
+      name: "connect.sid",
       proxy: false, // Not behind a proxy in Docker
     })
   );
@@ -98,7 +99,13 @@ function bootstrapExpress() {
   // Debug middleware for session tracking (only in non-production)
   if (NODE_ENV !== "production") {
     app.use((req, res, next) => {
-      console.log(`[${req.method}] ${req.path} - Authenticated: ${req.isAuthenticated()}, User: ${req.user?.username || 'none'}`);
+      console.log(
+        `[${req.method}] ${
+          req.path
+        } - Authenticated: ${req.isAuthenticated()}, User: ${
+          req.user?.username || "none"
+        }`
+      );
       next();
     });
   }
@@ -141,16 +148,14 @@ db.sequelize
   .then(async () => {
     console.log("Database synced successfully.");
 
-    // Seed initial data
-    // <-- INIZIA LA MODIFICA
     if (shouldSeed) {
       console.log("Running database seeder...");
       await seedDatabase();
     }
-    // <-- FINE MODIFICA
+
+    await connectRedis();
 
     if (NODE_ENV !== "test") {
-      // Start the Express server only after the DB connection is ready
       app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);
       });

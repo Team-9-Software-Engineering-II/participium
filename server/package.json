@@ -5,9 +5,13 @@
   "main": "index.mjs",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand",
-    "start": "node index.mjs",
-    "dev": "nodemon index.mjs"
+    "redis:up" : "docker compose up -d redis",
+    "wait:redis": "wait-on tcp:6379",
+    "prestart": "npm run redis:up && npm run wait:redis",
+    "start": "node index.mjs", 
+    "predev": "npm run redis:up && npm run wait:redis",
+    "dev": "nodemon index.mjs",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +26,7 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "redis": "^5.10.0",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7",
     "winston": "^3.18.3",

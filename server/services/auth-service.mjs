@@ -214,15 +214,15 @@ export class AuthService {
   static #sanitizeUser(user) {
     const plainUser = user.get ? user.get({ plain: true }) : { ...user };
     delete plainUser.hashedPassword;
-    
+
     // Ensure role is properly converted to a plain object with name property
-    if (plainUser.role && typeof plainUser.role === 'object') {
+    if (plainUser.role && typeof plainUser.role === "object") {
       plainUser.role = {
         id: plainUser.role.id,
-        name: plainUser.role.name
+        name: plainUser.role.name,
       };
     }
-    
+
     return plainUser;
   }
 }
