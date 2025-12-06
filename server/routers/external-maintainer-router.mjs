@@ -1,12 +1,11 @@
 import { Router } from "express";
 import { isAuthenticated, isExternalMaintainer } from "../middlewares/auth.mjs";
-import { updateReportStatus } from "../controllers/report-controller";
-
+import { updateReportStatus } from "../controllers/report-controller.js";
 const router = Router();
 
 /**
  * Update status of an assigned report.
- * Route: PUT /offices/reports/:reportId/status
+ * Route: PUT /external-maintainer/reports/:reportId/status
  */
 router.put(
   "/reports/:reportId/status",

@@ -7,6 +7,7 @@ import initProblemCategoryModel from "./problem-category.mjs";
 import initReportModel from "./report.mjs";
 import initCompany from "./company.mjs";
 import initCompanyCategory from "./company-category.mjs";
+import initMessage from "./message.mjs";
 
 const db = {};
 
@@ -21,6 +22,7 @@ db.Category = initProblemCategoryModel(sequelize);
 db.Report = initReportModel(sequelize);
 db.Company = initCompany(sequelize);
 db.CompanyCategory = initCompanyCategory(sequelize);
+db.Message = initMessage(sequelize);
 
 /* User - Role relationship (1:N) */
 db.User.belongsTo(db.Role, {
@@ -139,5 +141,13 @@ db.Category.belongsToMany(db.Company, {
   otherKey: "company_id",
   as: "companies",
 });
+
+// User - Message relationship (1:N)
+db.User.hasMany(db.Message, { foreignKey: "userId", as: "messagesSent" });
+db.Message.belongsTo(db.User, { foreignKey: "userId", as: "author" });
+
+// Report - Message relationship (1:N)
+db.Report.hasMany(db.Message, { foreignKey: "reportId", as: "messages" });
+db.Message.belongsTo(db.Report, { foreignKey: "reportId", as: "report" });
 
 export default db;
