@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sun, Moon } from 'lucide-react';

@@ -1,4 +1,5 @@
 import * as React from "react"
+import PropTypes from "prop-types"
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -102,36 +103,66 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...props }) => {
-          return (<div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />);
-        },
-        Chevron: ({ className, orientation, ...props }) => {
-          if (orientation === "left") {
-            return (<ChevronLeftIcon className={cn("size-4", className)} {...props} />);
-          }
-
-          if (orientation === "right") {
-            return (<ChevronRightIcon className={cn("size-4", className)} {...props} />);
-          }
-
-          return (<ChevronDownIcon className={cn("size-4", className)} {...props} />);
-        },
+        Root: CalendarRoot,
+        Chevron: CalendarChevron,
         DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div
-                className="flex size-[--cell-size] items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          );
-        },
+        WeekNumber: CalendarWeekNumber,
         ...components,
       }}
       {...props} />
   );
 }
+Calendar.displayName = "Calendar"
+
+Calendar.propTypes = {
+  className: PropTypes.string,
+  classNames: PropTypes.object,
+  showOutsideDays: PropTypes.bool,
+  captionLayout: PropTypes.string,
+  buttonVariant: PropTypes.string,
+  formatters: PropTypes.object,
+  components: PropTypes.object,
+}
+
+// --- Componenti estratti per risolvere "Move component definition out" ---
+
+function CalendarRoot({ className, rootRef, ...props }) {
+  return (<div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />);
+}
+CalendarRoot.displayName = "CalendarRoot";
+CalendarRoot.propTypes = {
+  className: PropTypes.string,
+  rootRef: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+};
+
+function CalendarChevron({ className, orientation, ...props }) {
+  if (orientation === "left") {
+    return (<ChevronLeftIcon className={cn("size-4", className)} {...props} />);
+  }
+  if (orientation === "right") {
+    return (<ChevronRightIcon className={cn("size-4", className)} {...props} />);
+  }
+  return (<ChevronDownIcon className={cn("size-4", className)} {...props} />);
+}
+CalendarChevron.displayName = "CalendarChevron";
+CalendarChevron.propTypes = {
+  className: PropTypes.string,
+  orientation: PropTypes.string,
+};
+
+function CalendarWeekNumber({ children, ...props }) {
+  return (
+    <td {...props}>
+      <div className="flex size-[--cell-size] items-center justify-center text-center">
+        {children}
+      </div>
+    </td>
+  );
+}
+CalendarWeekNumber.displayName = "CalendarWeekNumber";
+CalendarWeekNumber.propTypes = {
+  children: PropTypes.node,
+};
 
 function CalendarDayButton({
   className,
@@ -168,6 +199,13 @@ function CalendarDayButton({
       )}
       {...props} />
   );
+}
+CalendarDayButton.displayName = "CalendarDayButton"
+
+CalendarDayButton.propTypes = {
+  className: PropTypes.string,
+  day: PropTypes.object,
+  modifiers: PropTypes.object,
 }
 
 export { Calendar, CalendarDayButton }

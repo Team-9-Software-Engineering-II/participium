@@ -5,16 +5,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import Navbar from '@/components/common/Navbar';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Calendar, User, MapPin, Tag, AlertTriangle, Check, X, ImageIcon, Clock, Building2 } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Tag, AlertTriangle, X, Clock, Building2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { format } from 'date-fns';
+import { toast } from 'sonner'; // Aggiunto import toast
 import 'leaflet/dist/leaflet.css';
 import '@/components/MapView.css';
 
@@ -36,18 +36,6 @@ const REPORT_STATUS_COLORS = {
   'Rejected': 'bg-red-500'
 };
 
-// const CATEGORIES = [
-//   { id: 1, name: 'Water Supply' },
-//   { id: 2, name: 'Architectural Barriers' },
-//   { id: 3, name: 'Sewer System' },
-//   { id: 4, name: 'Public Lighting' },
-//   { id: 5, name: 'Waste' },
-//   { id: 6, name: 'Road Signs' },
-//   { id: 7, name: 'Roads' },
-//   { id: 8, name: 'Public Green Areas' },
-//   { id: 9, name: 'Other' }
-// ];
-
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('blob:')) return path;
@@ -62,7 +50,7 @@ export default function ReportDetails() {
   const { theme } = useTheme();
   
   const [report, setReport] = useState(null);
-  const [address, setAddress] = useState('Loading address...'); // Stato per l'indirizzo
+  const [address, setAddress] = useState('Loading address...');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -71,12 +59,13 @@ export default function ReportDetails() {
   const [actionLoading, setActionLoading] = useState(false);
   const [categories, setCategories] = useState([]);
 
+  // Unico useEffect per caricare dati e categorie
   useEffect(() => {
     const loadData = async () => {
       try {
         const [reportRes, catRes] = await Promise.all([
           reportAPI.getById(id),
-          reportAPI.getCategories() // Chiamata parallela per efficienza
+          reportAPI.getCategories()
         ]);
         setReport(reportRes.data);
         setCategories(catRes.data);
@@ -91,11 +80,7 @@ export default function ReportDetails() {
     loadData();
   }, [id]);
 
-  useEffect(() => {
-    fetchReport();
-  }, [id]);
-
-  // Effetto per il Reverse Geocoding quando il report è caricato
+  // Effetto per il Reverse Geocoding
   useEffect(() => {
     if (report?.latitude && report?.longitude) {
       const fetchAddress = async () => {
@@ -103,7 +88,6 @@ export default function ReportDetails() {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${report.latitude}&lon=${report.longitude}&addressdetails=1`);
           const data = await res.json();
           
-          // Formattazione indirizzo simile a quella usata in CreateReport
           const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
           const houseNumber = data.address?.house_number || "";
           let formattedAddress = `${road} ${houseNumber}`.trim();
@@ -123,29 +107,17 @@ export default function ReportDetails() {
     }
   }, [report]);
 
-  const fetchReport = async () => {
-    try {
-      const response = await reportAPI.getById(id);
-      setReport(response.data);
-    } catch (err) {
-      console.error("Error fetching report:", err);
-      setError("Report not found or unavailable.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Corretto con Optional Chaining
   const isOfficer = () => {
-    if (!user || !user.role) return false;
+    if (!user?.role) return false;
     const roleName = typeof user.role === 'string' ? user.role : user.role.name;
-    return roleName && (
-      roleName.toLowerCase().includes('municipal') || 
-      roleName.toLowerCase().includes('officer')
-    );
+    return roleName?.toLowerCase().includes('municipal') || 
+           roleName?.toLowerCase().includes('officer');
   };
 
+  // Corretto con Optional Chaining
   const isPending = () => {
-    if (!report || !report.status) return false;
+    if (!report?.status) return false;
     const status = report.status.toLowerCase();
     return status === 'pending approval' || status === 'to assign' || status === 'pending';
   };
@@ -156,10 +128,11 @@ export default function ReportDetails() {
     setActionLoading(true);
     try {
       await urpAPI.reviewReport(report.id, 'assigned');
+      toast.success("Report assigned successfully"); // Toast invece di alert
       navigate('/municipal/dashboard');
     } catch (error) {
       console.error("Assign failed", error);
-      alert("Error assigning report.");
+      toast.error("Error assigning report."); // Toast error
     } finally {
       setActionLoading(false);
     }
@@ -171,10 +144,11 @@ export default function ReportDetails() {
     try {
       await urpAPI.reviewReport(report.id, 'rejected', rejectReason);
       setIsRejectDialogOpen(false);
+      toast.success("Report rejected"); // Toast success
       navigate('/municipal/dashboard');
     } catch (error) {
       console.error("Reject failed", error);
-      alert("Error rejecting report.");
+      toast.error("Error rejecting report."); // Toast error
     } finally {
       setActionLoading(false);
     }
@@ -182,20 +156,59 @@ export default function ReportDetails() {
 
   const handleCategoryChange = async (newCategoryId) => {
     try {
-      await urpAPI.updateReportCategory(report.id, parseInt(newCategoryId));
+      await urpAPI.updateReportCategory(report.id, Number.parseInt(newCategoryId));
       
-      // Trova la categoria completa dall'array caricato dal DB
-      const updatedCat = categories.find(c => c.id === parseInt(newCategoryId));
+      const updatedCat = categories.find(c => c.id === Number.parseInt(newCategoryId));
       
       setReport(prev => ({ 
         ...prev, 
-        categoryId: parseInt(newCategoryId), 
+        categoryId: Number.parseInt(newCategoryId), 
         category: updatedCat 
       }));
+      toast.success("Category updated"); // Toast success
     } catch (error) {
       console.error("Category update failed", error);
-      alert("Failed to update category");
+      toast.error("Failed to update category"); // Toast error
     }
+  };
+
+  // Funzione helper per risolvere ternario annidato (S3358)
+  const renderAssigneeInfo = () => {
+    if (isPending()) {
+      return (
+        <span className="text-muted-foreground flex items-center justify-start md:justify-end gap-2">
+          Not assigned yet <Clock className="h-4 w-4" /> 
+        </span>
+      );
+    }
+
+    if (report.status === 'Rejected') {
+      return (
+        <span className="text-destructive flex items-center justify-start md:justify-end gap-2">
+          Rejected <X className="h-4 w-4" /> 
+        </span>
+      );
+    }
+
+    return (
+      <div className="text-primary flex flex-col items-start md:items-end">
+        <span className="text-xs text-muted-foreground mb-0.5">Assigned to</span>
+        
+        {report.assignee ? (
+          <span className="flex items-center gap-2 font-semibold">
+            {report.assignee.firstName} {report.assignee.lastName} <User className="h-4 w-4" />
+          </span>
+        ) : (
+           <span className="flex items-center gap-2 font-semibold">
+            Technical Staff <User className="h-4 w-4" />
+          </span>
+        )}
+
+        <span className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+          Office: {report.technicalOffice?.name || "Technical Office"} <Building2 className="h-3 w-3" />
+        </span>
+      </div>
+    );
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center">Loading details...</div>;
@@ -217,9 +230,7 @@ export default function ReportDetails() {
 
         <div className="space-y-6">
           
-          {/* 1. Header Responsivo */}
           <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-            {/* Colonna Sinistra: Titolo e Dettagli */}
             <div className="space-y-2 flex-1 w-full">
               <h1 data-cy="report-title" className="text-2xl md:text-3xl font-bold tracking-tight">{report.title}</h1>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -234,47 +245,18 @@ export default function ReportDetails() {
               )}
             </div>
 
-            {/* Colonna Destra: Status e Assignee */}
             <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto mt-2 md:mt-0">
-              {/* Status Badge */}
               <Badge data-cy="status-badge" className={`${REPORT_STATUS_COLORS[report.status] || 'bg-gray-500'} h-6 text-xs px-2 text-white border-0`}>
                 {report.status}
               </Badge>
 
-              {/* Assignee Info */}
+              {/* Assignee Info Refattorizzato */}
               <div className="text-sm font-medium text-left md:text-right">
-                {isPending() ? (
-                  <span className="text-muted-foreground flex items-center justify-start md:justify-end gap-2">
-                    Not assigned yet <Clock className="h-4 w-4" /> 
-                  </span>
-                ) : report.status === 'Rejected' ? (
-                  <span className="text-destructive flex items-center justify-start md:justify-end gap-2">
-                    Rejected <X className="h-4 w-4" /> 
-                  </span>
-                ) : (
-                  <div className="text-primary flex flex-col items-start md:items-end">
-                    <span className="text-xs text-muted-foreground mb-0.5">Assigned to</span>
-                    
-                    {report.assignee ? (
-                      <span className="flex items-center gap-2 font-semibold">
-                        {report.assignee.firstName} {report.assignee.lastName} <User className="h-4 w-4" />
-                      </span>
-                    ) : (
-                       <span className="flex items-center gap-2 font-semibold">
-                        Technical Staff <User className="h-4 w-4" />
-                      </span>
-                    )}
-
-                    <span className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                      Office: {report.technicalOffice?.name || "Technical Office"} <Building2 className="h-3 w-3" />
-                    </span>
-                  </div>
-                )}
+                {renderAssigneeInfo()}
               </div>
             </div>
           </div>
 
-          {/* 2. Descrizione */}
           <div className="bg-card border rounded-lg p-6 space-y-2">
             <h2 className="text-xl font-semibold">Description</h2>
             <p data-cy="report-description" className="text-muted-foreground leading-relaxed whitespace-pre-wrap text-sm">
@@ -282,7 +264,6 @@ export default function ReportDetails() {
             </p>
           </div>
 
-          {/* 3. Mappa Responsiva */}
           <div className="bg-card border rounded-lg overflow-hidden" data-cy="map-section">
             <div className={`h-[300px] md:h-[500px] w-full relative z-0 ${theme === 'dark' ? 'dark-map' : ''}`}>
                <div className="absolute inset-0 z-[1000] bg-transparent cursor-default" />
@@ -301,17 +282,14 @@ export default function ReportDetails() {
                  <Marker position={[report.latitude, report.longitude]} icon={staticIcon} />
                </MapContainer>
             </div>
-            {/* FOOTER MAPPA: Indirizzo (Reverse Geocoding) e Coordinate */}
             <div className="p-4 bg-background border-t flex items-center gap-3">
                <div className="flex-shrink-0 bg-primary/10 p-2 rounded-full">
                  <MapPin className="h-5 w-5 text-primary" />
                </div>
                <div className="flex-1 min-w-0">
-                 {/* Indirizzo dinamico */}
                  <p className="font-medium text-sm truncate">
                    {address}
                  </p>
-                 {/* Coordinate */}
                  <p className="text-xs text-muted-foreground font-mono">
                    {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
                  </p>
@@ -319,9 +297,7 @@ export default function ReportDetails() {
             </div>
           </div>
 
-          {/* 4. Categoria e Autore */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Categoria */}
             <div className="bg-card border rounded-lg p-6 space-y-2">
               <Label className="text-sm text-muted-foreground">Category</Label>
               {showActions ? (
@@ -346,7 +322,6 @@ export default function ReportDetails() {
               )}
             </div>
 
-            {/* Autore */}
             <div className="bg-card border rounded-lg p-6 space-y-2">
               <Label className="text-sm text-muted-foreground">Submitted By</Label>
               <div className="flex items-center gap-3">
@@ -362,13 +337,12 @@ export default function ReportDetails() {
             </div>
           </div>
 
-          {/* 5. Foto */}
           <div className="bg-card border rounded-lg p-6 space-y-4">
             <h2 className="text-xl font-semibold">Photos</h2>
             {report.photos && report.photos.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-cy="photos-section">
                 {report.photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
+                  <div key={photo || `photo-${index}`} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
                     <img 
                       src={getImageUrl(photo)}
                       alt={`Evidence ${index + 1}`}
@@ -386,7 +360,6 @@ export default function ReportDetails() {
             )}
           </div>
 
-          {/* 6. Pulsanti Azione */}
           {showActions && (
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 w-full">
               <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>

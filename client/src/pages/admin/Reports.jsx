@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarCheck, Filter, MapPin, MoreHorizontal, Tag } from 'lucide-react';
+import { CalendarCheck, Filter, MapPin, MoreHorizontal, Tag } from 'lucide-react';
 
 const reportFilters = [
   { label: 'All reports', count: 342 },
@@ -92,7 +92,7 @@ export default function Reports() {
           <div className="space-y-2 text-sm">
             {reportFilters.map((filter) => (
               <button
-                data-cy={`report-filter-${filter.label.toLowerCase().replace(/\s+/g, '-')}`}
+                data-cy={`report-filter-${filter.label.toLowerCase().replaceAll(/\s+/g, '-')}`}
                 key={filter.label}
                 type="button"
                 className="flex w-full items-center justify-between rounded-md border border-border/60 bg-background px-3 py-2 text-left font-medium text-muted-foreground transition hover:border-primary/60 hover:text-primary"

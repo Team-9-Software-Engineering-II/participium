@@ -21,18 +21,19 @@ import TechnicianLayout from './pages/technician/TechnicianLayout';
 import TechnicianReports from './pages/technician/TechnicianReports';
 import { Toaster } from "@/components/ui/sonner"
 
-function App() {
-  const HomeRoute = () => {
-    const { user } = useAuth();
-    if (user && (user.role === 'municipal' || user.role === 'officer')) {
-      return <Navigate to="/municipal/dashboard" replace />;
-    }
-    if (user && user.role === 'technical') {
-      return <Navigate to="/technical/dashboard" replace />;
-    }
-    return <Home />;
-  };
+// Componente spostato fuori da App per risolvere S6478
+const HomeRoute = () => {
+  const { user } = useAuth();
+  if (user?.role === 'municipal' || user?.role === 'officer') {
+    return <Navigate to="/municipal/dashboard" replace />;
+  }
+  if (user?.role === 'technical') {
+    return <Navigate to="/technical/dashboard" replace />;
+  }
+  return <Home />;
+};
 
+function App() {
   return (
     <Router>
       <ThemeProvider>

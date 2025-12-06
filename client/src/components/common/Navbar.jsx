@@ -34,9 +34,9 @@ export default function Navbar() {
     roleName.toLowerCase().includes('municipal') || 
     roleName.toLowerCase().includes('officer')
   );
-  const isAdmin = roleName && roleName.toLowerCase().includes('admin');
-  const isTechnician = roleName && roleName.toLowerCase().includes('technical');
-  const isCitizen = roleName && roleName.toLowerCase().includes('citizen');
+  const isAdmin = roleName?.toLowerCase().includes('admin');
+  const isTechnician = roleName?.toLowerCase().includes('technical');
+  const isCitizen = roleName?.toLowerCase().includes('citizen');
 
   // Funzione per determinare il link della Home/Logo
   const getHomeLink = () => {
@@ -69,14 +69,6 @@ export default function Navbar() {
 
   const toggleDarkMode = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-
-  // Get user initials for avatar fallback
-  const getUserInitials = () => {
-    if (!user) return 'U';
-    const firstInitial = user.firstName?.charAt(0) || '';
-    const lastInitial = user.lastName?.charAt(0) || '';
-    return (firstInitial + lastInitial).toUpperCase() || 'U';
   };
 
   return (
@@ -130,9 +122,9 @@ export default function Navbar() {
                       </div>
                     ) : (
                       <div className="max-h-[400px] overflow-y-auto">
-                        {notifications.slice(0, 10).map((notification, index) => (
+                        {notifications.slice(0, 10).map((notification) => (
                           <div
-                            key={index}
+                            key={notification.id}
                             className="flex gap-3 px-4 py-3 hover:bg-accent cursor-pointer border-b last:border-b-0 relative"
                           >
                             {/* Avatar/Icon */}

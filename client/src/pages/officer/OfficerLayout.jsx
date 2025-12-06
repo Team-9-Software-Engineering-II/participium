@@ -38,7 +38,7 @@ const getNavigationItems = (counts) => [
     count: counts.rejected,
     badgeVariant: "secondary",
   },
-];
+  ];
 
 const navLinkClasses = ({ isActive }) =>
   [
@@ -49,6 +49,18 @@ const navLinkClasses = ({ isActive }) =>
   ]
     .filter(Boolean)
     .join(" ");
+
+const getNavDataCy = (idx) => {
+  if (idx === 0) return "nav-pending";
+  if (idx === 1) return "nav-assigned";
+  return "nav-rejected";
+};
+
+const getBadgeDataCy = (idx) => {
+  if (idx === 0) return "badge-pending";
+  if (idx === 1) return "badge-assigned";
+  return "badge-rejected";
+};
 
 export default function OfficerLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -130,13 +142,7 @@ export default function OfficerLayout() {
                   key={item.name}
                   to={item.to}
                   className={navLinkClasses}
-                  data-cy={
-                    idx === 0
-                      ? "nav-pending"
-                      : idx === 1
-                      ? "nav-assigned"
-                      : "nav-rejected"
-                  }
+                  data-cy={getNavDataCy(idx)}
                 >
                   <div className="flex items-center gap-3">
                     <item.icon className="h-4 w-4" />
@@ -148,13 +154,7 @@ export default function OfficerLayout() {
                     <Badge
                       variant={item.badgeVariant}
                       className="ml-auto"
-                      data-cy={
-                        idx === 0
-                          ? "badge-pending"
-                          : idx === 1
-                          ? "badge-assigned"
-                          : "badge-rejected"
-                      }
+                      data-cy={getBadgeDataCy(idx)}
                     >
                       {item.count}
                     </Badge>
@@ -187,9 +187,11 @@ export default function OfficerLayout() {
       {/* Mobile Sidebar */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <button
+            type="button"
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Close sidebar"
           />
           <div className="relative flex h-full w-72 flex-col gap-4 border-r bg-background p-6 shadow-xl">
             <div className="flex items-center justify-between">
