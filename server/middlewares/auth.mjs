@@ -27,6 +27,13 @@ export function isTechnicalStaff(req, res, next) {
   return res.status(403).json({ error: "Forbidden: technical staff only" });
 }
 
+export function isExternalMaintainer(req, res, next) {
+  if (req.user?.role?.name === "external_maintainer") {
+    return next();
+  }
+  return res.status(403).json({ error: "Forbidden: external maintainer only" });
+}
+
 export function isPublicRelationsOfficer(req, res, next) {
   if (req.user?.role?.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER) {
     return next();
@@ -78,4 +85,3 @@ export function isOwnerOrPublicRelationsOfficer(req, res, next) {
   if (isPublicRelationsOfficer()) return next();
   return authorizationFailed;
 }
-

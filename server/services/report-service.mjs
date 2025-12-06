@@ -8,8 +8,14 @@ import {
   findReportsByTechnicalOfficerId,
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
-import { findStaffWithFewestReports, findExternalMaintainerWithFewestReports } from "../repositories/user-repo.mjs";
-import { findCompanyById, findCompaniesByCategoryId } from "../repositories/company-repo.mjs";
+import {
+  findStaffWithFewestReports,
+  findExternalMaintainerWithFewestReports,
+} from "../repositories/user-repo.mjs";
+import {
+  findCompanyById,
+  findCompaniesByCategoryId,
+} from "../repositories/company-repo.mjs";
 import {
   sanitizeReport,
   sanitizeReports,
@@ -200,6 +206,17 @@ export class ReportService {
   }
 
   /**
+   * Allow to check if a report is associated to the current autenticated user
+   */
+  static async isReportAssociatedToAuthenticatedUser(report, userId) {
+    return (
+      report.technicalOfficerId === userId ||
+      report.externalMaintainerId === userId ||
+      report.userId === userId
+    );
+  }
+
+  /**
    * Retrieves the reports created by the selected user.
    * @param {number} userId - Identifier of the report owner.
    * @returns {Promise<object[]>} Sanitized reports collection.
@@ -307,7 +324,9 @@ export class ReportService {
     }
 
     // 4. Find the external maintainer with the fewest active reports
-    const bestMaintainer = await findExternalMaintainerWithFewestReports(companyId);
+    const bestMaintainer = await findExternalMaintainerWithFewestReports(
+      companyId
+    );
 
     if (!bestMaintainer) {
       const error = new Error(
@@ -341,7 +360,7 @@ export class ReportService {
     }
 
     const companies = await findCompaniesByCategoryId(report.categoryId);
-    
+
     return companies;
   }
 }

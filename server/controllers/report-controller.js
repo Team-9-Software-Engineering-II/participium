@@ -122,7 +122,9 @@ export async function reviewReport(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res.status(400).json({ message: "reportId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "reportId must be a positive integer." });
     }
 
     const { action, rejectionReason } = req.body;
@@ -131,20 +133,24 @@ export async function reviewReport(req, res, next) {
       // Chiama la logica di Load Balancing
       const updatedReport = await ReportService.acceptReport(reportId);
       return res.status(200).json(updatedReport);
-    } 
-    else if (action === "rejected") {
+    } else if (action === "rejected") {
       // Validazione base per il rifiuto
       if (!rejectionReason || rejectionReason.trim() === "") {
-        return res.status(400).json({ message: "Rejection reason is mandatory when rejecting a report." });
+        return res.status(400).json({
+          message: "Rejection reason is mandatory when rejecting a report.",
+        });
       }
-      
-      const updatedReport = await ReportService.rejectReport(reportId, rejectionReason);
-      return res.status(200).json(updatedReport);
-    } 
-    else {
-      return res.status(400).json({ message: "Invalid action. Allowed values: 'assigned', 'rejected'." });
-    }
 
+      const updatedReport = await ReportService.rejectReport(
+        reportId,
+        rejectionReason
+      );
+      return res.status(200).json(updatedReport);
+    } else {
+      return res.status(400).json({
+        message: "Invalid action. Allowed values: 'assigned', 'rejected'.",
+      });
+    }
   } catch (error) {
     return next(error);
   }
@@ -186,7 +192,7 @@ export async function getMyAssignedReports(req, res, next) {
   try {
     // L'ID dell'utente loggato è in req.user.id (grazie a passport/session)
     const officerId = req.user.id;
-    
+
     const reports = await ReportService.getReportsAssignedToOfficer(officerId);
     return res.status(200).json(reports);
   } catch (error) {
@@ -195,7 +201,7 @@ export async function getMyAssignedReports(req, res, next) {
 }
 
 /**
- * Allows technical staff to update the status of a report.
+ * Allows technical staff or external maintainer to update the status of a report.
  * Restricted to specific status transitions.
  */
 export async function updateReportStatus(req, res, next) {
@@ -206,25 +212,41 @@ export async function updateReportStatus(req, res, next) {
     }
 
     const { status } = req.body;
-    
+
     // Definiamo gli stati permessi per il tecnico
     const allowedStatuses = ["In Progress", "Resolved", "Suspended"];
-    
+
     if (!status || !allowedStatuses.includes(status)) {
-      return res.status(400).json({ 
-        message: `Invalid status. Allowed values: ${allowedStatuses.join(", ")}` 
+      return res.status(400).json({
+        message: `Invalid status. Allowed values: ${allowedStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+    const reportToBeUpdated = await ReportService.getReportById(reportId);
+    if (!reportToBeUpdated) {
+      return res.status(404).json({
+        message: `Report with ID ${reportId} not found`,
+      });
+    }
+    const isReportManagedByCurrentAuthenticatedUser =
+      await ReportService.isReportAssociatedToAuthenticatedUser(
+        reportToBeUpdated,
+        req.user.id
+      );
+
+    if (isReportManagedByCurrentAuthenticatedUser) {
+      await ReportService.updateReport(reportId, {
+        status,
+      });
+    } else {
+      res.status(403).json({
+        message: `You are not assigned to manage report with ID ${reportId}`,
       });
     }
 
-    // Usiamo il metodo generico di update del servizio
-    // Nota: Assicurati che ReportService.updateReport esista e sia accessibile
-    // (dal file che hai caricato, sembra esistere)
-    const updatedReport = await ReportService.updateReport(reportId, { status });
-    
-    // Ritorniamo il report aggiornato
-    // Per essere sicuri di avere l'oggetto completo aggiornato, lo rileggiamo
     const freshReport = await ReportService.getReportById(reportId);
-    
+
     return res.status(200).json(freshReport);
   } catch (error) {
     return next(error);
@@ -239,25 +261,29 @@ export async function assignReportToExternalMaintainer(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res.status(400).json({ message: "reportId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "reportId must be a positive integer." });
     }
 
     const { companyId } = req.body;
-    
+
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required." });
     }
 
     const companyIdNumber = Number(companyId);
     if (!Number.isInteger(companyIdNumber) || companyIdNumber <= 0) {
-      return res.status(400).json({ message: "companyId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "companyId must be a positive integer." });
     }
 
     const updatedReport = await ReportService.assignReportToExternalMaintainer(
       reportId,
       companyIdNumber
     );
-    
+
     return res.status(200).json(updatedReport);
   } catch (error) {
     return next(error);
@@ -271,11 +297,15 @@ export async function getEligibleCompanies(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res.status(400).json({ message: "reportId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "reportId must be a positive integer." });
     }
 
-    const companies = await ReportService.getEligibleCompaniesForReport(reportId);
-    
+    const companies = await ReportService.getEligibleCompaniesForReport(
+      reportId
+    );
+
     return res.status(200).json(companies);
   } catch (error) {
     return next(error);
