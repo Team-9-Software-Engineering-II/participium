@@ -1,6 +1,6 @@
 /**
- * @file E2E Test for User Story PT03 - Admin Role Assignment
- * @description This test covers the full end-to-end flow for an admin assigning
+ * @file Integration Test for User Story PT03 - Admin Role Assignment
+ * @description This test covers the full flow for an admin assigning
  * roles to municipality users, including security and validation.
  */
 
@@ -9,67 +9,70 @@ process.env.NODE_ENV = "test";
 import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
-import { sequelize } from "../../config/db/db-config.mjs";
-import { seedDatabase } from "../../seeders/index.mjs";
+
+// Import all necessary utilities from the test-utils.js file
+import {
+  setupTestDatabase,
+  teardownTestDatabase,
+  loginAndGetCookie,
+  uniqueId,
+  adminLogin as defaultAdminLogin,
+} from "./test-utils.js";
 
 // --- Global variables for storing session cookies and user data ---
+/** @type {string} */
 let adminCookie;
+/** @type {string} */
 let attackerCitizenCookie;
+/** @type {number} */
 let targetCitizenId;
 
-const uniqueId = Date.now();
+// The local 'uniqueId' variable is replaced by the imported one, but we define
+// the test-specific user data here.
+/** @type {number} */
+const specificUniqueId = uniqueId + 1; // A small offset for differentiation
 
 // --- Test User Definitions ---
 
 /**
- * The target user whose role will be changed by the admin.
+ * @type {object} The target user whose role will be changed by the admin.
  */
 const targetCitizen = {
-  email: `e2e-target-${uniqueId}@example.com`,
-  username: `e2e-target${uniqueId}`,
+  email: `target-${specificUniqueId}@example.com`,
+  username: `target${specificUniqueId}`,
   firstName: "Target",
   lastName: "Citizen",
   password: "Password123!",
 };
 
 /**
- * A second user to test the 403 Forbidden scenario (non-admin trying to assign roles).
+ * @type {object} A second user to test the 403 Forbidden scenario (non-admin trying to assign roles).
  */
 const attackerCitizen = {
-  email: `e2e-attacker-${uniqueId}@example.com`,
-  username: `e2e-attacker${uniqueId}`,
+  email: `attacker-${specificUniqueId + 1}@example.com`,
+  username: `attacker${specificUniqueId + 1}`,
   firstName: "Attacker",
   lastName: "Citizen",
   password: "Password123!",
 };
 
 /**
- * Admin credentials.
- * @important THIS ASSUMES your seedDatabase() function creates a default admin
- * with these credentials. Adjust them to match your seeder.
+ * @type {object} Admin credentials imported from test-utils.js.
  */
-const adminLogin = {
-  username: "admin@participium.com",
-  password: "password123",
-};
+const adminLogin = defaultAdminLogin;
 
 // --- Test Hooks (Setup & Teardown) ---
 
 beforeAll(async () => {
-  // Reset the test database and run seeders
-  await sequelize.sync({ force: true });
-  await seedDatabase();
+  await setupTestDatabase();
 });
 
 afterAll(async () => {
-  // Close the database connection after all tests
-  if (sequelize) {
-    await sequelize.close();
-  }
+  await teardownTestDatabase();
 });
 
 /**
- * Preamble: Register all necessary users and log in to get session cookies.
+ * @description Preamble: Register all necessary users and log in to get session cookies.
  * This block runs before the main tests.
  */
 describe("Preamble: User Setup & Login", () => {
@@ -83,30 +86,27 @@ describe("Preamble: User Setup & Login", () => {
     expect(res.statusCode).toBe(201);
   });
 
+  // Use the loginAndGetCookie function from test-utils.js
   it("should login as Admin and store the admin cookie", async () => {
-    const res = await request(app).post("/auth/login").send(adminLogin);
-
-    // If this fails, check the 'adminLogin' object above
-    expect(res.statusCode).toBe(200);
-    // Assuming the response body contains user data with role name
-    expect(res.body.user.role.name).toBe("admin");
-
-    adminCookie = res.headers["set-cookie"];
+    // loginAndGetCookie handles the login request and cookie extraction
+    adminCookie = await loginAndGetCookie(adminLogin);
     expect(adminCookie).toBeDefined();
+
+    const res = await request(app).get("/users/me").set("Cookie", adminCookie);
+    expect(res.statusCode).toBe(200);
   });
 
+  // Use the loginAndGetCookie function from test-utils.js
   it("should login as 'attacker' citizen and store their cookie", async () => {
-    const res = await request(app).post("/auth/login").send({
+    attackerCitizenCookie = await loginAndGetCookie({
       username: attackerCitizen.username,
       password: attackerCitizen.password,
     });
-    expect(res.statusCode).toBe(200);
-    attackerCitizenCookie = res.headers["set-cookie"];
     expect(attackerCitizenCookie).toBeDefined();
   });
 
   it("should login as 'target' citizen to get their ID", async () => {
-    // We log in the target user just to easily retrieve their ID
+    // We keep the original logic here to easily retrieve the ID from the body
     const res = await request(app).post("/auth/login").send({
       username: targetCitizen.username,
       password: targetCitizen.password,

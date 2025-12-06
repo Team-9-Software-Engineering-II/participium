@@ -12,11 +12,13 @@ const mockCategoryModel = {
 
 // Mock the TechnicalOffice model (needed for 'include' option)
 const mockTechnicalOfficeModel = {};
+const mockCompanyModel = {};
 
 // Mock the DB module (index.mjs)
 const mockDb = {
   Category: mockCategoryModel,
   TechnicalOffice: mockTechnicalOfficeModel,
+  Company: mockCompanyModel,
 };
 
 // Dynamically mock the DB module path (used by the repository)
@@ -171,4 +173,55 @@ describe("Problem Category Repository (Unit)", () => {
       expect(result).toBe(false);
     });
   });
+
+  // --------------------------------------------------------------------------
+  // TEST: findCategoryByIdWithCompanies
+  // --------------------------------------------------------------------------
+  describe("findCategoryByIdWithCompanies", () => {
+    it("should find category with companies and technical office included", async () => {
+      const category = { id: 1, name: "Roads" };
+      mockCategoryModel.findByPk.mockResolvedValue(category);
+
+      const result = await ProblemCategoryRepo.findCategoryByIdWithCompanies(1);
+
+      expect(mockCategoryModel.findByPk).toHaveBeenCalledWith(1, {
+        include: [
+          {
+            model: mockDb.Company,
+            as: "companies",
+            through: { attributes: [] },
+          },
+          { model: mockDb.TechnicalOffice, as: "technicalOffice" },
+        ],
+      });
+      expect(result).toEqual(category);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: addCompanyToCategory
+  // --------------------------------------------------------------------------
+  describe("addCompanyToCategory", () => {
+    it("should add company to category if found", async () => {
+      const mockCategoryInstance = {
+        id: 1,
+        addCompany: jest.fn().mockResolvedValue(true)
+      };
+      mockCategoryModel.findByPk.mockResolvedValue(mockCategoryInstance);
+
+      await ProblemCategoryRepo.addCompanyToCategory(1, 5);
+
+      expect(mockCategoryModel.findByPk).toHaveBeenCalledWith(1);
+      expect(mockCategoryInstance.addCompany).toHaveBeenCalledWith(5);
+    });
+
+    it("should throw error if category not found", async () => {
+      mockCategoryModel.findByPk.mockResolvedValue(null);
+
+      await expect(ProblemCategoryRepo.addCompanyToCategory(99, 5))
+        .rejects.toThrow("Category not found");
+    });
+  });
+
+  
 });
