@@ -5,10 +5,10 @@
   "main": "index.mjs",
   "type": "module",
   "scripts": {
-    "redis:up" : "docker compose up -d redis",
+    "redis:up": "docker compose up -d redis",
     "wait:redis": "wait-on tcp:6379",
     "prestart": "npm run redis:up && npm run wait:redis",
-    "start": "node index.mjs", 
+    "start": "node index.mjs",
     "predev": "npm run redis:up && npm run wait:redis",
     "dev": "nodemon index.mjs",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand"
@@ -35,6 +35,8 @@
   },
   "devDependencies": {
     "node-mocks-http": "^1.17.2",
-    "supertest": "^7.1.4"
+    "nodemon": "^3.1.11",
+    "supertest": "^7.1.4",
+    "wait-on": "^9.0.3"
   }
 }

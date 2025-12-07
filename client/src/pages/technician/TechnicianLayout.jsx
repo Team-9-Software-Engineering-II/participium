@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Menu, X, ClipboardList, CheckCircle2, User } from "lucide-react";
+import { Menu, X, ClipboardList, CheckCircle2, User, Users } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { staffAPI } from "@/services/api"; // Usa staffAPI per i report assegnati
@@ -11,7 +11,7 @@ const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function TechnicianLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [counts, setCounts] = useState({ active: 0, history: 0 });
+  const [counts, setCounts] = useState({ active: 0, maintainer: 0, history: 0 });
   const { user } = useAuth();
   const location = useLocation();
 
@@ -23,15 +23,22 @@ export default function TechnicianLayout() {
         const response = await staffAPI.getAssignedReports();
         const allReports = response.data;
 
+        // Attivi: Non finiti E non assegnati a ditta esterna (companyId nullo o assente)
         const activeCount = allReports.filter(
-          (r) => !FINISHED_STATUSES.has(r.status)
+          (r) => !FINISHED_STATUSES.has(r.status) && !r.companyId
         ).length;
 
+        // Maintainer: Non finiti E assegnati a ditta esterna
+        const maintainerCount = allReports.filter(
+            (r) => !FINISHED_STATUSES.has(r.status) && r.companyId
+        ).length;
+
+        // Storico: Finiti
         const historyCount = allReports.filter(
           (r) => FINISHED_STATUSES.has(r.status)
         ).length;
 
-        setCounts({ active: activeCount, history: historyCount });
+        setCounts({ active: activeCount, maintainer: maintainerCount, history: historyCount });
       } catch (error) {
         console.error("Error fetching report counts:", error);
       }
@@ -48,6 +55,14 @@ export default function TechnicianLayout() {
       icon: ClipboardList,
       count: counts.active,
       badgeVariant: "destructive", // Rosso per attirare attenzione
+    },
+    {
+      name: "Maintainers Reports",
+      description: "External assignments",
+      to: "reports/maintainer",
+      icon: Users,
+      count: counts.maintainer,
+      badgeVariant: "secondary",
     },
     {
       name: "Resolved Reports",
