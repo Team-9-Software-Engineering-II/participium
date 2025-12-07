@@ -634,6 +634,46 @@ paths:
         '404':
           description: Report not found.
 
+  /messages/reports/{reportId}:
+    post:
+      summary: Create a new message for a report
+      description: >
+        Allows a technical officer or external maintainer assigned to a report to create a new message.
+        The user must be either the technicalOfficerId or externalMaintainerId of the specified report.
+        The userId is automatically taken from the authenticated session.
+      tags: [Messages]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Message successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Invalid reportId, missing content, or empty content
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - user must be the technical officer or external maintainer assigned to this report
+        '404':
+          description: Report not found
+
 components:
   securitySchemes:
     CookieAuth:
@@ -1181,6 +1221,59 @@ components:
         country:
           type: string
       required: [id, name, address, region, country]
+
+    MessageCreate:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: The message content/text
+          minLength: 1
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the message
+        content:
+          type: string
+          description: The message content/text
+        reportId:
+          type: integer
+          description: ID of the report this message belongs to
+        userId:
+          type: integer
+          description: ID of the user who created the message
+        author:
+          $ref: '#/components/schemas/MessageAuthor'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the message was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the message was last updated
+
+    MessageAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoURL:
+          type: string
+          format: uri
+          nullable: true
+        roleId:
+          type: integer
           
           
 
