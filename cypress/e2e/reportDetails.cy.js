@@ -1,5 +1,3 @@
-/** @module OfficerReportReviewFlow */
-
 import OfficerLayoutPage from "../pages/officer/officerLayout.page";
 import OfficerReportsPage from "../pages/officer/officerReports.page";
 import ReportDetailPage from "../pages/reportDetails.page";

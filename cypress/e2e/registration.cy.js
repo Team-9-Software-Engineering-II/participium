@@ -1,7 +1,16 @@
 import RegisterPage from "../pages/register.page";
 import { requiredFieldsRegistration } from "../support/constants";
 
+/**
+ * @description Test suite for verifying the user registration process,
+ * including success case and various failure/validation checks.
+ * @type {Cypress.Spec}
+ */
 describe("Registration Flow", () => {
+  /**
+   * @description Test case for a successful user registration.
+   * It uses unique credentials to avoid conflicts and verifies the final state (status code and URL).
+   */
   it("should allow successful registration", () => {
     RegisterPage.visit();
     const uniqueId = Date.now();
@@ -20,6 +29,10 @@ describe("Registration Flow", () => {
     cy.url().should("eq", Cypress.config().baseUrl + "/");
   });
 
+  /**
+   * @description Test case to verify that registration fails when the 'password'
+   * and 'confirm password' fields do not match.
+   */
   it("should fail if passwords do not match", () => {
     RegisterPage.visit();
     RegisterPage.fillForm({
@@ -36,6 +49,10 @@ describe("Registration Flow", () => {
       .should("contain.text", "Passwords do not match");
   });
 
+  /**
+   * @description Test case to verify that registration fails if the entered password
+   * does not meet the minimum length requirement.
+   */
   it("should fail if passwords is too short", () => {
     RegisterPage.visit();
     RegisterPage.fillForm({
@@ -52,7 +69,12 @@ describe("Registration Flow", () => {
       .should("contain.text", "Password must be at least 6 characters");
   });
 
-for (const field of requiredFieldsRegistration) {
+  /**
+   * @description Iterates through the list of required registration fields to ensure
+   * registration fails when any one of them is missing.
+   * @param {string} field - The required field being tested for omission.
+   */
+  for (const field of requiredFieldsRegistration) {
     it(`should fail if ${field} is missing`, () => {
       const formData = {
         email: "test2@example.com",
@@ -71,8 +93,12 @@ for (const field of requiredFieldsRegistration) {
       // Checks that the page is still "/register"
       cy.url().should("eq", Cypress.config().baseUrl + "/register");
     });
-  };
+  }
 
+  /**
+   * @description Test case to verify that registration fails with a conflict status
+   * code (409) and an appropriate message if the email is already in use.
+   */
   it("should fail if email is already in use", () => {
     RegisterPage.visit();
 
@@ -97,11 +123,17 @@ for (const field of requiredFieldsRegistration) {
       .should("contain.text", "Email is already registered.");
   });
 
+  /**
+   * @description Test case to ensure the login page is accessible from the application.
+   */
   it("should allow access to the login page", () => {
     cy.visit("/login");
     cy.url().should("eq", Cypress.config().baseUrl + "/login");
   });
 
+  /**
+   * @description Test case to ensure the home page is accessible from the application.
+   */
   it("should allow access to the home page", () => {
     cy.visit("/");
     cy.url().should("eq", Cypress.config().baseUrl + "/");
