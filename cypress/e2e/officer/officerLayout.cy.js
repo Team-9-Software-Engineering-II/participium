@@ -11,7 +11,7 @@ describe("Officer Dashboard E2E - Sidebar counts & navigation", () => {
   it("should navigate to Assigned Reports and open a report detail", () => {
     OfficerLayoutPage.goToAssigned();
     cy.url().should("include", "/municipal/assigned");
-    OfficerReportsPage.elements.reportCard().click();
+    OfficerReportsPage.elements.reportCard().first().click();
   });
 
   it("should navigate to Rejected Reports", () => {
