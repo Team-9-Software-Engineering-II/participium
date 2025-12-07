@@ -24,7 +24,7 @@ class ReportDetailPage {
     rejectBtn: () => cy.get('[data-cy="btn-reject"]'),
 
     // --- Reject modal elements ---
-    rejectionModal: () => cy.get('[role="dialog"]'),
+    rejectionModal: () => cy.get('[role="dialog"]').first(),
     rejectionTextarea: () => cy.get('[data-cy="rejection-textarea"]'),
     confirmRejectBtn: () => cy.get('[data-cy="btn-confirm-reject"]'),
   };
@@ -90,13 +90,13 @@ class ReportDetailPage {
    */
   reject(reason) {
     this.elements.rejectBtn().should("be.visible").click();
-    this.elements.rejectionModal().should("be.visible");
+    this.elements.rejectionTextarea().should("be.visible");
 
     if (reason) {
       this.elements.rejectionTextarea().type(reason);
     }
 
-    this.elements.confirmRejectBtn().click();
+    this.elements.confirmRejectBtn().should("not.be.disabled").click();
   }
 }
 

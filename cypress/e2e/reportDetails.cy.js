@@ -2,13 +2,26 @@ import OfficerLayoutPage from "../pages/officer/officerLayout.page";
 import OfficerReportsPage from "../pages/officer/officerReports.page";
 import ReportDetailPage from "../pages/reportDetails.page";
 
+/**
+ * @description Test suite for the Municipal Officer's workflow for reviewing reports (Assigned, Rejected, Pending actions).
+ * It covers verifying report visibility in different states and performing approval/rejection actions.
+ * @type {Cypress.Spec}
+ */
 describe("Municipal Officer - Review Reports Flow", () => {
+  /**
+   * @description Setup executed before each test case in this suite.
+   * It ensures the user is logged in as a Municipal Officer and is navigated to the dashboard.
+   */
   beforeEach(() => {
     // Step 0: Visit dashboard and ensure logged in
     cy.loginAsMunicipalOfficer();
     OfficerLayoutPage.visit();
   });
 
+  /**
+   * @description Test case to verify that assigned reports are correctly displayed
+   * in the Assigned section of the officer's dashboard.
+   */
   it("should display assigned reports in the Assigned section", () => {
     // Navigate to Assigned Reports
     OfficerLayoutPage.goToAssigned();
@@ -19,13 +32,13 @@ describe("Municipal Officer - Review Reports Flow", () => {
     // Ensure at least one report card exists
     OfficerReportsPage.elements
       .reportsList()
-      .find('[data-cy^="report-card-"]')
+      .find('[data-cy^="report-card"]')
       .should("have.length.greaterThan", 0);
 
     // Open the first assigned report and verify it's visible
     OfficerReportsPage.elements
       .reportsList()
-      .find('[data-cy^="report-card-"]')
+      .find('[data-cy^="report-card"]')
       .first()
       .click();
 
@@ -33,6 +46,10 @@ describe("Municipal Officer - Review Reports Flow", () => {
     cy.url().should("include", "/reports/");
   });
 
+  /**
+   * @description Test case to verify that reports previously rejected by an officer or administrator
+   * are correctly displayed in the Rejected section.
+   */
   it("should display rejected reports in the Rejected section", () => {
     // Navigate to Rejected Reports
     OfficerLayoutPage.goToRejected();
@@ -43,19 +60,23 @@ describe("Municipal Officer - Review Reports Flow", () => {
     // Ensure at least one report card exists
     OfficerReportsPage.elements
       .reportsList()
-      .find('[data-cy^="report-card-"]')
+      .find('[data-cy^="report-card"]')
       .should("have.length.greaterThan", 0);
 
     // Open the first rejected report and verify rejection reason
     OfficerReportsPage.elements
       .reportsList()
-      .find('[data-cy^="report-card-"]')
+      .find('[data-cy^="report-card"]')
       .first()
       .click();
 
     cy.url().should("include", "/reports/");
   });
 
+  /**
+   * @description Test case to verify the workflow of rejecting a pending report,
+   * including providing an explanation, and confirming its visibility in the Rejected section.
+   */
   it("should reject a pending report with explanation", () => {
     // Step 1: Navigate to Pending Reports
     OfficerLayoutPage.goToPending();
@@ -70,8 +91,17 @@ describe("Municipal Officer - Review Reports Flow", () => {
       .first()
       .then(($card) => {
         // Grab report title for assertions
-        const reportTitle = $card.find("h3, h1, .CardTitle").text();
+        cy.wrap($card)
+          .find('[data-cy="report-card-title"]')
+          .first()
+          .should("exist");
+        const reportTitle = $card
+          .find('[data-cy="report-card-title"]')
+          .first()
+          .text()
+          .trim();
 
+        expect(reportTitle).to.not.be.empty;
         // Open report details
         cy.wrap($card).click();
 
@@ -99,6 +129,10 @@ describe("Municipal Officer - Review Reports Flow", () => {
       });
   });
 
+  /**
+   * @description Test case to verify the workflow of approving a pending report,
+   * and confirming its subsequent visibility in the Assigned section.
+   */
   it("should approve a pending report", () => {
     // Navigate to Pending Reports
     OfficerLayoutPage.goToPending();
@@ -111,7 +145,7 @@ describe("Municipal Officer - Review Reports Flow", () => {
       .find(".cursor-pointer.group")
       .first()
       .then(($card) => {
-        const reportTitle = $card.find("h3, h1, .CardTitle").text();
+        const reportTitle = $card.find('[data-cy="report-card-title"]').text();
 
         // Open report details
         cy.wrap($card).click();

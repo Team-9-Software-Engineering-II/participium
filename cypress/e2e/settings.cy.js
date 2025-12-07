@@ -65,10 +65,10 @@ describe("Settings Page E2E", () => {
    * - Checks that the success toast appears
    */
   it("Uploads profile picture", () => {
-    const fileName = "avatar-test.png";
+    const fileName = "test-image.png";
 
-    cy.get("[data-cy=photo-upload-button]").click();
-    cy.get("input[type=file]").attachFile(fileName);
+    cy.get("[data-cy=photo-upload-button]").click({ force: true });
+    cy.get("#photo-upload", { force: true }).attachFile(fileName);
 
     cy.contains("Profile picture updated successfully.").should("be.visible");
   });
