@@ -5,7 +5,8 @@ class CreateReportPage {
     categorySelect: () => cy.get('[data-cy="select-category"]'),
     category: () => cy.get('[data-cy="category"]'),
     reportTitleInput: () => cy.get('[data-cy="report-title-input"]'),
-    reportDescriptionTextarea: () => cy.get('[data-cy="report-description-textarea"]'),
+    reportDescriptionTextarea: () =>
+      cy.get('[data-cy="report-description-textarea"]'),
     addPhoto: () => cy.get('[data-cy="add-photo"]'),
     submitButton: () => cy.get('[data-cy="submit-report-button"]'),
     cancelButton: () => cy.get('[data-cy="cancel-button"]'),
@@ -30,7 +31,11 @@ class CreateReportPage {
       .clear({ force: true })
       .realType(address, { force: true });
 
-    this.elements.searchResults().first().should("be.visible").click({ force: true });
+    this.elements
+      .searchResults()
+      .first()
+      .should("be.visible")
+      .click({ force: true });
   }
 
   /**
@@ -84,20 +89,9 @@ class CreateReportPage {
   /**
    * Uploads a dummy photo file
    */
-  uploadPhoto(fileName = 'avatar-test.png') {
-    const fileInputId = '#photo-upload';
-
-    cy.fixture(fileName, 'binary')
-      .then(Cypress.Blob.binaryStringToBlob)
-      .then((fileContent) => {
-        cy.get(fileInputId, { force: true })
-          .attachFile({
-            fileContent,
-            fileName,
-            mimeType: 'image/png',
-            encoding: 'base64',
-          });
-      });
+  uploadPhoto(fileName = "test-image.png") {
+    this.elements.addPhoto().click({ force: true });
+    cy.get("#photo-upload", { force: true }).attachFile(fileName);
   }
 }
 

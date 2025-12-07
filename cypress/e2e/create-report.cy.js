@@ -19,7 +19,7 @@ describe("Create Report Flow", () => {
         "Ci sono grosse buche in mezzo alla carreggiata, rischio incidenti.",
     });
     CreateReportPage.selectCategory("Roads and Urban Furnishings");
-    CreateReportPage.selectCategory("Roads and Urban Furnishings");
+    CreateReportPage.uploadPhoto("test-image.png");
     CreateReportPage.submitReport();
   });
 
