@@ -6,7 +6,7 @@ describe("Admin Create Municipality User - simple test", () => {
     cy.loginAsAdmin();
     cy.visit("/admin/municipality-users");
   });
-  const roles = ["municipality_public_relations_officer", "technical staff"];
+  const roles = ["municipal_public_relations_officer", "technical_staff"];
 
   for (const role of roles) {
     it(`should allow admin to create a municipality user with role ${role}`, () => {
@@ -19,14 +19,14 @@ describe("Admin Create Municipality User - simple test", () => {
         email: `giovanni.bianchi.${uniqueSuffix}@example.com`,
         username: `giovanni.bianchi.${uniqueSuffix}`,
         password: "password123",
-        role: "municipality_public_relations_officer",
+        role: "municipal_public_relations_officer",
       });
       AdminCreateMunicipalityUserPage.submit();
 
       cy.url().should("include", "/admin/municipality-users");
       cy.contains(`${"Giovanni"} ${"Bianchi"}`).should("exist");
       cy.contains(`giovanni.bianchi.${uniqueSuffix}`).should("exist");
-      cy.contains("municipality_public_relations_officer").should("exist");
+      cy.contains("municipal_public_relations_officer").should("exist");
 
       cy.get('[data-cy="search-users"]').type(
         `giovanni.bianchi.${uniqueSuffix}`
@@ -43,7 +43,7 @@ describe("Admin Create Municipality User - simple test", () => {
         email: "test2@example.com",
         username: "user2",
         password: "Password123",
-        role: "municipality_public_relations_officer",
+        role: "municipal_public_relations_officer",
       };
       formData[field] = "";
 

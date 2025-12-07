@@ -8,7 +8,7 @@ describe("Technician Reports", () => {
    * Logs in as a technician and navigates to active reports before each test.
    */
   beforeEach(() => {
-    cy.loginAsUser("tech_water", "password123");
+    cy.loginAsTechOfficer();
     cy.visit("/technical/reports/active");
   });
 

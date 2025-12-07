@@ -119,7 +119,7 @@ describe("Login Flow", () => {
     LoginPage.elements.username().should("have.value", defaultUser.username);
   });
 
-  users.forEach(({ username, password, expectedUrl }) => {
+  for (const { username, password, expectedUrl } of users) {
     it(`should redirect ${username} to ${expectedUrl}`, () => {
       LoginPage.visit();
       LoginPage.fillForm({ username, password });
@@ -127,5 +127,5 @@ describe("Login Flow", () => {
 
       cy.url().should("eq", Cypress.config().baseUrl + expectedUrl);
     });
-  });
+  }
 });

@@ -11,27 +11,14 @@ describe("Create Report Flow", () => {
     }
   });
 
-  /*it("should add a new report", () => {
-    CreateReportPage.selectLocation("Via Roma, 10, Torino");
-    CreateReportPage.fillReportForm({
-      title: "Segnalazione buca",
-      description: "Buca pericolosa davanti al comune",
-      category: "Strade",
-    });
-
-    CreateReportPage.submitReport();
-
-    cy.contains("Report creato con successo").should("be.visible");
-  });*/
-
   it("should succesfully create a new report", () => {
     CreateReportPage.clickMap(200, 200).assertMarkerExists();
     CreateReportPage.fillReportForm({
       title: "Buche pericolose sulla strada",
       description:
         "Ci sono grosse buche in mezzo alla carreggiata, rischio incidenti.",
-      email: "utente@test.com",
     });
+    CreateReportPage.selectCategory("Roads and Urban Furnishings");
     CreateReportPage.selectCategory("Roads and Urban Furnishings");
     CreateReportPage.submitReport();
   });

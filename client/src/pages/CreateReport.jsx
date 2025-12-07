@@ -238,7 +238,7 @@ function DesktopPhotoUpload({ onPhotoInputClick }) {
       className="gap-2" 
       onClick={() => onPhotoInputClick('photo-upload')}
     >
-      <Upload className="h-5 w-5" /> Add Photo
+      <Upload data-cy="add-photo"className="h-5 w-5" /> Add Photo
     </Button>
   );
 }
@@ -481,8 +481,8 @@ export default function CreateReport() {
       <div className="container max-w-4xl mx-auto px-4 py-8">
         <div className="space-y-6">
           <div className="space-y-2">
-            <h1 data-cy="create-report-title" className="text-3xl font-bold tracking-tight">New Report</h1>
-            <p data-cy="create-report-warning" className="text-sm text-muted-foreground">
+            <h1 className="text-3xl font-bold tracking-tight">New Report</h1>
+            <p className="text-sm text-muted-foreground">
               <strong>ATTENTION:</strong> Participium is a system to report urban maintenance issues and not emergencies that require immediate intervention.
               In case of fires it is essential to contact the competent authorities such as Firefighters, Police, etc.
               If necessary therefore in case of temporary intervention, we advise you not to proceed with this report but to contact the relevant services.
@@ -542,17 +542,17 @@ export default function CreateReport() {
                <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Select value={formData.category.toString()} onValueChange={value => setFormData(prev => ({ ...prev, category: value }))} required>
-                  <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
-                  <SelectContent>{categories.map((category) => (<SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>))}</SelectContent>
+                  <SelectTrigger data-cy="select-category"><SelectValue placeholder="Select a category" /></SelectTrigger>
+                  <SelectContent>{categories.map((category) => (<SelectItem key={category.id} value={category.id.toString()} data-cy="category">{category.name}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="title">Title of the report *</Label>
-                <Input id="title" name="title" type="text" placeholder="Brief description (max 200 characters)" value={formData.title} onChange={handleChange} maxLength={200} required />
+                <Input data-cy="report-title-input" id="title" name="title" type="text" placeholder="Brief description (max 200 characters)" value={formData.title} onChange={handleChange} maxLength={200} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
-                <Textarea id="description" name="description" placeholder="Detailed description of the report (max 2000 characters)" value={formData.description} onChange={handleChange} maxLength={2000} rows={6} className="resize-none" required />
+                <Textarea data-cy="report-description-textarea" id="description" name="description" placeholder="Detailed description of the report (max 2000 characters)" value={formData.description} onChange={handleChange} maxLength={2000} rows={6} className="resize-none" required />
               </div>
             </div>
             
@@ -601,8 +601,8 @@ export default function CreateReport() {
             <p className="text-center text-sm text-muted-foreground">* Required field</p>
 
             <div className="flex justify-center gap-4">
-              <Button type="button" variant="outline" size="lg" className="px-12" onClick={() => navigate('/')}>Cancel</Button>
-              <Button type="submit" size="lg" className="px-12">Submit Report</Button>
+              <Button data-cy="cancel-button" ype="button" variant="outline" size="lg" className="px-12" onClick={() => navigate('/')}>Cancel</Button>
+              <Button data-cy="submit-report-button" type="submit" size="lg" className="px-12">Submit Report</Button>
             </div>
           </form>
         </div>
@@ -635,12 +635,12 @@ export default function CreateReport() {
               <div className="absolute top-4 left-4 right-4 z-[500]">
                 <div className="relative flex items-center bg-white dark:bg-gray-900 rounded-md shadow-md border border-gray-200 dark:border-gray-800">
                   <Search className="ml-3 h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <Input type="text" placeholder="Search for an address..." value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} className="flex-1 border-0 focus-visible:ring-0 bg-transparent shadow-none h-10" />
+                  <Input type="text" placeholder="Search for an address..." value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} className="flex-1 border-0 focus-visible:ring-0 bg-transparent shadow-none h-10" data-cy="search-input"/>
                   {searchQuery && <button type="button" onClick={clearSearch} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-1"><X className="h-4 w-4 text-muted-foreground" /></button>}
                   <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
                   <button type="button" onClick={handleUseMyLocation} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-1"><Crosshair className="h-5 w-5 text-primary" /></button>
                 </div>
-                {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result) => ( <button key={result.place_id || `${result.lat}-${result.lon}`} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
+                {showSearchResults && searchResults.length > 0 && ( <div className="mt-2 bg-white dark:bg-gray-900 rounded-lg shadow-lg max-h-60 overflow-y-auto"> {searchResults.map((result) => ( <button key={result.place_id || `${result.lat}-${result.lon}`} type="button" onClick={() => handleSearchResultClick(result)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 border-b last:border-b-0" data-cy="search-result"><p className="text-sm font-medium">{result.display_name}</p></button> ))} </div> )}
               </div>
             </div>
             <div className="p-4 border-t bg-background space-y-2">

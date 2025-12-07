@@ -15,7 +15,14 @@ Cypress.Commands.add("loginAsMunicipalOfficer", (username = "pr_officer", passwo
   cy.get("button[type=submit]").click();
 });
 
-Cypress.Commands.add("loginAsUser", (username, password) => {
+Cypress.Commands.add("loginAsUser", (username = "test", password = "test") => {
+  cy.visit("/login");
+  cy.get("input[name=username]").type(username);
+  cy.get("input[name=password]").type(password);
+  cy.get("button[type=submit]").click();
+});
+
+Cypress.Commands.add("loginAsTechOfficer", (username = "tech_lighting", password = "password123") => {
   cy.visit("/login");
   cy.get("input[name=username]").type(username);
   cy.get("input[name=password]").type(password);

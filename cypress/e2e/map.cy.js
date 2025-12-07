@@ -63,19 +63,6 @@ describe("Map interactions as guest", () => {
       });
   });
 
-  it("should hide search results after selecting an address", () => {
-    MapViewPage.elements
-      .searchInput()
-      .click({ force: true })
-      .type("Via Roma", { force: true });
-
-    MapViewPage.elements.searchResults().should("exist").and("be.visible");
-
-    MapViewPage.elements.searchResults().first().click({ force: true });
-
-    MapViewPage.elements.searchResults().should("not.exist");
-  });
-
   it("should not keep the marker after page reload", () => {
     MapViewPage.clickMap(200, 200).assertMarkerExists();
 

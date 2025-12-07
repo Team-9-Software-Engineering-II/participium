@@ -42,7 +42,8 @@ class AdminCreateMunicipalityUserPage {
 
     if (role) {
       this.elements.createRoleTrigger().click();
-      this.elements.role().contains(role).should("be.visible").click();
+      this.elements.role().should("be.visible");
+      this.elements.role().contains(role).debug().should("be.visible").click();
     }
   }
 
