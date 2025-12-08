@@ -9,6 +9,7 @@ import { findRoleById } from "../repositories/role-repo.mjs";
 import { findRoleByName } from "../repositories/role-repo.mjs"; // added for refactoring
 import { findTechnicalOfficeById } from "../repositories/technical-office-repo.mjs";
 import { saveTemporaryUser, getTemporaryUser, deleteTemporaryUser } from "../repositories/redis-repo.mjs";
+import { EmailService } from "./email-service.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -240,6 +241,7 @@ export class AuthService {
    * Registers a new user temporarily in Redis with a confirmation code.
    * If the email or username already exists in the database, an error is thrown.
    * If the same email exists in Redis, it will be overwritten.
+   * Sends a verification email with the confirmation code.
    * @param {object} userInput - Raw registration data from the client.
    * @returns {Promise<object>} An object containing the confirmation code and expiration time.
    */
@@ -264,10 +266,14 @@ export class AuthService {
       lastName,
     }, confirmationCode);
 
+    // Send verification email with the confirmation code
+    const emailResult = await EmailService.sendVerificationCode(email, confirmationCode, firstName);
+
     return {
-      message: "Registration request submitted successfully. Please verify your email with the confirmation code.",
+      message: "Registration request submitted successfully. Please check your email for the verification code.",
       confirmationCode,
       expiresIn: 1800,
+      emailPreviewUrl: emailResult.previewUrl,
     };
   }
 

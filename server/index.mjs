@@ -1,3 +1,4 @@
+import "dotenv/config"; // Load environment variables from .env file
 import express from "express";
 import fs from "fs";
 import morgan from "morgan";
@@ -10,6 +11,7 @@ import { seedDatabase } from "./seeders/index.mjs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { connectRedis } from "./config/redis.mjs";
+import { initializeEmailTransporter } from "./config/email.mjs";
 
 const app = express();
 
@@ -154,6 +156,7 @@ db.sequelize
     }
 
     await connectRedis();
+    await initializeEmailTransporter();
 
     if (NODE_ENV !== "test") {
       app.listen(PORT, () => {
