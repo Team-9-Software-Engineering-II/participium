@@ -19,6 +19,7 @@ import {
 } from "./test-utils.js";
 import redisClient from "../../config/redis.mjs";
 import { getTemporaryUser } from "../../repositories/redis-repo.mjs";
+import { initializeEmailTransporter } from "../../config/email.mjs";
 
 /** @typedef {object} UserData
  * @property {string} email
@@ -61,6 +62,7 @@ let verifiedUserCookie;
  * @description Sets up the database, connects Redis, logs in the admin, and pre-creates a user for login tests.
  */
 beforeAll(async () => {
+  await initializeEmailTransporter();
   // 1. Setup Database
   await setupTestDatabase();
 
