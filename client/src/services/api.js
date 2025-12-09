@@ -124,6 +124,12 @@ export const staffAPI = {
   // Aggiorna lo stato di una segnalazione
   updateReportStatus: (reportId, statusData) => 
     api.put(`/offices/reports/${reportId}/status`, statusData),
+
+  // NUOVO: Ottiene le aziende compatibili per un report
+  getEligibleCompanies: (reportId) => api.get(`/offices/reports/${reportId}/companies`),
+  
+  // NUOVO: Assegna il report a un manutentore esterno
+  assignExternal: (reportId, companyId) => api.put(`/offices/reports/${reportId}/assign-external`, { companyId }),
 };
 
 // ==================== STATISTICS ====================

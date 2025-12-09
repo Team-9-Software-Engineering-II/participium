@@ -15,7 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, Save } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, Save, HardHat, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -55,10 +64,14 @@ export default function TechnicianReports({ type = "active" }) {
       // 2. Filtra in base al tipo di vista richiesto
       const filteredData = allData.filter((report) => {
         const isFinished = FINISHED_STATUSES.has(report.status);
+        const isExternal = !!report.companyId;
         
         if (type === "active") {
-          // Mostra: Assigned, In Progress, Suspended
-          return !isFinished;
+          // Mostra: Assigned, In Progress, Suspended MA NON assegnati esternamente
+          return !isFinished && !isExternal;
+        } else if (type === "maintainer") {
+          // Mostra solo quelli assegnati a maintainer
+          return !isFinished && isExternal;
         } else {
           // Mostra: Resolved, Rejected
           return isFinished;
@@ -119,6 +132,12 @@ export default function TechnicianReports({ type = "active" }) {
             <h3 className="text-lg font-semibold">All caught up!</h3>
             <p className="text-muted-foreground">You have no pending reports assigned.</p>
           </>
+        ) : type === "maintainer" ? (
+          <>
+            <HardHat className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold">No external assignments</h3>
+            <p className="text-muted-foreground">You haven't assigned any reports to external maintainers.</p>
+          </>
         ) : (
           <>
             <Clock className="h-12 w-12 text-muted-foreground mb-4" />
@@ -130,17 +149,23 @@ export default function TechnicianReports({ type = "active" }) {
     );
   }
 
+  const getTitle = () => {
+    if (type === "active") return "Your Assigned Reports";
+    if (type === "maintainer") return "External Maintainer Reports";
+    return "Resolved Reports History";
+  };
+
+  const getDescription = () => {
+    if (type === "active") return "Manage reports assigned to you.";
+    if (type === "maintainer") return "Monitor reports assigned to external companies.";
+    return "Archive of reports you have processed.";
+  };
+
   return (
     <div className="space-y-4" data-cy="report-list">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold tracking-tight">
-          {type === "active" ? "Your Assigned Reports" : "Resolved Reports History"}
-        </h2>
-        <p className="text-muted-foreground">
-          {type === "active" 
-            ? "Manage and update the status of reports assigned to you." 
-            : "Archive of reports you have processed."}
-        </p>
+        <h2 className="text-2xl font-bold tracking-tight">{getTitle()}</h2>
+        <p className="text-muted-foreground">{getDescription()}</p>
       </div>
 
       {reports.map((report) => (
@@ -148,15 +173,112 @@ export default function TechnicianReports({ type = "active" }) {
           key={report.id} 
           report={report} 
           type={type} 
-          onUpdateStatus={handleUpdateStatus} 
+          onUpdateStatus={handleUpdateStatus}
+          onRefresh={fetchReports}
         />
       ))}
     </div>
   );
 }
 
+// Dialog Component for Assignment
+function AssignMaintainerDialog({ report, onRefresh }) {
+  const [open, setOpen] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (open) {
+      const fetchCompanies = async () => {
+        setLoading(true);
+        try {
+          const res = await staffAPI.getEligibleCompanies(report.id);
+          setCompanies(res.data);
+        } catch (error) {
+          console.error("Failed to fetch companies", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCompanies();
+    }
+  }, [open, report.id]);
+
+  const handleAssign = async () => {
+    if (!selectedCompany) return;
+    setAssigning(true);
+    try {
+      await staffAPI.assignExternal(report.id, selectedCompany);
+      toast({
+        title: "Report Assigned",
+        description: "The report has been successfully assigned to the maintainer.",
+      });
+      setOpen(false);
+      onRefresh(); // Ricarica la lista per spostare il report nella tab corretta
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Assignment Failed",
+        description: "Could not assign the report. Please try again.",
+      });
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full gap-2">
+          <HardHat className="h-4 w-4" /> Assign to Maintainer
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign to External Maintainer</DialogTitle>
+          <DialogDescription>
+            Select a compatible company to handle this report. The report will be moved to the Maintainer list.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4">
+          {loading ? (
+             <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
+          ) : companies.length === 0 ? (
+             <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
+          ) : (
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id.toString()}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleAssign} disabled={!selectedCompany || assigning}>
+            {assigning ? "Assigning..." : "Confirm Assignment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Sotto-componente per gestire lo stato locale del Select
-function ReportCard({ report, type, onUpdateStatus }) {
+function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
   const navigate = useNavigate();
   // Stato locale per il valore selezionato nel dropdown
   const [selectedStatus, setSelectedStatus] = useState(report.status);
@@ -184,6 +306,11 @@ function ReportCard({ report, type, onUpdateStatus }) {
             >
               {report.status}
             </Badge>
+            {report.companyId && (
+               <Badge variant="secondary" className="gap-1">
+                 <Building2 className="w-3 h-3" /> External
+               </Badge>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -223,6 +350,7 @@ function ReportCard({ report, type, onUpdateStatus }) {
           </div>
 
           {/* Status Updater (SOLO se siamo nella vista Active) */}
+          {/* COMMENTATO PER RICHIESTA: Rimuoviamo temporaneamente il cambio stato
           {type === "active" && (
             <div className="w-full space-y-2">
               <Select
@@ -244,7 +372,6 @@ function ReportCard({ report, type, onUpdateStatus }) {
                 </SelectContent>
               </Select>
 
-              {/* Show Update Button only if status is changed */}
               {hasChanged && (
                 <Button 
                   data-cy="update-status-btn"
@@ -256,6 +383,14 @@ function ReportCard({ report, type, onUpdateStatus }) {
                   Update Status
                 </Button>
               )}
+            </div>
+          )}
+          */}
+
+          {/* Pulsante per assegnazione esterna (Solo Active) */}
+          {type === "active" && (
+            <div className="w-full md:w-[240px]">
+              <AssignMaintainerDialog report={report} onRefresh={onRefresh} />
             </div>
           )}
 

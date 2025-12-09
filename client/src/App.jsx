@@ -114,6 +114,7 @@ function App() {
             }>
               <Route index element={<Navigate to="reports/active" replace />} />
               <Route path="reports/active" element={<TechnicianReports type="active" />} />
+              <Route path="reports/maintainer" element={<TechnicianReports type="maintainer" />} />
               <Route path="reports/history" element={<TechnicianReports type="history" />} />
             </Route>
 
