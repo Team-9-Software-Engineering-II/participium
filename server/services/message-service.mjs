@@ -41,5 +41,46 @@ export class MessageService {
 
     return message || createdMessage;
   }
+
+  /**
+   * Retrieves the internal message history for a specific report.
+   * Enforces strict authorization rules.
+   * * @param {number} reportId - The ID of the report.
+   * @param {object} user - The authenticated user (from req.user).
+   * @returns {Promise<Array>} List of messages.
+   */
+  static async getReportMessages(reportId, user) {
+    // check if report exixts
+    const report = await findReportById(reportId);
+    if (!report) {
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // check user authorization
+    // user with role "citizen" cannot access internal messages
+    if (user.role && user.role.name === "citizen") {
+      const error = new Error("Unauthorized: Citizens cannot access internal messages.");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const isAdmin = user.role && user.role.name === "admin";
+
+    // checking the assigned officer and maintainer
+    const isAssignedOfficer = report.technicalOfficerId && (report.technicalOfficerId == user.id);
+    const isAssignedMaintainer = report.externalMaintainerId && (report.externalMaintainerId == user.id);
+
+    // if not admin, not assigned officer and not assigned maintainer -> throw 403
+    if (!isAdmin && !isAssignedOfficer && !isAssignedMaintainer) {
+        const error = new Error("Unauthorized: You are not assigned to this report.");
+        error.statusCode = 403;
+        throw error;
+    }
+
+    // fetch and return messages
+    return await findMessagesByReportId(reportId);
+  }
 }
 

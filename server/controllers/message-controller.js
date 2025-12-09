@@ -29,3 +29,24 @@ export async function createMessage(req, res, next) {
   }
 }
 
+/**
+ * Retrieves all messages for a specific report.
+ * Access is restricted by the service based on user role and assignment.
+ */
+export async function getMessagesByReportId(req, res, next) {
+  try {
+    const reportId = Number(req.params.reportId);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      return res.status(400).json({ message: "reportId must be a positive integer." });
+    }
+
+    // call service
+    const messages = await MessageService.getReportMessages(reportId, req.user);
+
+    // response
+    res.status(200).json(messages);
+  } catch (error) {
+    next(error);
+  }
+}
+
