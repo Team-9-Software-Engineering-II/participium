@@ -22,27 +22,29 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, Save, HardHat, Building2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, HardHat, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getStatusColor } from "@/lib/reportColors";
 
 // Stati in cui il tecnico può spostare il report
 const ALLOWED_TRANSITIONS = [
-  { value: "In Progress", label: "In Progress", color: "bg-amber-500" },
-  { value: "Suspended", label: "Suspended", color: "bg-red-500" },
+  { value: "In Progress", label: "In Progress", color: "bg-yellow-400" },
+  { value: "Suspended", label: "Suspended", color: "bg-gray-500" },
   { value: "Resolved", label: "Resolved", color: "bg-green-500" },
 ];
 
 const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
-
-const getStatusBadgeClass = (status, variant = 'default') => {
-  if (status === "Assigned") return variant === 'mobile' ? "bg-blue-500" : "bg-blue-600";
-  if (status === "In Progress") return "bg-amber-500";
-  if (status === "Resolved") return variant === 'mobile' ? "bg-green-500" : "bg-green-600";
-  return "bg-gray-500";
-};
 
 export default function TechnicianReports({ type = "active" }) {
   const { toast } = useToast();
@@ -60,11 +62,14 @@ export default function TechnicianReports({ type = "active" }) {
       // 1. Scarica TUTTI i report assegnati
       const response = await staffAPI.getAssignedReports();
       const allData = response.data;
+      console.log('All assigned reports:', allData);
 
       // 2. Filtra in base al tipo di vista richiesto
       const filteredData = allData.filter((report) => {
         const isFinished = FINISHED_STATUSES.has(report.status);
-        const isExternal = !!report.companyId;
+        const isExternal = !!report.externalMaintainerId;
+        
+        console.log(`Report ${report.id}: status=${report.status}, externalMaintainerId=${report.externalMaintainerId}, isFinished=${isFinished}, isExternal=${isExternal}`);
         
         if (type === "active") {
           // Mostra: Assigned, In Progress, Suspended MA NON assegnati esternamente
@@ -77,6 +82,8 @@ export default function TechnicianReports({ type = "active" }) {
           return isFinished;
         }
       });
+
+      console.log(`Filtered reports for type "${type}":`, filteredData);
 
       // 3. Ordina per data (più recenti in alto)
       filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -188,10 +195,11 @@ function AssignMaintainerDialog({ report, onRefresh }) {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (open) {
+    if (open && !showSuccess) {
       const fetchCompanies = async () => {
         setLoading(true);
         try {
@@ -199,81 +207,119 @@ function AssignMaintainerDialog({ report, onRefresh }) {
           setCompanies(res.data);
         } catch (error) {
           console.error("Failed to fetch companies", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load companies.",
+          });
         } finally {
           setLoading(false);
         }
       };
       fetchCompanies();
     }
-  }, [open, report.id]);
+  }, [open, showSuccess, report.id, toast]);
 
   const handleAssign = async () => {
     if (!selectedCompany) return;
+    setOpen(false); // Chiudi il dialog di selezione
     setAssigning(true);
     try {
-      await staffAPI.assignExternal(report.id, selectedCompany);
-      toast({
-        title: "Report Assigned",
-        description: "The report has been successfully assigned to the maintainer.",
-      });
-      setOpen(false);
-      onRefresh(); // Ricarica la lista per spostare il report nella tab corretta
+      const companyIdNumber = Number.parseInt(selectedCompany, 10);
+      await staffAPI.assignExternal(report.id, companyIdNumber);
+      
+      setShowSuccess(true);
+      setAssigning(false);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Assignment error:', error);
       toast({
         variant: "destructive",
         title: "Assignment Failed",
-        description: "Could not assign the report. Please try again.",
+        description: error.response?.data?.message || "Could not assign the report. Please try again.",
       });
-    } finally {
       setAssigning(false);
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full gap-2">
-          <HardHat className="h-4 w-4" /> Assign to Maintainer
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Assign to External Maintainer</DialogTitle>
-          <DialogDescription>
-            Select a compatible company to handle this report. The report will be moved to the Maintainer list.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="py-4">
-          {loading ? (
-             <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
-          ) : companies.length === 0 ? (
-             <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
-          ) : (
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a company" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id.toString()}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+  const handleCloseSuccess = async () => {
+    setShowSuccess(false);
+    setSelectedCompany("");
+    
+    // Ricarica la lista e aggiorna i contatori DOPO che l'utente ha visto la conferma
+    await onRefresh();
+    globalThis.dispatchEvent(new Event('technicianReportsRefresh'));
+  };
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleAssign} disabled={!selectedCompany || assigning}>
-            {assigning ? "Assigning..." : "Confirm Assignment"}
+  const handleClose = () => {
+    setOpen(false);
+    setSelectedCompany("");
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full gap-2">
+            <HardHat className="h-4 w-4" /> Assign to Maintainer
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign to External Maintainer</DialogTitle>
+            <DialogDescription>
+              Select a compatible company to handle this report. The report will be moved to the Maintainer list.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {loading ? (
+              <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
+            ) : companies.length === 0 ? (
+              <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
+            ) : (
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleAssign} disabled={!selectedCompany || assigning}>
+              {assigning ? "Assigning..." : "Confirm Assignment"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showSuccess} onOpenChange={setShowSuccess}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle2 className="h-5 w-5" />
+              Assignment Successful
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The report has been successfully assigned to the external maintainer and moved to the Maintainers Reports section.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleCloseSuccess}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -288,8 +334,6 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
     setSelectedStatus(report.status);
   }, [report.status]);
 
-  const hasChanged = selectedStatus !== report.status;
-
   return (
     <Card data-cy="report-card" className="transition-all hover:shadow-md border-l-4 border-l-primary/20">
       <div className="flex flex-col md:flex-row md:items-start gap-4 p-6">
@@ -302,7 +346,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
             </Badge>
             {/* Mobile Badge */}
             <Badge 
-              className={`md:hidden ${getStatusBadgeClass(report.status, 'mobile')}`}
+              className={`md:hidden ${getStatusColor(report.status)}`}
             >
               {report.status}
             </Badge>
@@ -343,7 +387,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
           <div className="hidden md:flex items-center gap-2 mb-1">
             <span className="text-xs font-medium text-muted-foreground">Current:</span>
             <Badge 
-              className={`text-white px-3 py-1 ${getStatusBadgeClass(report.status, 'desktop')}`}
+              className={`text-white px-3 py-1 ${getStatusColor(report.status, 'dark')}`}
             >
               {report.status}
             </Badge>

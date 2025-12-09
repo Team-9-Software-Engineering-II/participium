@@ -129,7 +129,10 @@ export const staffAPI = {
   getEligibleCompanies: (reportId) => api.get(`/offices/reports/${reportId}/companies`),
   
   // NUOVO: Assegna il report a un manutentore esterno
-  assignExternal: (reportId, companyId) => api.put(`/offices/reports/${reportId}/assign-external`, { companyId }),
+  assignExternal: (reportId, companyId) => {
+    console.log('API call: assignExternal', { reportId, companyId, payload: { companyId } });
+    return api.put(`/offices/reports/${reportId}/assign-external`, { companyId });
+  },
 };
 
 // ==================== STATISTICS ====================
