@@ -13,15 +13,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
 import { toast } from "sonner";
-
-const REPORT_STATUS = {
-  "Pending Approval": { color: '#3B82F6', label: 'Pending Approval', icon: '●' }, // Blu
-  "Assigned": { color: '#F59E0B', label: 'Assigned', icon: '●' }, // Arancione
-  "In Progress": { color: '#EAB308', label: 'In Progress', icon: '●' }, // Giallo
-  "Resolved": { color: '#10B981', label: 'Resolved', icon: '●' }, // Verde
-  "Suspended": { color: '#EF4444', label: 'Suspended', icon: '●' }, // Rosso
-  "Rejected": { color: '#6B7280', label: 'Rejected', icon: '●' }    // Grigio
-};
+import { REPORT_STATUS } from "@/lib/reportColors";
 
 const DEFAULT_CENTER = [45.0703, 7.6869]; // Torino Centro
 
@@ -386,6 +378,11 @@ export function MapView({ reports = [], selectedReport = null }) {
                     <p className="text-xs text-muted-foreground">
                       Author: <span className="font-medium text-foreground">{report.reporterName || "Anonymous"}</span>
                     </p>
+                    {report.companyId && report.companyName && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Assigned to: <span className="font-medium text-foreground">External Maintainer - {report.companyName}</span>
+                      </p>
+                    )}
                   </div>
                 </Popup>
               </Marker>

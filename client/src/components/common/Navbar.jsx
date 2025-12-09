@@ -36,13 +36,15 @@ export default function Navbar() {
   );
   const isAdmin = roleName?.toLowerCase().includes('admin');
   const isTechnician = roleName?.toLowerCase().includes('technical');
+  const isExternalMaintainer = roleName?.toLowerCase().includes('external');
   const isCitizen = roleName?.toLowerCase().includes('citizen');
 
   // Funzione per determinare il link della Home/Logo
   const getHomeLink = () => {
     if (isOfficer) return "/municipal/dashboard";
-    if (isAdmin) return "/admin"; // Assicurati che questa sia la rotta corretta per la dashboard admin
+    if (isAdmin) return "/admin";
     if (isTechnician) return "/technical/reports/active";
+    if (isExternalMaintainer) return "/external-maintainer/reports/active";
     return "/";
   };
 
@@ -56,6 +58,8 @@ export default function Navbar() {
         return 'MPRO';
       case 'technical_staff':
         return 'Technician';
+      case 'external_maintainer':
+        return 'External Maintainer';
       default:
         // Fallback: Capitalizza la prima lettera
         return roleName.charAt(0).toUpperCase() + roleName.slice(1);
