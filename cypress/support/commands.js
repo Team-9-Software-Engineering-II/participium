@@ -29,6 +29,13 @@ Cypress.Commands.add("loginAsTechOfficer", (username = "tech_lighting", password
   cy.get("button[type=submit]").click();
 });
 
+Cypress.Commands.add("loginAsExternalMaintainer", (username = "em_water_smat", password = "password123") => {
+  cy.visit("/login");
+  cy.get("input[name=username]").type(username);
+  cy.get("input[name=password]").type(password);
+  cy.get("button[type=submit]").click();
+});
+
 Cypress.Commands.add(
   "clickMapAt",
   { prevSubject: "element" },
