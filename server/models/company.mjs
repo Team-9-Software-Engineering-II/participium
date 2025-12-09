@@ -18,6 +18,10 @@ export default (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      city: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       region: {
         type: DataTypes.STRING,
         allowNull: false,
