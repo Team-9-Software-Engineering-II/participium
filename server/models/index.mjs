@@ -127,6 +127,17 @@ db.Report.belongsTo(db.Category, {
   as: "category",
 });
 
+// Report - Company relationship (N:1) - for external maintainer assignment
+db.Report.belongsTo(db.Company, {
+  foreignKey: "companyId",
+  as: "company",
+});
+
+db.Company.hasMany(db.Report, {
+  foreignKey: "companyId",
+  as: "assignedReports",
+});
+
 // Company - Category relationship (N:M)
 db.Company.belongsToMany(db.Category, {
   through: db.CompanyCategory,

@@ -6,6 +6,7 @@ import {
   updateReport,
   findAllReportsFilteredByStatus,
   findReportsByTechnicalOfficerId,
+  findReportsByExternalMaintainerId,
 } from "../repositories/report-repo.mjs";
 import { findProblemCategoryById } from "../repositories/problem-category-repo.mjs";
 import {
@@ -160,6 +161,16 @@ export class ReportService {
    */
   static async getReportsAssignedToOfficer(officerId) {
     const reports = await findReportsByTechnicalOfficerId(officerId);
+    return sanitizeReports(reports);
+  }
+
+  /**
+   * Retrieves reports assigned to an external maintainer.
+   * @param {number} externalMaintainerId - The ID of the external maintainer.
+   * @returns {Promise<object[]>} Sanitized reports collection.
+   */
+  static async getReportsByExternalMaintainer(externalMaintainerId) {
+    const reports = await findReportsByExternalMaintainerId(externalMaintainerId);
     return sanitizeReports(reports);
   }
 
@@ -336,9 +347,10 @@ export class ReportService {
       throw error;
     }
 
-    // 5. Update the report: assign to the external maintainer
+    // 5. Update the report: assign to the external maintainer AND set the companyId
     await updateReport(reportId, {
       externalMaintainerId: bestMaintainer.id,
+      companyId: companyId,
     });
 
     // Return the updated report

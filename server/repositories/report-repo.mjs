@@ -121,6 +121,11 @@ export async function findReportById(id) {
           "companyId",
         ],
       },
+      {
+        model: db.Company,
+        as: "company",
+        attributes: ["id", "name"],
+      },
     ],
   });
 }
@@ -194,6 +199,31 @@ export async function findReportsByTechnicalOfficerId(officerId) {
   return db.Report.findAll({
     where: {
       technicalOfficerId: officerId,
+    },
+    include: [
+      {
+        model: db.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName", "photoURL"],
+      },
+      {
+        model: db.Category,
+        as: "category",
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+  });
+}
+
+/**
+ * Finds all reports assigned to a specific external maintainer.
+ * @param {number} externalMaintainerId - The ID of the external maintainer.
+ * @returns {Promise<Report[]>} Array of Report instances.
+ */
+export async function findReportsByExternalMaintainerId(externalMaintainerId) {
+  return db.Report.findAll({
+    where: {
+      externalMaintainerId: externalMaintainerId,
     },
     include: [
       {

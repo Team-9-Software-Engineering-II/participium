@@ -34,6 +34,14 @@ export function isExternalMaintainer(req, res, next) {
   return res.status(403).json({ error: "Forbidden: external maintainer only" });
 }
 
+export function isTechnicalStaffOrExternalMaintainer(req, res, next) {
+  const role = req.user?.role?.name;
+  if (role === "technical_staff" || role === "external_maintainer") {
+    return next();
+  }
+  return res.status(403).json({ error: "Forbidden: technical staff or external maintainer only" });
+}
+
 export function isPublicRelationsOfficer(req, res, next) {
   if (req.user?.role?.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER) {
     return next();

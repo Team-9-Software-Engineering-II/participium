@@ -39,6 +39,10 @@ export function sanitizeReport(report) {
   const technicalOfficeDetails = plainReport.category?.technicalOffice || null;
 
   const assigneeDetails = plainReport.technicalOfficer || null;
+  
+  const externalMaintainerDetails = plainReport.externalMaintainer || null;
+  
+  const companyDetails = plainReport.company || null;
 
   return {
     id: plainReport.id,
@@ -56,6 +60,8 @@ export function sanitizeReport(report) {
     categoryId: plainReport.categoryId,
     rejectionReason: plainReport.rejectionReason,
     reporterName: plainReport.reporterName,
+    externalMaintainerId: plainReport.externalMaintainerId || null,
+    companyId: plainReport.companyId || null,
 
     category: plainReport.category
       ? {
@@ -79,6 +85,23 @@ export function sanitizeReport(report) {
           lastName: assigneeDetails.lastName,
           username: assigneeDetails.username,
           email: assigneeDetails.email,
+        }
+      : null,
+
+    externalMaintainer: externalMaintainerDetails
+      ? {
+          id: externalMaintainerDetails.id,
+          firstName: externalMaintainerDetails.firstName,
+          lastName: externalMaintainerDetails.lastName,
+          username: externalMaintainerDetails.username,
+          email: externalMaintainerDetails.email,
+        }
+      : null,
+
+    company: companyDetails
+      ? {
+          id: companyDetails.id,
+          name: companyDetails.name,
         }
       : null,
 
