@@ -15,6 +15,7 @@ const mockAssignReportToExternalMaintainer = jest.fn();
 const mockFindAllProblemsCategories = jest.fn();
 const mockUpdateReport = jest.fn();
 const mockIsReportAssociatedToAuthenticatedUser = jest.fn();
+const mockGetReportsByExternalMaintainer = jest.fn();
 
 jest.unstable_mockModule(
   "../../../repositories/problem-category-repo.mjs",
@@ -38,6 +39,7 @@ jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
     assignReportToExternalMaintainer: mockAssignReportToExternalMaintainer,
     updateReport: mockUpdateReport,
     isReportAssociatedToAuthenticatedUser: mockIsReportAssociatedToAuthenticatedUser,
+    getReportsByExternalMaintainer: mockGetReportsByExternalMaintainer,
   },
 }));
 
@@ -631,6 +633,21 @@ describe("Report Controllers (Unit)", () => {
       expect(mockGetReportsAssignedToOfficer).toHaveBeenCalledWith(42);
       expect(mockNext).toHaveBeenCalledWith(serviceError);
       expect(mockRes.status).not.toHaveBeenCalled();
+    });
+
+    it("should return reports for external maintainer", async () => {
+      mockReq.user = { 
+        id: 50, 
+        role: { name: "external_maintainer" } 
+      };
+
+      const mockReports = [{ id: 10, title: "Fix streetlight" }];
+      mockGetReportsByExternalMaintainer.mockResolvedValue(mockReports);
+
+      await ReportControllers.getMyAssignedReports(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportsByExternalMaintainer).toHaveBeenCalledWith(50);
+      expect(mockRes.json).toHaveBeenCalledWith(mockReports);
     });
   });
 

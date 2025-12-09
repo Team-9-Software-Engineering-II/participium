@@ -13,12 +13,18 @@ const mockReportModel = {
 const mockUserModel = {};
 const mockCategoryModel = {};
 const mockTechnicalOfficeModel = {};
+const mockCompanyModel = {};
 
 const mockDb = {
   Report: mockReportModel,
   User: mockUserModel,
   Category: mockCategoryModel,
   TechnicalOffice: mockTechnicalOfficeModel,
+  Company: mockCompanyModel,
+  Category: mockCategoryModel,
+  sequelize: {
+    transaction: jest.fn((callback) => callback()),
+  },
 };
 
 jest.unstable_mockModule("../../../models/index.mjs", () => ({
@@ -110,6 +116,11 @@ const includeForId = [
       "email",
       "companyId",
     ],
+  },
+  {
+    model: mockCompanyModel,
+    as: "company",
+    attributes: ["id", "name"],
   },
 ];
 
@@ -236,6 +247,37 @@ describe("Report Repository (Unit)", () => {
       mockReportModel.destroy.mockResolvedValue(0);
       const result = await ReportRepo.deleteReport(1);
       expect(result).toBe(false);
+    });
+  });
+
+  describe("findReportsByExternalMaintainerId", () => {
+    it("should return reports for a specific external maintainer", async () => {
+      const maintainerId = 5;
+      const mockReports = [{ id: 10, title: "Maintenance Task" }];
+
+      mockReportModel.findAll.mockResolvedValue(mockReports);
+
+      const result = await ReportRepo.findReportsByExternalMaintainerId(maintainerId);
+
+      expect(mockReportModel.findAll).toHaveBeenCalledWith({
+        where: {
+          externalMaintainerId: maintainerId,
+        },
+        include: [
+          {
+            model: mockUserModel,
+            as: "user",
+            attributes: ["id", "username", "firstName", "lastName", "photoURL"],
+          },
+          {
+            model: mockCategoryModel,
+            as: "category",
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+
+      expect(result).toEqual(mockReports);
     });
   });
 });
