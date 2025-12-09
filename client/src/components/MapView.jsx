@@ -337,7 +337,7 @@ export function MapView({ reports = [], selectedReport = null }) {
           <DialogHeader><DialogTitle>Legend</DialogTitle><DialogDescription>Report status legend</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
             <div><h3 className="font-semibold mb-3 text-sm">Map Selection</h3><p className="text-sm text-muted-foreground">Move the cursor or click to select.</p></div>
-            <div><h3 className="font-semibold mb-3 text-sm">Status</h3><div className="space-y-3">{Object.entries(REPORT_STATUS).map(([key, value]) => (<div key={key} className="flex items-center gap-3"><div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: value.color }} /><span className="text-sm">{value.label}</span></div>))}</div></div>
+            <div><h3 className="font-semibold mb-3 text-sm">Status</h3><div className="space-y-3">{Object.entries(REPORT_STATUS).filter(([key]) => key !== 'Rejected').map(([key, value]) => (<div key={key} className="flex items-center gap-3"><div className="w-6 h-6 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: value.color }} /><span className="text-sm">{value.label}</span></div>))}</div></div>
           </div>
         </DialogContent>
       </Dialog>

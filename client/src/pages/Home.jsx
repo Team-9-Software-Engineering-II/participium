@@ -249,7 +249,6 @@ export default function Home() {
     { value: "Assigned", label: "Assigned" },
     { value: "In Progress", label: "In Progress" },
     { value: "Suspended", label: "Suspended" },
-    { value: "Rejected", label: "Rejected" },
     { value: "Resolved", label: "Resolved" },
   ];
 
@@ -556,12 +555,15 @@ export default function Home() {
                       </Button>
                     </div>
 
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm font-medium">My reports</span>
-                      <Switch
-                        checked={showMyReports}
-                        onCheckedChange={setShowMyReports}
-                      />
+                    <div>
+                      <span className="text-xl font-bold">All reports</span>
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="text-sm font-medium">My reports</span>
+                        <Switch
+                          checked={showMyReports}
+                          onCheckedChange={setShowMyReports}
+                        />
+                      </div>
                     </div>
 
                     <div className="py-2">
@@ -907,13 +909,6 @@ export default function Home() {
                     style={{ backgroundColor: "#22C55E" }}
                   />
                   <span className="text-sm">Resolved</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#EF4444" }}
-                  />
-                  <span className="text-sm">Rejected</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
