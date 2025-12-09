@@ -66,7 +66,7 @@ export default function OfficerReports({ status }) {
             key={report.id} 
             className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 group" 
             onClick={() => navigate(`/reports/${report.id}`)}
-            data-cy={`report-card-${report.id}`}
+            data-cy={`report-card`}
 
           >
             <CardHeader className="pb-3">
@@ -78,7 +78,7 @@ export default function OfficerReports({ status }) {
                   {format(new Date(report.createdAt || Date.now()), 'dd/MM/yyyy')}
                 </span>
               </div>
-              <CardTitle className="text-lg md:text-xl mt-3 line-clamp-1 group-hover:text-primary transition-colors">
+              <CardTitle data-cy="report-card-title" className="text-lg md:text-xl mt-3 line-clamp-1 group-hover:text-primary transition-colors">
                 {report.title}
               </CardTitle>
             </CardHeader>

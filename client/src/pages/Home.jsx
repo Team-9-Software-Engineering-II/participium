@@ -46,7 +46,7 @@ import { MapView } from "@/components/MapView";
 import { reportAPI } from "@/services/api";
 
 // Reusable Reports List component
-const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, navigate }) => {
+const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, navigate, onViewInMap }) => {
   // Se non autenticato, mostra il box di login
   if (!isAuthenticated) {
     return (
@@ -97,6 +97,7 @@ const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, 
         displayReports.map((report) => (
           <button
             key={report.id}
+            type="button"
             className="w-full p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors text-left"
             onClick={() => navigate(`/reports/${report.id}`)}
           >
@@ -139,18 +140,17 @@ const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, 
               <div className="flex items-center gap-2">
                 {/* Status Badge removed for brevity if not used, or add back if needed */}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
+              <button 
+                type="button"
+                className="inline-flex items-center justify-center gap-1 rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // handleViewInMap would need to be passed as prop
+                  onViewInMap(report);
                 }}
-                className="text-xs"
               >
-                <MapPin className="h-3 w-3 mr-1" />
+                <MapPin className="h-3 w-3" />
                 View in map
-              </Button>
+              </button>
             </div>
           </button>
         ))
@@ -173,7 +173,7 @@ export default function Home() {
   const [allReports, setAllReports] = useState([]);
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReport] = useState(null);
+  const [selectedReport, setSelectedReport] = useState(null);
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -365,6 +365,17 @@ export default function Home() {
     setShowFilters(false);
   };
 
+  const handleViewInMap = (report) => {
+    setSelectedReport(report);
+    // Chiudi la sheet mobile se aperta
+    if (isMobile) {
+      const sheetTrigger = document.querySelector('[data-state="open"]');
+      if (sheetTrigger) {
+        sheetTrigger.click();
+      }
+    }
+  };
+
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -401,7 +412,8 @@ export default function Home() {
           {/* Mostra Toggle "My reports" solo se autenticato */}
           {isAuthenticated && (
             <div className="px-4 py-3">
-              <div className="flex items-center justify-between">
+              <span className="text-xl font-bold">All reports</span>
+              <div className="flex items-center justify-between mt-4">
                 <span className="text-sm font-medium">My reports</span>
                 <Switch
                   checked={showMyReports}
@@ -426,6 +438,7 @@ export default function Home() {
               displayReports={displayReports}
               showMyReports={showMyReports}
               navigate={navigate}
+              onViewInMap={handleViewInMap}
             />
           </div>
 
@@ -569,6 +582,7 @@ export default function Home() {
                     displayReports={displayReports}
                     showMyReports={showMyReports}
                     navigate={navigate}
+                    onViewInMap={handleViewInMap}
                   />
                 </div>
               </div>

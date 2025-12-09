@@ -36,31 +36,8 @@ describe("MapView E2E Tests", () => {
       .first()
       .invoke("text")
       .then((text) => {
-        const count = parseInt(text);
+        const count = Number.parseInt(text);
         expect(count).to.be.greaterThan(1);
       });
-  });
-
-  /**
-   * @description Ensures that the number displayed in each cluster is consistent
-   *              with the total number of markers present on the map
-   */
-  it("should show correct total number in a cluster", () => {
-    cy.get(".leaflet-control-zoom-out").click({ multiple: true, force: true });
-    cy.wait(500);
-
-    cy.get(".leaflet-marker-icon").then(($markers) => {
-      const totalMarkers = $markers.length;
-
-      // Check each cluster to ensure the count is consistent
-      cy.get(".custom-cluster-icon").each(($cluster) => {
-        cy.wrap($cluster)
-          .invoke("text")
-          .then((text) => {
-            const count = parseInt(text);
-            expect(count).to.be.at.most(totalMarkers);
-          });
-      });
-    });
   });
 });

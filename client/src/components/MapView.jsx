@@ -64,7 +64,7 @@ const createClusterCustomIcon = (cluster) => {
   const count = cluster.getChildCount();
   let color = getClusterColor(count);
   return L.divIcon({
-    html: `<div style="width: 50px; height: 50px; background-color: ${color}; border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">${count}</div>`,
+    html: `<div data-cy="report-cluster-icon" style="width: 50px; height: 50px; background-color: ${color}; border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">${count}</div>`,
     className: 'custom-cluster-icon',
     iconSize: L.point(50, 50, true),
   });
@@ -183,7 +183,7 @@ function LocationMarker({ position, setPosition, setAddress, address, setSearchQ
             <>
               <div className="flex items-center gap-1.5 mb-0.5"><MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />{address && <p className="text-xs font-semibold leading-tight">{address}</p>}</div>
               <p className="text-[10px] text-muted-foreground mb-2 ml-5">{position[0].toFixed(6)}, {position[1].toFixed(6)}</p>
-              <Button onClick={() => navigate('/reports/new', { state: { coordinates: position, address: address || null } })} className="w-full h-7 text-xs" size="sm">+ New Report</Button>
+              <Button data-cy="create-report-button" onClick={() => navigate('/reports/new', { state: { coordinates: position, address: address || null } })} className="w-full h-7 text-xs" size="sm">+ New Report</Button>
             </>
           ) : (
             <div className="flex flex-col items-center text-center py-1">
@@ -324,12 +324,12 @@ export function MapView({ reports = [], selectedReport = null }) {
       <div className="absolute top-6 right-6 z-[1000] w-[450px] max-md:left-4 max-md:right-4 max-md:w-auto max-md:top-4">
         <form onSubmit={handleSearch} className="bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-lg px-6 py-3 flex items-center gap-3 transition-all focus-within:ring-2 focus-within:ring-primary max-md:px-4 max-md:py-2">
           <Search className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-          <input type="text" value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} placeholder="Search address..." className="bg-transparent outline-none flex-1 text-sm placeholder:text-muted-foreground" />
+          <input data-cy="search-input" type="text" value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)} placeholder="Search address..." className="bg-transparent outline-none flex-1 text-sm placeholder:text-muted-foreground" />
           {searchQuery && <button type="button" onClick={clearSearch} className="text-muted-foreground hover:text-foreground transition-colors max-md:hidden" title="Clear search"><X className="h-5 w-5" /></button>}
           <button type="button" onClick={handleUseMyLocation} className="text-muted-foreground hover:text-foreground transition-colors md:hidden" title="Use my location"><Crosshair className="h-5 w-5" /></button>
         </form>
         {showSearchResults && searchResults.length > 0 && (
-          <div className="mt-2 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden">
+          <div data-cy="search-result" className="mt-2 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden">
             {searchResults.map((result, index) => (
               <button key={result || `result${index}`} onClick={() => selectSearchResult(result)} className="w-full px-4 py-3 text-left text-sm hover:bg-accent border-b border-border last:border-b-0">{result.display_name}</button>
             ))}

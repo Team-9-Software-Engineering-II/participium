@@ -8,7 +8,7 @@ describe("Technician Reports", () => {
    * Logs in as a technician and navigates to active reports before each test.
    */
   beforeEach(() => {
-    cy.loginAsUser("tech_water", "password123");
+    cy.loginAsTechOfficer();
     cy.visit("/technical/reports/active");
   });
 
@@ -68,10 +68,14 @@ describe("Technician Reports", () => {
    * Verifies that the report creation date and coordinates are displayed correctly.
    */
   it("should display report creation date and coordinates", () => {
-    cy.get("[data-cy=report-card]").first().within(() => {
-      cy.get("span").contains(/\d{4}/).should("exist"); // year part of date
-      cy.get("span").contains(/\d+\.\d+/).should("exist"); // latitude or longitude
-    });
+    cy.get("[data-cy=report-card]")
+      .first()
+      .within(() => {
+        cy.get("span").contains(/\d{4}/).should("exist"); // year part of date
+        cy.get("span")
+          .contains(/\d+\.\d+/)
+          .should("exist"); // latitude or longitude
+      });
   });
 
   /**
