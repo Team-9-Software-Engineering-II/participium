@@ -105,3 +105,52 @@ export function logout(req, res, next) {
     }
   });
 }
+
+/**
+ * Handles user registration request - saves user data temporarily to Redis
+ * with a confirmation code for email verification.
+ */
+export async function registerRequest(req, res, next) {
+  try {
+    const validatedInput = validateRegistrationInput(req, res);
+
+    if (!validatedInput) {
+      return;
+    }
+
+    const result = await AuthService.registerUserRequest(validatedInput);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * Handles OTP verification and user creation.
+ * Verifies the confirmation code against Redis and creates the user if valid.
+ */
+export async function verifyRegistration(req, res, next) {
+  try {
+    const { email, confirmationCode } = req.body ?? {};
+
+    if (!email || !confirmationCode) {
+      return res.status(400).json({
+        message: "Missing required fields: email, confirmationCode.",
+      });
+    }
+
+    const user = await AuthService.verifyAndCreateUser(email, confirmationCode);
+
+    // Log the user in after successful registration
+    req.login(user, (loginError) => {
+      if (loginError) {
+        return next(loginError);
+      }
+
+      return sendSessionResponse(req, res, user, 201);
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
