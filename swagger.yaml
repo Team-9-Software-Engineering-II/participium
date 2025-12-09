@@ -728,6 +728,43 @@ paths:
         '404':
           description: Report not found
 
+    get:
+      summary: Retrieve all messages for a report
+      description: >
+        Get the internal chat history for a specific report.
+        Access is restricted:
+        - Citizens cannot access this endpoint.
+        - Admins can access all reports.
+        - Technical Officers and External Maintainers can access only if assigned to the specific report.
+      tags: [Messages]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of messages successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '400':
+          description: Invalid reportId supplied
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - User is a citizen OR not assigned to this report
+        '404':
+          description: Report not found
+
 components:
   securitySchemes:
     CookieAuth:
