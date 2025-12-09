@@ -297,7 +297,7 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">New Status</label>
+            <label htmlFor="status-select" className="text-sm font-medium">New Status</label>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger>
                 <SelectValue />

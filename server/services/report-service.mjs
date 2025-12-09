@@ -88,7 +88,7 @@ export class ReportService {
     const category = await findProblemCategoryById(report.categoryId);
 
     // (Nota: findProblemCategoryById include già il modello TechnicalOffice come 'technicalOffice')
-    if (!category || !category.technicalOffice) {
+    if (!category?.technicalOffice) {
       console.log(category);
       const error = new Error(
         "Configuration Error: This report category is not linked to any Technical Office."

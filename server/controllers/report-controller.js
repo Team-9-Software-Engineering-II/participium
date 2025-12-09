@@ -6,7 +6,6 @@ import { findAllProblemsCategories } from "../repositories/problem-category-repo
 import {
   validateCreateReportInput,
   validateNewReportCategory,
-  validateReportToBeAcceptedOrRejected,
 } from "../shared/validators/report-validator.mjs";
 
 /**

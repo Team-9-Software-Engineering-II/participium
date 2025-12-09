@@ -13,7 +13,7 @@ const API_BASE_URL = (() => {
     return 'http://localhost:3000';
   }
   // Production fallback: use window location origin for same-origin requests
-  return typeof window !== 'undefined' ? window.location.origin : '';
+  return typeof globalThis !== 'undefined' ? globalThis.location.origin : '';
 })();
 
 // Crea un'istanza di axios con configurazione di base

@@ -131,27 +131,37 @@ export default function TechnicianReports({ type = "active" }) {
   }
 
   if (reports.length === 0) {
+    let emptyStateContent;
+    
+    if (type === "active") {
+      emptyStateContent = (
+        <>
+          <CheckCircle2 className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">All caught up!</h3>
+          <p className="text-muted-foreground">You have no pending reports assigned.</p>
+        </>
+      );
+    } else if (type === "maintainer") {
+      emptyStateContent = (
+        <>
+          <HardHat className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">No external assignments</h3>
+          <p className="text-muted-foreground">You haven't assigned any reports to external maintainers.</p>
+        </>
+      );
+    } else {
+      emptyStateContent = (
+        <>
+          <Clock className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">No history</h3>
+          <p className="text-muted-foreground">You haven't resolved any reports yet.</p>
+        </>
+      );
+    }
+    
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/5">
-        {type === "active" ? (
-          <>
-            <CheckCircle2 className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">All caught up!</h3>
-            <p className="text-muted-foreground">You have no pending reports assigned.</p>
-          </>
-        ) : type === "maintainer" ? (
-          <>
-            <HardHat className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">No external assignments</h3>
-            <p className="text-muted-foreground">You haven't assigned any reports to external maintainers.</p>
-          </>
-        ) : (
-          <>
-            <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">No history</h3>
-            <p className="text-muted-foreground">You haven't resolved any reports yet.</p>
-          </>
-        )}
+        {emptyStateContent}
       </div>
     );
   }
@@ -272,11 +282,13 @@ function AssignMaintainerDialog({ report, onRefresh }) {
           </DialogHeader>
           
           <div className="py-4">
-            {loading ? (
+            {loading && (
               <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
-            ) : companies.length === 0 ? (
+            )}
+            {!loading && companies.length === 0 && (
               <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
-            ) : (
+            )}
+            {!loading && companies.length > 0 && (
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a company" />
@@ -326,13 +338,6 @@ function AssignMaintainerDialog({ report, onRefresh }) {
 // Sotto-componente per gestire lo stato locale del Select
 function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
   const navigate = useNavigate();
-  // Stato locale per il valore selezionato nel dropdown
-  const [selectedStatus, setSelectedStatus] = useState(report.status);
-
-  // Se il report cambia (es. ricaricamento lista), resetta la selezione
-  useEffect(() => {
-    setSelectedStatus(report.status);
-  }, [report.status]);
 
   return (
     <Card data-cy="report-card" className="transition-all hover:shadow-md border-l-4 border-l-primary/20">
