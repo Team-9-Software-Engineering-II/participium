@@ -252,7 +252,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
              <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
           ) : (
             <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger>
+              <SelectTrigger data-cy="company-select-trigger">
                 <SelectValue placeholder="Select a company" />
               </SelectTrigger>
               <SelectContent>
@@ -267,8 +267,8 @@ function AssignMaintainerDialog({ report, onRefresh }) {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleAssign} disabled={!selectedCompany || assigning}>
+          <Button data-cy="cancel-assignment-button"variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button data-cy="confirm-assignment-butto" onClick={handleAssign} disabled={!selectedCompany || assigning}>
             {assigning ? "Assigning..." : "Confirm Assignment"}
           </Button>
         </DialogFooter>
@@ -395,7 +395,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
           )}
 
           <Button 
-            data-cy="view-details-btn"
+            data-cy="view-details-button"
             variant="ghost" 
             size="sm" 
             className="w-full md:w-auto mt-auto gap-2 text-primary hover:text-primary/80"
