@@ -47,6 +47,26 @@ jest.unstable_mockModule("../../../shared/utils/userUtils.mjs", () => ({
   sanitizeUser: mockSanitizeUser,
 }));
 
+// NUOVO MOCK: Redis Repo
+const mockSaveTemporaryUser = jest.fn();
+const mockGetTemporaryUser = jest.fn();
+const mockDeleteTemporaryUser = jest.fn();
+
+jest.unstable_mockModule("../../../repositories/redis-repo.mjs", () => ({
+  saveTemporaryUser: mockSaveTemporaryUser,
+  getTemporaryUser: mockGetTemporaryUser,
+  deleteTemporaryUser: mockDeleteTemporaryUser,
+}));
+
+// NUOVO MOCK: Email Service
+const mockSendVerificationCode = jest.fn();
+
+// Assumiamo che il service importi EmailService. Adattiamo il mock per coprire export default o named.
+jest.unstable_mockModule("../../../services/email-service.mjs", () => ({
+  default: { sendVerificationCode: mockSendVerificationCode },
+  EmailService: { sendVerificationCode: mockSendVerificationCode }
+}));
+
 // --- 2. TEST SUITE ---
 
 let AuthService;
@@ -321,6 +341,159 @@ describe("AuthService (Unit)", () => {
 
       expect(result.hashedPassword).toBeUndefined();
       expect(result.role).toEqual({ id: 1, name: "citizen" });
+    });
+  });
+
+  // ==========================================================================
+  // registerUserRequest (NUOVO - Redis Flow Step 1)
+  // ==========================================================================
+  describe("registerUserRequest", () => {
+    const redisInput = {
+      firstName: "Mario",
+      lastName: "Rossi",
+      email: "new@test.com",
+      username: "mario123",
+      password: "password123"
+    };
+
+    it("should process request, save to Redis and send email", async () => {
+      // 1. Nessun conflitto nel DB
+      mockFindUserByEmail.mockResolvedValue(null);
+      mockFindUserByUsername.mockResolvedValue(null);
+      
+      // 2. Redis salva ok
+      mockSaveTemporaryUser.mockResolvedValue();
+
+      // 3. Email inviata ok
+      mockSendVerificationCode.mockResolvedValue({ previewUrl: "http://fake.url" });
+
+      const result = await AuthService.registerUserRequest(redisInput);
+
+      // Verifiche
+      expect(mockFindUserByEmail).toHaveBeenCalledWith(redisInput.email);
+      expect(mockSaveTemporaryUser).toHaveBeenCalledWith(
+        redisInput.email,
+        expect.objectContaining({ email: redisInput.email }),
+        expect.stringMatching(/^\d{6}$/) // Regex: codice a 6 cifre
+      );
+      expect(mockSendVerificationCode).toHaveBeenCalled();
+      
+      expect(result).toEqual(expect.objectContaining({
+        message: expect.stringContaining("successfully"),
+        confirmationCode: expect.any(String)
+      }));
+    });
+
+    it("should throw 409 if email already exists", async () => {
+      mockFindUserByEmail.mockResolvedValue({ id: 1 }); // Esiste
+      await expect(AuthService.registerUserRequest(redisInput))
+        .rejects.toHaveProperty("statusCode", 409);
+      expect(mockSaveTemporaryUser).not.toHaveBeenCalled();
+    });
+
+    it("should throw 409 if username already exists", async () => {
+      mockFindUserByEmail.mockResolvedValue(null);
+      mockFindUserByUsername.mockResolvedValue({ id: 1 }); // Esiste
+      await expect(AuthService.registerUserRequest(redisInput))
+        .rejects.toHaveProperty("statusCode", 409);
+      expect(mockSaveTemporaryUser).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // verifyAndCreateUser (NUOVO - Redis Flow Step 2)
+  // ==========================================================================
+  describe("verifyAndCreateUser", () => {
+    const email = "test@test.com";
+    const code = "123456";
+    const redisData = { 
+      firstName: "Mario", 
+      lastName: "Rossi", 
+      email: email, 
+      username: "mario123", 
+      password: "rawPassword", 
+      verificationCode: code 
+    };
+
+    it("should verify code, create user and delete temp data", async () => {
+      // 1. Redis trova i dati
+      mockGetTemporaryUser.mockResolvedValue(redisData);
+
+      // 2. Race condition check: email/username ancora liberi
+      mockFindUserByEmail.mockResolvedValue(null);
+      mockFindUserByUsername.mockResolvedValue(null);
+
+      // 3. Ruolo
+      mockFindRoleByName.mockResolvedValue({ id: 2, name: "citizen" });
+      
+      // 4. Hashing password
+      mockHash.mockResolvedValue("hashed_secret");
+
+      // 5. Creazione DB
+      const createdUser = { id: 10, email, roleId: 2, ...redisData };
+      mockCreateUser.mockResolvedValue(createdUser);
+      // Hydration
+      mockFindUserById.mockResolvedValue({ ...createdUser, get: jest.fn().mockReturnValue(createdUser) });
+
+      const result = await AuthService.verifyAndCreateUser(email, code);
+
+      expect(mockGetTemporaryUser).toHaveBeenCalledWith(email);
+      
+      // --- FIX QUI SOTTO ---
+      // Accettiamo "rawPassword" seguito da qualsiasi numero (es. 10)
+      expect(mockHash).toHaveBeenCalledWith("rawPassword", expect.any(Number));
+      // ---------------------
+
+      expect(mockCreateUser).toHaveBeenCalledWith(expect.objectContaining({
+        email: email,
+        hashedPassword: "hashed_secret",
+        roleId: 2
+      }));
+
+      expect(mockDeleteTemporaryUser).toHaveBeenCalledWith(email);
+      
+      // Verifica sanitizzazione (no password)
+      expect(result.hashedPassword).toBeUndefined();
+      expect(result.email).toBe(email);
+    });
+
+    it("should throw 404 if Redis data is missing/expired", async () => {
+      mockGetTemporaryUser.mockResolvedValue(null);
+      await expect(AuthService.verifyAndCreateUser(email, code))
+        .rejects.toHaveProperty("statusCode", 404);
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it("should throw 400 if code does not match", async () => {
+      mockGetTemporaryUser.mockResolvedValue({ ...redisData, verificationCode: "999999" });
+      await expect(AuthService.verifyAndCreateUser(email, "123456"))
+        .rejects.toHaveProperty("statusCode", 400);
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it("should fallback to createdUser if hydration (findUserById) fails (Line 327 coverage)", async () => {
+      // Setup standard per successo
+      mockGetTemporaryUser.mockResolvedValue(redisData);
+      mockFindUserByEmail.mockResolvedValue(null);
+      mockFindUserByUsername.mockResolvedValue(null);
+      mockFindRoleByName.mockResolvedValue({ id: 2 });
+      mockHash.mockResolvedValue("hashed");
+
+      // 1. La creazione va a buon fine
+      const createdUser = { id: 10, email, roleId: 2, ...redisData };
+      mockCreateUser.mockResolvedValue(createdUser);
+
+      // 2. MA... la rilettura (hydration) fallisce (ritorna null)
+      mockFindUserById.mockResolvedValue(null);
+
+      const result = await AuthService.verifyAndCreateUser(email, code);
+
+      // Verifiche
+      // Deve aver usato 'createdUser' invece di crashare o tornare null
+      expect(result.email).toBe(email);
+      expect(result.id).toBe(10);
+      // Verifica che sia stato comunque sanitizzato (niente password)
+      expect(result.hashedPassword).toBeUndefined();
     });
   });
 
