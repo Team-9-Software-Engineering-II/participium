@@ -1,4 +1,4 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+import { jest, describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
 // --- MOCKING REPORT SERVICE DEPENDENCIES ---
 
@@ -10,6 +10,11 @@ const mockFindReportsByUserId = jest.fn();
 const mockfindAllReportsFilteredByStatus = jest.fn();
 const mockFindReportsByTechnicalOfficerId = jest.fn();
 const mockUpdateReport = jest.fn();
+const mockFindUserById = jest.fn();
+
+jest.unstable_mockModule("../../../repositories/user-repo.mjs", () => ({
+  findUserById: mockFindUserById,
+}));
 
 jest.unstable_mockModule("../../../repositories/report-repo.mjs", () => ({
   createReport: mockCreateReport,
@@ -58,19 +63,18 @@ jest.unstable_mockModule("../../../repositories/user-repo.mjs", () => ({
     mockFindExternalMaintainerWithFewestReports,
 }));
 
-const mockFindCompanyById = jest.fn();
-const mockFindCompaniesByCategoryId = jest.fn();
-
-jest.unstable_mockModule("../../../repositories/company-repo.mjs", () => ({
-  findCompanyById: mockFindCompanyById,
-  findCompaniesByCategoryId: mockFindCompaniesByCategoryId,
-}));
-
 const mockMapReportsCollectionToAssignedListDTO = jest.fn();
 
 jest.unstable_mockModule("../../../shared/dto/report-dto.mjs", () => ({
   mapReportsCollectionToAssignedListDTO:
     mockMapReportsCollectionToAssignedListDTO,
+}));
+
+const mockValidateCreateReportInput = jest.fn(); 
+
+// E assicurati che il modulo sia mockato usando quella variabile:
+jest.unstable_mockModule("../../../shared/validators/report-validator.mjs", () => ({
+  validateCreateReportInput: mockValidateCreateReportInput,
 }));
 
 // Dynamic import of the Report Service
@@ -778,4 +782,196 @@ describe("ReportService (Unit)", () => {
       expect(mockUpdateReport).not.toHaveBeenCalled();
     });
   });
+
+  // ----------------------------------------------------------------------
+  // isReportAssociatedToAuthenticatedUser (Copre riga 212)
+  // ----------------------------------------------------------------------
+  describe("isReportAssociatedToAuthenticatedUser", () => {
+    const report = { 
+      userId: 1,               // Creatore
+      technicalOfficerId: 2,   // Tecnico
+      externalMaintainerId: 3  // Esterno
+    };
+
+    it("should return true if user is the creator", async () => {
+      // Nota: Assicurati che ReportService sia importato correttamente
+      const result = await ReportService.isReportAssociatedToAuthenticatedUser(report, 1);
+      expect(result).toBe(true);
+    });
+
+    it("should return true if user is the technical officer", async () => {
+      const result = await ReportService.isReportAssociatedToAuthenticatedUser(report, 2);
+      expect(result).toBe(true);
+    });
+
+    it("should return true if user is the external maintainer", async () => {
+      const result = await ReportService.isReportAssociatedToAuthenticatedUser(report, 3);
+      expect(result).toBe(true);
+    });
+
+    it("should return false if user is not associated", async () => {
+      const result = await ReportService.isReportAssociatedToAuthenticatedUser(report, 99);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("createCitizenReport (OSM Logic)", () => {
+    const originalFetch = global.fetch;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+
+    const inputPayload = {
+      title: "Pothole",
+      description: "Big hole",
+      categoryId: 1,
+      latitude: 45.0,
+      longitude: 7.0,
+      anonymous: false,
+      photos: []
+    };
+    const userId = 1;
+
+    beforeEach(() => {
+      global.fetch = jest.fn();
+      console.warn = jest.fn();
+      console.error = jest.fn();
+
+      // SETUP CRUCIALE:
+      // 1. La categoria DEVE esistere, altrimenti esce prima dell'OSM
+      mockFindProblemCategoryById.mockResolvedValue({ id: 1, name: "Roads" });
+      
+      // 2. Mockiamo la creazione finale per evitare errori
+      mockCreateReport.mockResolvedValue({ id: 100 });
+      mockFindReportById.mockResolvedValue({ id: 100 });
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      console.warn = originalConsoleWarn;
+      console.error = originalConsoleError;
+    });
+
+    // Copre righe 267-268: if (!response.ok) -> console.warn -> return null
+    it("should warn and use null address if OSM response is not OK", async () => {
+      global.fetch.mockResolvedValue({
+        ok: false,
+        status: 500
+      });
+
+      await ReportService.createCitizenReport(userId, inputPayload);
+
+      expect(console.warn).toHaveBeenCalledWith("OSM response not ok:", 500);
+      expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
+        latitude: 45.0,
+        address: null 
+      }));
+    });
+
+    // Copre righe 287-288: catch (error) -> console.error -> return null
+    it("should error and use null address if fetch throws exception", async () => {
+      const networkError = new Error("Network Down");
+      global.fetch.mockRejectedValue(networkError);
+
+      await ReportService.createCitizenReport(userId, inputPayload);
+
+      expect(console.error).toHaveBeenCalledWith("Error fetching address from OSM:", networkError);
+      expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
+        address: null
+      }));
+    });
+
+    // Copre riga 282: if (!formattedAddress) { formattedAddress = data.name || ... }
+    it("should fallback to display_name if detailed address fields are missing", async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          // Simuliamo un oggetto address vuoto
+          address: {}, 
+          // Simuliamo la presenza di un nome generico
+          display_name: "Fallback Location Name"
+        })
+      });
+
+      await ReportService.createCitizenReport(userId, inputPayload);
+
+      expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
+        address: "Fallback Location Name"
+      }));
+    });
+
+    // Happy Path Standard (per completezza)
+    it("should use formatted address from road and house number", async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          address: {
+            road: "Main St",
+            house_number: "123"
+          }
+        })
+      });
+
+      await ReportService.createCitizenReport(userId, inputPayload);
+
+      expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
+        address: "Main St 123"
+      }));
+    });
+
+    it("should SKIP OSM fetch if coordinates are missing (Line 38 coverage)", async () => {
+      // Payload senza lat/long
+      const inputNoCoords = { 
+        title: "No GPS", 
+        categoryId: 1 
+        // latitude e longitude mancanti
+      };
+      
+      // Setup base
+      mockFindProblemCategoryById.mockResolvedValue({ id: 1 });
+      mockFindUserById.mockResolvedValue({ id: 1 });
+      mockCreateReport.mockResolvedValue({ id: 100 });
+      mockFindReportById.mockResolvedValue({ id: 100 });
+
+      await ReportService.createCitizenReport(1, inputNoCoords);
+
+      // Verifiche
+      expect(global.fetch).not.toHaveBeenCalled(); // Non deve chiamare OSM
+      expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
+        address: null, // Address rimane null
+        title: "No GPS"
+      }));
+    });
+
+    it("should return null if OSM returns valid JSON but no address data (Line 285 coverage)", async () => {
+      // Setup payload con coordinate
+      const inputPayload = { title: "T", categoryId: 1, latitude: 45, longitude: 7 };
+      
+      // Setup base
+      mockFindProblemCategoryById.mockResolvedValue({ id: 1 });
+      mockFindUserById.mockResolvedValue({ id: 1 });
+      mockCreateReport.mockResolvedValue({ id: 100 });
+      mockFindReportById.mockResolvedValue({ id: 100 });
+
+      // Mock OSM che ritorna JSON vuoto/inutile
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          address: {},      // Vuoto
+          name: null,       // Vuoto
+          display_name: ""  // Vuoto
+        })
+      });
+
+      await ReportService.createCitizenReport(1, inputPayload);
+
+      // Deve aver provato a fare fetch
+      expect(global.fetch).toHaveBeenCalled();
+      
+      // Ma l'indirizzo salvato deve essere null (perché formattedAddress era stringa vuota)
+      expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
+        address: null
+      }));
+    });
+  });
+
 });

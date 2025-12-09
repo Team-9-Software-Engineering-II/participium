@@ -14,6 +14,7 @@ const mockGetEligibleCompaniesForReport = jest.fn();
 const mockAssignReportToExternalMaintainer = jest.fn();
 const mockFindAllProblemsCategories = jest.fn();
 const mockUpdateReport = jest.fn();
+const mockIsReportAssociatedToAuthenticatedUser = jest.fn();
 
 jest.unstable_mockModule(
   "../../../repositories/problem-category-repo.mjs",
@@ -36,6 +37,7 @@ jest.unstable_mockModule("../../../services/report-service.mjs", () => ({
     getEligibleCompaniesForReport: mockGetEligibleCompaniesForReport,
     assignReportToExternalMaintainer: mockAssignReportToExternalMaintainer,
     updateReport: mockUpdateReport,
+    isReportAssociatedToAuthenticatedUser: mockIsReportAssociatedToAuthenticatedUser,
   },
 }));
 
@@ -888,15 +890,17 @@ describe("Report Controllers (Unit)", () => {
     it("should update status to 'In Progress' and return 200", async () => {
       mockReq.params.reportId = "10";
       mockReq.body = { status: "In Progress" };
+      mockReq.user = { id: 42, role: { name: "staff" } };
 
-      mockUpdateReport.mockResolvedValue(true);
+      mockIsReportAssociatedToAuthenticatedUser.mockResolvedValue(true); 
+      
+      mockUpdateReport.mockResolvedValue(true); 
       mockGetReportById.mockResolvedValue(freshReport);
 
       await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
 
-      expect(mockUpdateReport).toHaveBeenCalledWith(10, {
-        status: "In Progress",
-      });
+      expect(mockIsReportAssociatedToAuthenticatedUser).toHaveBeenCalled();
+      expect(mockUpdateReport).toHaveBeenCalledWith(10, { status: "In Progress" });
       expect(mockGetReportById).toHaveBeenCalledWith(10);
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(freshReport);
@@ -944,6 +948,47 @@ describe("Report Controllers (Unit)", () => {
       await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    // Copre riga 228: if (!reportToBeUpdated)
+    it("should return 404 if report to be updated is not found", async () => {
+      mockReq.params.reportId = "999";
+      mockReq.body = { status: "In Progress" };
+
+      // Simuliamo che il report non esista
+      mockGetReportById.mockResolvedValue(null);
+
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportById).toHaveBeenCalledWith(999);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        message: expect.stringContaining("not found")
+      }));
+    });
+
+    // Copre riga 243: else { res.status(403)... }
+    it("should return 403 if user is not assigned to manage the report", async () => {
+      mockReq.params.reportId = "10";
+      mockReq.body = { status: "In Progress" };
+      mockReq.user = { id: 5 }; // Un utente a caso
+
+      // Il report esiste...
+      mockGetReportById.mockResolvedValue({ id: 10 });
+      
+      // ...MA il controllo di sicurezza ritorna FALSE
+      mockIsReportAssociatedToAuthenticatedUser.mockResolvedValue(false);
+
+      await ReportControllers.updateReportStatus(mockReq, mockRes, mockNext);
+
+      expect(mockIsReportAssociatedToAuthenticatedUser).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        message: expect.stringContaining("not assigned")
+      }));
+      
+      // Assicuriamoci che l'aggiornamento NON venga chiamato
+      expect(mockUpdateReport).not.toHaveBeenCalled();
     });
   });
 });
