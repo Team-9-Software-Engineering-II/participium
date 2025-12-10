@@ -144,6 +144,6 @@ vite.config.ts.timestamp-*
 data/database.sqlite
 
 # uploaded files
-uploads/
+#uploads/
 
 
