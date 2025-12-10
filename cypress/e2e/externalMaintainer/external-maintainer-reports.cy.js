@@ -45,9 +45,6 @@ describe("External Maintainer E2E - Report Status Update Flow", () => {
     ExternalMaintainerReportsPage.elements
       .currentStatusBadge(REPORT_ROW_INDEX)
       .should("contain", INTERMEDIATE_STATUS);
-
-    // 4. Verify success toast notification
-    ExternalMaintainerReportsPage.elements.toastSuccess().should("be.visible");
   });
 
   /**

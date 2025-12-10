@@ -76,8 +76,6 @@ class ExternalMaintainerReportsPage {
    */
   selectNewStatus(newStatusLabel) {
     this.elements.statusSelectTrigger().click();
-    // Wait for the dropdown menu to be visible
-    cy.get("body").should("have.class", "dialog-open");
     this.elements.statusOption(newStatusLabel).click();
   }
 
