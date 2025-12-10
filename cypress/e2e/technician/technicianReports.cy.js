@@ -7,7 +7,7 @@ import technicianLayoutPage from "../../pages/technician/technician-layout.page"
 
 describe("Technician Report Management", () => {
   // Reliance on seeded data for external assignment flow
-  const KNOWN_ACTIVE_REPORT_TITLE = "Open Manhole Cover Near School";
+  const KNOWN_ACTIVE_REPORT_TITLE = "Buche pericolose sulla strada";
   const EXTERNAL_COMPANY_NAME = "C.I.T. Servizi Urbani";
 
   /**

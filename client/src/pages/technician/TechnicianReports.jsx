@@ -233,7 +233,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full gap-2">
+        <Button variant="outline" size="sm" className="w-full gap-2" data-cy="assign-maintainer-btn">
           <HardHat className="h-4 w-4" /> Assign to Maintainer
         </Button>
       </DialogTrigger>
@@ -256,11 +256,14 @@ function AssignMaintainerDialog({ report, onRefresh }) {
                 <SelectValue placeholder="Select a company" />
               </SelectTrigger>
               <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id.toString()}>
+                {companies.map((c) => {
+                  const formattedName = c.name.replace(/\s/g, "-");
+                  return (
+                  <SelectItem key={c.id} value={c.id.toString()} data-cy={`select-item-${formattedName}`}>
                     {c.name}
                   </SelectItem>
-                ))}
+                );
+                })}
               </SelectContent>
             </Select>
           )}
@@ -268,7 +271,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
 
         <DialogFooter>
           <Button data-cy="cancel-assignment-button"variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button data-cy="confirm-assignment-butto" onClick={handleAssign} disabled={!selectedCompany || assigning}>
+          <Button data-cy="confirm-assignment-button" onClick={handleAssign} disabled={!selectedCompany || assigning}>
             {assigning ? "Assigning..." : "Confirm Assignment"}
           </Button>
         </DialogFooter>
