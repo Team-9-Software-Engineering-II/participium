@@ -218,6 +218,15 @@ const getExternalMaintainers = (hashedPassword) => {
       roleId: 5,
       companyId: 4,
     },
+    {
+      email: "maint5@cit.it",
+      username: "em_urban_services",
+      hashedPassword,
+      firstName: "Federico",
+      lastName: "Bianchi",
+      roleId: 5,
+      companyId: 5,
+    },
   ];
 };
 

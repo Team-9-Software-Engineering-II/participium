@@ -12,6 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { connectRedis } from "./config/redis.mjs";
 import { initializeEmailTransporter } from "./config/email.mjs";
+import { globalErrorHandler } from "./middlewares/error-handler.mjs";
 
 const app = express();
 
@@ -113,23 +114,6 @@ function bootstrapExpress() {
   }
 }
 
-/**
- * Handles application level errors and provides consistent responses.
- */
-function registerErrorHandlers() {
-  // eslint-disable-next-line no-unused-vars
-  app.use((err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
-    const message =
-      statusCode >= 500
-        ? "An unexpected error occurred. Please try again later."
-        : err.message;
-
-    console.error(err);
-    res.status(statusCode).json({ message });
-  });
-}
-
 bootstrapExpress();
 app.use(router);
 
@@ -143,7 +127,7 @@ if (hasClientBuild) {
   });
 }
 
-registerErrorHandlers();
+app.use(globalErrorHandler);
 
 db.sequelize
   .sync(syncOptions)
@@ -159,9 +143,14 @@ db.sequelize
     await initializeEmailTransporter();
 
     if (NODE_ENV !== "test") {
-      app.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT}`);
-      });
+      if (NODE_ENV == "production") {
+        app.listen(PORT, () => {
+          console.log(`Server in production listening on port ${PORT}`);
+        });
+      } else
+        app.listen(PORT, () => {
+          console.log(`Server in development listening on port ${PORT}`);
+        });
     }
   })
   .catch((err) => {

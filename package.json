@@ -1,8 +1,9 @@
 {
   "name": "participium",
   "private": true,
-  "devDependencies": {
-    "cypress": "^15.6.0",
+  "dependencies": {
+    "cypress": "^15.7.1",
+    "cypress-file-upload": "^5.0.8",
     "cypress-real-events": "^1.15.0"
   }
 }

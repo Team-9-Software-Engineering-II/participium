@@ -153,3 +153,6 @@ server/uploads/
 
 # Ignores JetBrains IDEs project files
 .idea/
+
+#Cypress files
+cypress/screenshots/*
