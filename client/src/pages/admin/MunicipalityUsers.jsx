@@ -60,6 +60,11 @@ const getOfficeDisplay = (user) => {
     return user.technicalOffice?.name || 'Technical Office';
   }
 
+  if (normalized.includes('external') || normalized === 'external_maintainer') {
+    // Mostra il nome della company per gli external maintainer
+    return user.company?.name || 'External Company';
+  }
+
   return '—';
 };
 
