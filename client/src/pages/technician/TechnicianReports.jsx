@@ -264,13 +264,50 @@ function AssignMaintainerDialog({ report, onRefresh }) {
     setOpen(false);
     setSelectedCompany("");
   };
-
+  
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full gap-2">
-            <HardHat className="h-4 w-4" /> Assign to Maintainer
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full gap-2" data-cy="assign-maintainer-btn">
+          <HardHat className="h-4 w-4" /> Assign to Maintainer
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign to External Maintainer</DialogTitle>
+          <DialogDescription>
+            Select a compatible company to handle this report. The report will be moved to the Maintainer list.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4">
+          {loading ? (
+             <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
+          ) : companies.length === 0 ? (
+             <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
+          ) : (
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger data-cy="company-select-trigger">
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => {
+                  const formattedName = c.name.replace(/\s/g, "-");
+                  return (
+                  <SelectItem key={c.id} value={c.id.toString()} data-cy={`select-item-${formattedName}`}>
+                    {c.name}
+                  </SelectItem>
+                );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button data-cy="cancel-assignment-button"variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button data-cy="confirm-assignment-button" onClick={handleAssign} disabled={!selectedCompany || assigning}>
+            {assigning ? "Assigning..." : "Confirm Assignment"}
           </Button>
         </DialogTrigger>
         <DialogContent>
@@ -444,7 +481,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
           )}
 
           <Button 
-            data-cy="view-details-btn"
+            data-cy="view-details-button"
             variant="ghost" 
             size="sm" 
             className="w-full md:w-auto mt-auto gap-2 text-primary hover:text-primary/80"

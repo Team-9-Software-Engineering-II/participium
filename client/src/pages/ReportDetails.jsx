@@ -381,7 +381,7 @@ export default function ReportDetails() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>No</AlertDialogCancel>
-            <AlertDialogAction onClick={handleAssignConfirm}>Yes</AlertDialogAction>
+            <AlertDialogAction onClick={handleAssignConfirm} data-cy="btn-confirm-assign">Yes</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -399,7 +399,7 @@ export default function ReportDetails() {
             {assignResult.message}
           </div>
           <DialogFooter>
-            <Button onClick={handleCloseAssignResult} className="w-full">
+            <Button onClick={handleCloseAssignResult} className="w-full" data-cy="btn-close-assign">
               {assignResult.success ? 'Go to Dashboard' : 'Close'}
             </Button>
           </DialogFooter>

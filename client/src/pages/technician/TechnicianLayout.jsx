@@ -63,6 +63,7 @@ export default function TechnicianLayout() {
       icon: ClipboardList,
       count: counts.active,
       badgeVariant: "destructive", // Rosso per attirare attenzione
+      dataCy: "nav-active-reports",
     },
     {
       name: "Maintainers Reports",
@@ -71,6 +72,7 @@ export default function TechnicianLayout() {
       icon: Users,
       count: counts.maintainer,
       badgeVariant: "secondary",
+      dataCy: "nav-maintainer",
     },
     {
       name: "Resolved Reports",
@@ -79,6 +81,7 @@ export default function TechnicianLayout() {
       icon: CheckCircle2,
       count: counts.history,
       badgeVariant: "secondary",
+      dataCy: "nav-history",
     },
   ];
 
@@ -122,7 +125,7 @@ export default function TechnicianLayout() {
             <div className="flex-1 overflow-y-auto py-6 px-4">
               <nav className="flex flex-col gap-2" data-cy="technician-sidebar">
                 {navigationItems.map((item) => (
-                  <NavLink key={item.name} to={item.to} className={navLinkClasses}>
+                  <NavLink key={item.name} to={item.to} className={navLinkClasses} data-cy={item.dataCy}>
                     <div className="flex items-center gap-3">
                       <item.icon className="h-4 w-4" />
                       <span>{item.name}</span>
