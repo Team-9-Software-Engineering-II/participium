@@ -13,7 +13,7 @@ const API_BASE_URL = (() => {
     return 'http://localhost:3000';
   }
   // Production fallback: use window location origin for same-origin requests
-  return typeof globalThis !== 'undefined' ? globalThis.location.origin : '';
+  return typeof globalThis === 'undefined' ? '' : globalThis.location.origin;
 })();
 
 // Crea un'istanza di axios con configurazione di base
@@ -30,9 +30,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      const currentPath = window.location.pathname;
+      const currentPath = globalThis.location.pathname;
       if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') {
-        window.location.href = '/login';
+        globalThis.location.href = '/login';
       }
     }
     return Promise.reject(error);
@@ -42,6 +42,8 @@ api.interceptors.response.use(
 // ==================== AUTH ====================
 export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
+  registerRequest: (userData) => api.post('/auth/register-request', userData),
+  verifyRegistration: (email, confirmationCode) => api.post('/auth/verify-registration', { email, confirmationCode }),
   login: (credentials) => api.post('/auth/login', credentials),
   logout: () => api.post('/auth/logout'),
   getSession: () => api.get('/auth/session'),
@@ -98,6 +100,12 @@ export const reportAPI = {
   
   sendMessage: (reportId, message) => 
     api.post(`/reports/${reportId}/messages`, { message }),
+};
+
+// ==================== MESSAGES ====================
+export const messageAPI = {
+  getMessages: (reportId) => api.get(`/messages/reports/${reportId}`),
+  sendMessage: (reportId, content) => api.post(`/messages/reports/${reportId}`, { content }),
 };
 
 // ==================== MUNICIPAL (Officer) ====================
