@@ -24,6 +24,11 @@ We acknowledge that some technical debt is inevitable during rapid development c
 Refactoring is not treated as a separate phase at the end of the project but as an integral part of the daily workflow.
 * **"The Boy Scout Rule":** We apply the principle of leaving the code cleaner than we found it. When touching a legacy module for a new feature, developers are encouraged to improve its structure.
 * **Code Refactoring Tasks:** Specific tasks labeled "Code Refactoring" are scheduled within sprints when necessary to address larger structural issues (e.g., unifying duplicate logic, renaming variables for clarity, or removing dead code).
+### 3.2 Automated Code Quality Monitoring
+We use **SonarCloud**, integrated into our CI/CD pipeline, to monitor and enforce high standards of code quality and maintainability across the entire codebase.
+* **Maintainability Goal:** We are committed to achieving and maintaining an overall **A-Rating** for Code Maintainability.
+* **Quality Gate:** The CI/CD pipeline is configured with a Quality Gate threshold and any new code introduced must pass this gate before the Pull Request can be merged into the main branch.
+* **Target Debt Reduction:** Technical debt and high-impact Code Smells identified by SonarCloud are addressed during scheduled refactoring periods.
 
 ## 4. Testing Strategy
 A comprehensive testing strategy is the primary tool to ensure system stability and facilitate safe refactoring.
