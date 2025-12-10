@@ -10,25 +10,22 @@ const colors = {
 
 winston.addColors(colors);
 
-// Format for production
-const prodFormat = winston.format.combine(
-  winston.format.timestamp(),
-  winston.format.json()
-);
-
-// Format for development
 const devFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.printf(
     (info) =>
       `${info.timestamp} [${info.service || "APP"}] ${info.level}: ${
-        info.message
+        info.message + (info.stack ? `\n${info.stack}` : "")
       }`
   )
 );
 
-const { combine, timestamp, json, printf, colorize } = winston.format;
+const fileFormat = winston.format.combine(
+  winston.format.timestamp(),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
 
 const combinedRotateTransport = new winston.transports.DailyRotateFile({
   filename: "logs/application-%DATE%.log",
@@ -37,6 +34,7 @@ const combinedRotateTransport = new winston.transports.DailyRotateFile({
   maxSize: "20m",
   maxFiles: "14d",
   level: "info",
+  format: fileFormat,
 });
 
 const errorRotateTransport = new winston.transports.DailyRotateFile({
@@ -46,18 +44,19 @@ const errorRotateTransport = new winston.transports.DailyRotateFile({
   maxSize: "20m",
   maxFiles: "30d",
   level: "error",
+  format: fileFormat,
 });
 
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === "development" ? "debug" : "info",
-  format: combine(timestamp(), json()),
   defaultMeta: { service: "backend-api" },
   transports: [errorRotateTransport, combinedRotateTransport],
 });
+
 if (process.env.NODE_ENV !== "production") {
   logger.add(
     new winston.transports.Console({
-      format: combine(colorize(), winston.format.simple()),
+      format: devFormat,
     })
   );
 }

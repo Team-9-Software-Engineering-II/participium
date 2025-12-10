@@ -8,9 +8,9 @@
     "redis:up": "docker compose up -d redis",
     "wait:redis": "wait-on tcp:6379",
     "prestart": "npm run redis:up && npm run wait:redis",
-    "start": "node index.mjs",
+    "start": "cross-env NODE_ENV=production node index.mjs",
     "predev": "npm run redis:up && npm run wait:redis",
-    "dev": "nodemon index.mjs",
+    "dev": "cross-env NODE_ENV=development nodemon index.mjs",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand"
   },
   "keywords": [],
@@ -19,6 +19,7 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
+    "cross-env": "^10.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-session": "^1.17.3",
