@@ -127,4 +127,79 @@ describe("Message Controller (Unit)", () => {
       expect(mockCreateMessage).not.toHaveBeenCalled();
     });
   });
+
+  // --------------------------------------------------------------------------
+  // getMessagesByReportId (Copre righe 36-52)
+  // --------------------------------------------------------------------------
+  describe("getMessagesByReportId", () => {
+    it("should successfully get messages and return 200", async () => {
+      // Setup
+      mockReq.params.reportId = "5";
+      mockReq.user = { id: 1, role: { name: "admin" } };
+      
+      const mockMessages = [
+        { id: 1, content: "First message", reportId: 5 },
+        { id: 2, content: "Second message", reportId: 5 }
+      ];
+      mockGetReportMessages.mockResolvedValue(mockMessages);
+
+      // Esecuzione
+      await MessageController.getMessagesByReportId(mockReq, mockRes, mockNext);
+
+      // Verifiche
+      expect(mockGetReportMessages).toHaveBeenCalledWith(5, mockReq.user);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockMessages);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if reportId is not a positive integer", async () => {
+      mockReq.params.reportId = "invalid";
+
+      await MessageController.getMessagesByReportId(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "reportId must be a positive integer." });
+      expect(mockGetReportMessages).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if reportId is zero", async () => {
+      mockReq.params.reportId = "0";
+
+      await MessageController.getMessagesByReportId(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "reportId must be a positive integer." });
+      expect(mockGetReportMessages).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if reportId is negative", async () => {
+      mockReq.params.reportId = "-5";
+
+      await MessageController.getMessagesByReportId(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "reportId must be a positive integer." });
+      expect(mockGetReportMessages).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it("should call next(error) if service throws an error", async () => {
+      mockReq.params.reportId = "5";
+      mockReq.user = { id: 1, role: { name: "admin" } };
+
+      const error = new Error("Report not found.");
+      error.statusCode = 404;
+      mockGetReportMessages.mockRejectedValue(error);
+
+      await MessageController.getMessagesByReportId(mockReq, mockRes, mockNext);
+
+      expect(mockGetReportMessages).toHaveBeenCalledWith(5, mockReq.user);
+      expect(mockNext).toHaveBeenCalledWith(error);
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -104,4 +104,135 @@ describe("Message Service (Unit)", () => {
       expect(result).toEqual(rawCreatedMessage);
     });
   });
+
+  // --------------------------------------------------------------------------
+  // getReportMessages (Copre righe 52-85)
+  // --------------------------------------------------------------------------
+  describe("getReportMessages", () => {
+    const reportId = 1;
+    const mockMessages = [
+      { id: 1, content: "First message", reportId: 1 },
+      { id: 2, content: "Second message", reportId: 1 }
+    ];
+
+    it("should throw 404 if report does not exist", async () => {
+      mockFindReportById.mockResolvedValue(null);
+      const user = { id: 1, role: { name: "admin" } };
+
+      await expect(MessageService.getReportMessages(reportId, user))
+        .rejects.toHaveProperty("statusCode", 404);
+        
+      expect(mockFindMessagesByReportId).not.toHaveBeenCalled();
+    });
+
+    it("should throw 403 if user is a citizen", async () => {
+      const report = { id: reportId, technicalOfficerId: null, externalMaintainerId: null };
+      mockFindReportById.mockResolvedValue(report);
+      
+      const user = { id: 1, role: { name: "citizen" } };
+
+      await expect(MessageService.getReportMessages(reportId, user))
+        .rejects.toHaveProperty("statusCode", 403);
+        
+      expect(mockFindMessagesByReportId).not.toHaveBeenCalled();
+    });
+
+    it("should successfully return messages for admin user", async () => {
+      const report = { id: reportId, technicalOfficerId: null, externalMaintainerId: null };
+      mockFindReportById.mockResolvedValue(report);
+      mockFindMessagesByReportId.mockResolvedValue(mockMessages);
+      
+      const user = { id: 1, role: { name: "admin" } };
+
+      const result = await MessageService.getReportMessages(reportId, user);
+
+      expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+      expect(mockFindMessagesByReportId).toHaveBeenCalledWith(reportId);
+      expect(result).toEqual(mockMessages);
+    });
+
+    it("should successfully return messages for assigned technical officer", async () => {
+      const officerId = 10;
+      const report = { id: reportId, technicalOfficerId: officerId, externalMaintainerId: null };
+      mockFindReportById.mockResolvedValue(report);
+      mockFindMessagesByReportId.mockResolvedValue(mockMessages);
+      
+      const user = { id: officerId, role: { name: "technical-officer" } };
+
+      const result = await MessageService.getReportMessages(reportId, user);
+
+      expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+      expect(mockFindMessagesByReportId).toHaveBeenCalledWith(reportId);
+      expect(result).toEqual(mockMessages);
+    });
+
+    it("should successfully return messages for assigned external maintainer", async () => {
+      const maintainerId = 20;
+      const report = { id: reportId, technicalOfficerId: null, externalMaintainerId: maintainerId };
+      mockFindReportById.mockResolvedValue(report);
+      mockFindMessagesByReportId.mockResolvedValue(mockMessages);
+      
+      const user = { id: maintainerId, role: { name: "external-maintainer" } };
+
+      const result = await MessageService.getReportMessages(reportId, user);
+
+      expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+      expect(mockFindMessagesByReportId).toHaveBeenCalledWith(reportId);
+      expect(result).toEqual(mockMessages);
+    });
+
+    it("should throw 403 if user is not admin, not assigned officer, and not assigned maintainer", async () => {
+      const report = { id: reportId, technicalOfficerId: 10, externalMaintainerId: 20 };
+      mockFindReportById.mockResolvedValue(report);
+      
+      const user = { id: 99, role: { name: "technical-officer" } }; // Different user ID
+
+      await expect(MessageService.getReportMessages(reportId, user))
+        .rejects.toHaveProperty("statusCode", 403);
+        
+      expect(mockFindMessagesByReportId).not.toHaveBeenCalled();
+    });
+
+    it("should handle user without role property", async () => {
+      const report = { id: reportId, technicalOfficerId: null, externalMaintainerId: null };
+      mockFindReportById.mockResolvedValue(report);
+      
+      const user = { id: 99 }; // User without role
+
+      await expect(MessageService.getReportMessages(reportId, user))
+        .rejects.toHaveProperty("statusCode", 403);
+        
+      expect(mockFindMessagesByReportId).not.toHaveBeenCalled();
+    });
+
+    it("should handle report with both officer and maintainer assigned", async () => {
+      const officerId = 10;
+      const report = { id: reportId, technicalOfficerId: officerId, externalMaintainerId: 20 };
+      mockFindReportById.mockResolvedValue(report);
+      mockFindMessagesByReportId.mockResolvedValue(mockMessages);
+      
+      const user = { id: officerId, role: { name: "technical-officer" } };
+
+      const result = await MessageService.getReportMessages(reportId, user);
+
+      expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+      expect(mockFindMessagesByReportId).toHaveBeenCalledWith(reportId);
+      expect(result).toEqual(mockMessages);
+    });
+
+    it("should handle string comparison for IDs (loose equality)", async () => {
+      const officerId = 10;
+      const report = { id: reportId, technicalOfficerId: "10", externalMaintainerId: null }; // String ID
+      mockFindReportById.mockResolvedValue(report);
+      mockFindMessagesByReportId.mockResolvedValue(mockMessages);
+      
+      const user = { id: officerId, role: { name: "technical-officer" } }; // Number ID
+
+      const result = await MessageService.getReportMessages(reportId, user);
+
+      expect(mockFindReportById).toHaveBeenCalledWith(reportId);
+      expect(mockFindMessagesByReportId).toHaveBeenCalledWith(reportId);
+      expect(result).toEqual(mockMessages);
+    });
+  });
 });
