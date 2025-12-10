@@ -7,17 +7,21 @@ import technicianLayoutPage from "../../pages/technician/technician-layout.page"
 
 describe("Technician Report Management", () => {
   // Reliance on seeded data for external assignment flow
-  const KNOWN_ACTIVE_REPORT_TITLE = "Buche pericolose sulla strada";
   const EXTERNAL_COMPANY_NAME = "C.I.T. Servizi Urbani";
+
+  /** @type {string} Stores the title of the first active report dynamically read from the UI. */
+  let dynamicReportTitle;
 
   /**
    * Logs in as a technician and ensures the active report list is visited before each test.
    */
   beforeEach(() => {
     cy.loginAsTechOfficer();
-    // A command like cy.ensureActiveReportForTechnician() should be called here if necessary
-    // to guarantee data presence for assignment tests.
     technicianLayoutPage.visitActiveReports();
+    technicianLayoutPage.elements.reportTitleFirst().then(($title) => {
+      dynamicReportTitle = $title.text().trim();
+      expect(dynamicReportTitle).to.not.be.empty;
+    });
   });
 
   /**
@@ -115,10 +119,10 @@ describe("Technician Report Management", () => {
      */
     it("should successfully assign a report externally and verify tab change", () => {
       // ARRANGE: Verify the report is visible in the Active queue
-      technicianLayoutPage.verifyReportVisible(KNOWN_ACTIVE_REPORT_TITLE);
+      technicianLayoutPage.verifyReportVisible(dynamicReportTitle);
 
       // ACT 1: Open the assignment dialog
-      technicianLayoutPage.openAssignMaintainerDialog();
+      technicianLayoutPage.openAssignMaintainerDialog(dynamicReportTitle);
 
       // ACT 2: Select the external company and confirm assignment
       technicianLayoutPage.selectAndConfirmAssignment(EXTERNAL_COMPANY_NAME);
@@ -127,11 +131,11 @@ describe("Technician Report Management", () => {
       technicianLayoutPage.goToMaintainerReports();
 
       // ASSERT 3: Verify the report appears in the 'Maintainers Reports' tab
-      technicianLayoutPage.verifyReportVisible(KNOWN_ACTIVE_REPORT_TITLE);
+      technicianLayoutPage.verifyReportVisible(dynamicReportTitle);
 
       // ASSERT 4: Verify the report card indicates external assignment status
       technicianLayoutPage.elements
-        .reportCard(KNOWN_ACTIVE_REPORT_TITLE)
+        .reportCard(dynamicReportTitle)
         .should("contain", "External");
     });
 
@@ -141,7 +145,7 @@ describe("Technician Report Management", () => {
      */
     it("should disable confirmation button when no company is selected in the dialog", () => {
       // ARRANGE: Open dialog
-      technicianLayoutPage.openAssignMaintainerDialog();
+      technicianLayoutPage.openAssignMaintainerDialog(dynamicReportTitle);
 
       // ASSERT: Confirm button should be disabled by default
       technicianLayoutPage.elements

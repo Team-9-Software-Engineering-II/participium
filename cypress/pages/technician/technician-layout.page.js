@@ -39,8 +39,12 @@ class TechnicianLayoutPage {
         .get('[data-cy="report-list"]')
         .contains(".text-xl", title)
         .parents('[data-cy="report-card"]'),
+
     /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The first report card element in the list. */
     reportCardFirst: () => cy.get('[data-cy="report-card"]').first(),
+
+    /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The title element of the first report card. */
+    reportTitleFirst: () => cy.get('[data-cy="report-card"]').first().find('.text-xl'),
 
     // Report Card Interaction Elements
     /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The 'View Details' button on the first report card. */
@@ -69,12 +73,20 @@ class TechnicianLayoutPage {
       const formattedName = name.replace(/\s/g, "-");
       return cy.get(`[data-cy="select-item-${formattedName}"]`);
     },
+
     /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The button to confirm the external assignment. */
     confirmAssignmentButton: () =>
       cy.get('[data-cy="confirm-assignment-button"]'),
+
     /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The button to cancel and close the assignment dialog. */
     cancelAssignmentButton: () =>
       cy.get('[data-cy="cancel-assignment-button"]'),
+
+    /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The status select element on the first report card. */
+    statusSelect: () => cy.get('[data-cy="report-card"]').first().find('[data-cy="status-select-trigger"]'),
+
+    /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The update status button on the first report card. */
+    updateStatusButton: () => cy.get('[data-cy="report-card"]').first().find('[data-cy="update-status-button"]'),
 
     // Empty State Selectors
     /** @returns {Cypress.Chainable<JQuery<HTMLElement>>} The 'No history' message element. */
@@ -97,7 +109,7 @@ class TechnicianLayoutPage {
    * Clicks the Maintainer Reports navigation link and asserts the list is visible.
    */
   goToMaintainerReports() {
-    this.elements.navMaintainerReports().click();
+    this.elements.navMaintainerReports().click({ force: true });
     this.elements.reportList().should("be.visible");
   }
 
@@ -105,8 +117,8 @@ class TechnicianLayoutPage {
    * Opens the External Assignment Dialog for the first report card.
    * Asserts that the confirmation button becomes visible, indicating the dialog is open.
    */
-  openAssignMaintainerDialog() {
-    this.elements.assignMaintainerButton().click();
+  openAssignMaintainerDialog(reportTitle) {
+    this.elements.assignMaintainerButton(reportTitle).click();
     this.elements.confirmAssignmentButton().should("be.visible");
   }
 
