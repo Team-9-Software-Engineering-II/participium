@@ -22,6 +22,10 @@ class ReportDetailPage {
     categorySelectTrigger: () => cy.get('[data-cy="category-select"]'),
     approveBtn: () => cy.get('[data-cy="btn-approve"]'),
     rejectBtn: () => cy.get('[data-cy="btn-reject"]'),
+    confirmAssignBtn: () => cy.get('[data-cy="btn-confirm-assign"]'),
+    closeAssignBtn: () => cy.get('[data-cy="btn-close-assign"]'),
+
+
 
     // --- Reject modal elements ---
     rejectionModal: () => cy.get('[role="dialog"]').first(),
@@ -81,6 +85,8 @@ class ReportDetailPage {
    */
   approve() {
     this.elements.approveBtn().should("be.visible").click();
+    this.elements.confirmAssignBtn().should("not.be.disabled").click();
+    this.elements.closeAssignBtn().should("not.be.disabled").click();
   }
 
   /**
