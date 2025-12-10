@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, User, MapPin, Tag, AlertTriangle, X, Clock, Building2, CheckCircle, XCircle } from 'lucide-react'; // Icone aggiunte
+import { ArrowLeft, User, MapPin, Tag, AlertTriangle, X, Clock, Building2, CheckCircle, XCircle, MessageSquare } from 'lucide-react'; // Icone aggiunte
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
 import '@/components/MapView.css';
 import { getStatusColor } from '@/lib/reportColors';
+import ChatSheet from '@/components/chat/ChatSheet';
 
 // ... (Il resto delle definizioni statiche come staticIcon, getImageUrl rimane invariato)
 const staticIcon = L.divIcon({
@@ -55,6 +56,9 @@ export default function ReportDetails() {
   // NUOVI STATI PER I POPUP DI ASSEGNAZIONE
   const [showAssignConfirm, setShowAssignConfirm] = useState(false);
   const [assignResult, setAssignResult] = useState({ open: false, success: false, message: '', title: '' });
+  
+  // STATO PER LA CHAT
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -190,6 +194,17 @@ export default function ReportDetails() {
       console.error("Category update failed", error);
       toast.error("Failed to update category");
     }
+  };
+
+  // Determina se mostrare il pulsante chat
+  const canAccessChat = () => {
+    // Il backend restituisce assignee (technical officer) e externalMaintainer come oggetti
+    // Dobbiamo verificare che entrambi esistano e che l'utente corrente sia uno dei due
+    if (!report?.assignee?.id || !report?.externalMaintainer?.id) return false;
+    
+    const isTechOfficer = user?.id === report.assignee.id;
+    const isExternalMaintainer = user?.id === report.externalMaintainer.id;
+    return isTechOfficer || isExternalMaintainer;
   };
 
   const renderAssigneeInfo = () => {
@@ -405,6 +420,27 @@ export default function ReportDetails() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* CHAT BUTTON (Floating) - Solo se tech officer e external maintainer esistono */}
+      {canAccessChat() && (
+        <>
+          <Button
+            onClick={() => setChatOpen(true)}
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+            size="icon"
+          >
+            <MessageSquare className="h-6 w-6" />
+          </Button>
+          
+          <ChatSheet
+            open={chatOpen}
+            onOpenChange={setChatOpen}
+            reportId={report.id}
+            technicalOfficer={report.assignee}
+            externalMaintainer={report.externalMaintainer}
+          />
+        </>
+      )}
 
     </div>
   );
