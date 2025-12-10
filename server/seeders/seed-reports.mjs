@@ -59,7 +59,7 @@ export const seedReports = async () => {
         photosLinks: ["/uploads/reports/5855056996422322986.jpg"],
         userId: 3,
         categoryId: 7, // Roads and Urban Furnishings
-        technicalOfficerId: 16,
+        technicalOfficerId: 17,
       },
       // 4. In Progress (Author: Mario Rossi / User ID 1)
       {
