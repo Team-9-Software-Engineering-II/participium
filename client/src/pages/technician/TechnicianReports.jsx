@@ -206,6 +206,8 @@ function AssignMaintainerDialog({ report, onRefresh }) {
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -242,12 +244,9 @@ function AssignMaintainerDialog({ report, onRefresh }) {
       setAssigning(false);
     } catch (error) {
       console.error('❌ Assignment error:', error);
-      toast({
-        variant: "destructive",
-        title: "Assignment Failed",
-        description: error.response?.data?.message || "Could not assign the report. Please try again.",
-      });
-    } finally {
+      const message = error.response?.data?.message || "Could not assign the report. Please try again.";
+      setErrorMessage(message);
+      setShowError(true);
       setAssigning(false);
     }
   };
@@ -259,6 +258,12 @@ function AssignMaintainerDialog({ report, onRefresh }) {
     // Ricarica la lista e aggiorna i contatori DOPO che l'utente ha visto la conferma
     await onRefresh();
     globalThis.dispatchEvent(new Event('technicianReportsRefresh'));
+  };
+
+  const handleCloseError = () => {
+    setShowError(false);
+    setErrorMessage("");
+    setSelectedCompany("");
   };
 
   const handleClose = () => {
@@ -296,7 +301,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
               </SelectTrigger>
               <SelectContent>
                 {companies.map((c) => {
-                  const formattedName = c.name.replace(/\s/g, "-");
+                  const formattedName = c.name.replaceAll(" ", "-");
                   return (
                   <SelectItem key={c.id} value={c.id.toString()} data-cy={`select-item-${formattedName}`}>
                     {c.name}
@@ -332,6 +337,22 @@ function AssignMaintainerDialog({ report, onRefresh }) {
             <AlertDialogAction onClick={handleCloseSuccess}>
               OK
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showError} onOpenChange={setShowError}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              Assignment Failed
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {errorMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleCloseError}>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
