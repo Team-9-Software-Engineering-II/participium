@@ -34,11 +34,11 @@ describe("Create Report Flow", () => {
   it("should succesfully create a new report", () => {
     CreateReportPage.clickMap(200, 200).assertMarkerExists();
     CreateReportPage.fillReportForm({
-      title: "Buche pericolose sulla strada",
+      title: "Broken Public Water Fountain",
       description:
-        "Ci sono grosse buche in mezzo alla carreggiata, rischio incidenti.",
+        "The public drinking fountain in Piazza Castello is leaking heavily and the handle is broken.",
     });
-    CreateReportPage.selectCategory("Roads and Urban Furnishings");
+    CreateReportPage.selectCategory("Water Supply - Drinking Water");
     CreateReportPage.uploadPhoto("test-image.png");
     CreateReportPage.submitReport();
   });

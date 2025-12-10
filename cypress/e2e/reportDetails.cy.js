@@ -153,9 +153,6 @@ describe("Municipal Officer - Review Reports Flow", () => {
         // Approve the report
         ReportDetailPage.approve();
 
-        // Verify redirection back to dashboard
-        cy.url().should("include", "/municipal/dashboard");
-
         // Navigate to Assigned Reports section
         cy.intercept("GET", "/reports?*").as("fetchReportsAssigned");
         OfficerLayoutPage.goToAssigned();

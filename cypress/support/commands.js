@@ -22,7 +22,14 @@ Cypress.Commands.add("loginAsUser", (username = "test", password = "test") => {
   cy.get("button[type=submit]").click();
 });
 
-Cypress.Commands.add("loginAsTechOfficer", (username = "tech_lighting", password = "password123") => {
+Cypress.Commands.add("loginAsTechOfficer", (username = "tech_roads", password = "password123") => {
+  cy.visit("/login");
+  cy.get("input[name=username]").type(username);
+  cy.get("input[name=password]").type(password);
+  cy.get("button[type=submit]").click();
+});
+
+Cypress.Commands.add("loginAsExternalMaintainer", (username = "em_water_smat", password = "password123") => {
   cy.visit("/login");
   cy.get("input[name=username]").type(username);
   cy.get("input[name=password]").type(password);

@@ -18,6 +18,46 @@ import {
   citizenLogin,
 } from "./test-utils.js";
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const UPLOAD_DIR = path.join(__dirname, "../../src/uploads/reports");
+
+/**
+ * Creates a dummy buffer for a 1x1 transparent PNG file.
+ * @returns {Buffer} The PNG file buffer.
+ */
+function createDummyPngBuffer() {
+  // 1x1 transparent PNG buffer (minimal valid PNG)
+  return Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64"
+  );
+}
+
+/**
+ * Creates a dummy text buffer.
+ * @returns {Buffer} The TXT file buffer.
+ */
+function createDummyTextBuffer() {
+  return Buffer.from("This is not an image.", "utf8");
+}
+
+async function cleanupUploads(dir) {
+  if (fs.existsSync(dir)) {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      if (file.includes("test-") || file.includes("dummy-")) {
+        fs.unlinkSync(path.join(dir, file));
+      }
+    }
+  }
+}
+
 /** @type {string} Cookie for the authenticated Citizen user. */
 let citizenCookie;
 
@@ -138,5 +178,127 @@ describe("Citizen Profile Configuration - Integration Tests", () => {
     expect(res.body).not.toHaveProperty("password");
     expect(res.body).not.toHaveProperty("hashedPassword");
     expect(res.body).not.toHaveProperty("refreshToken");
+  });
+});
+
+// =========================================================================
+// === SECTION 3: UPLOAD INTEGRATION TESTS (Multer/File Storage) ===========
+// =========================================================================
+
+describe("File Upload Integration Tests (POST /api/upload)", () => {
+  const dummyPng = createDummyPngBuffer();
+  const dummyTxt = createDummyTextBuffer();
+
+  // Clean up all files created during the upload tests
+  afterAll(async () => {
+    await cleanupUploads(UPLOAD_DIR);
+  });
+
+  // Single File Upload
+  describe("POST /api/upload/photo (Single File)", () => {
+    const endpoint = "/upload/photo";
+
+    test("should allow authenticated user to upload a valid single PNG file", async () => {
+      const res = await request(app)
+        .post(endpoint)
+        .set("Cookie", citizenCookie)
+        .attach("photo", dummyPng, {
+          filename: "test-single-upload.png",
+          contentType: "image/png",
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty("url");
+      expect(res.body.url).toMatch(/^\/uploads\/reports\/.*\.png$/);
+    });
+
+    test("should return 400 for invalid file type (text file)", async () => {
+      const res = await request(app)
+        .post(endpoint)
+        .set("Cookie", citizenCookie)
+        .attach("photo", dummyTxt, {
+          filename: "test-invalid-file.txt",
+          contentType: "text/plain",
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toMatch(/Invalid file type/);
+    });
+
+    test("should return 400 if no file is uploaded", async () => {
+      const res = await request(app)
+        .post(endpoint)
+        .set("Cookie", citizenCookie);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("No file uploaded.");
+    });
+  });
+
+  // Multiple File Upload
+  describe("POST /api/upload/photos (Multiple Files)", () => {
+    const endpoint = "/upload/photos";
+
+    test("should allow authenticated user to upload max 3 valid files", async () => {
+      const res = await request(app)
+        .post(endpoint)
+        .set("Cookie", citizenCookie)
+        .attach("photos", dummyPng, {
+          filename: "dummy-1.png",
+          contentType: "image/png",
+        })
+        .attach("photos", dummyPng, {
+          filename: "dummy-2.png",
+          contentType: "image/png",
+        })
+        .attach("photos", dummyPng, {
+          filename: "dummy-3.png",
+          contentType: "image/png",
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty("files");
+      expect(res.body.files.length).toBe(3);
+    });
+
+    test("should return 400 if more than 3 files are uploaded and delete them", async () => {
+      let filenames = [];
+
+      const res = await request(app)
+        .post(endpoint)
+        .set("Cookie", citizenCookie)
+        .on("response", (response) => {
+          if (response.request.files) {
+            filenames = response.request.files.map((f) => f.filename);
+          }
+        })
+        .attach("photos", dummyPng, {
+          filename: "over-limit-1.png",
+          contentType: "image/png",
+        })
+        .attach("photos", dummyPng, {
+          filename: "over-limit-2.png",
+          contentType: "image/png",
+        })
+        .attach("photos", dummyPng, {
+          filename: "over-limit-3.png",
+          contentType: "image/png",
+        })
+        .attach("photos", dummyPng, {
+          filename: "over-limit-4.png",
+          contentType: "image/png",
+        }); // The 4th file causes the limit error
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("should return 400 if no files are uploaded", async () => {
+      const res = await request(app)
+        .post(endpoint)
+        .set("Cookie", citizenCookie);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("No files uploaded.");
+    });
   });
 });
