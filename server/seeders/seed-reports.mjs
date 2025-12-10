@@ -74,7 +74,7 @@ export const seedReports = async () => {
         photosLinks: ["/uploads/reports/5855056996422322997.jpg"],
         userId: 1,
         categoryId: 7, // // Roads and Urban Furnishings
-        technicalOfficeId: 16,
+        technicalOfficerId: 16,
       },
       // 5. Resolved (Author: Anna Neri / User ID 2)
       {
@@ -108,7 +108,7 @@ export const seedReports = async () => {
         ],
         userId: 3,
         categoryId: 5, // Waste,
-        technicalOfficeId: 14,
+        technicalOfficerId: 14,
       },
       {
         title: "Work around traffic lights",
