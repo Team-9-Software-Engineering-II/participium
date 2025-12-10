@@ -30,8 +30,9 @@ const syncOptions = {
   force: forceSync,
   alter: alterSync,
 };
-const clientBuildPath =
-  process.env.CLIENT_BUILD_DIR || path.join(__dirname, "public");
+const clientBuildPath = process.env.CLIENT_BUILD_DIR
+  ? path.resolve(process.cwd(), process.env.CLIENT_BUILD_DIR)
+  : path.join(__dirname, "public");
 const clientIndexPath = path.join(clientBuildPath, "index.html");
 const hasClientBuild =
   fs.existsSync(clientBuildPath) && fs.existsSync(clientIndexPath);
