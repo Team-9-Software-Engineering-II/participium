@@ -117,6 +117,32 @@ describe("Message Flow Integration Test (Technical Staff <-> External Maintainer
       expect(res.statusCode).toBe(403);
     });
 
+    test("should forbid message creation for non-authenticated user", async () => {
+      const res = await request(app)
+        .post(`/messages/reports/${REPORT_ID}`)
+        .send({ content: "Unauthorized attempt." });
+
+      expect(res.statusCode).toBe(401);
+    });
+
+    test("should return 400 for an invalid report ID", async () => {
+      const invalidId = "abc123";
+      const res = await request(app)
+        .post(`/messages/reports/${invalidId}`)
+        .set("Cookie", officerCookie)
+        .send({ content: "Unauthorized attempt." });
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("should return 404 for a non-existent report ID", async () => {
+      const nonExistentId = 9999;
+      const res = await request(app)
+        .post(`/messages/reports/${nonExistentId}`)
+        .set("Cookie", officerCookie)
+        .send({ content: "Unauthorized attempt." });
+      expect(res.statusCode).toBe(404);
+    });
+
     test("should return 400 if content is missing", async () => {
       const res = await request(app)
         .post(`/messages/reports/${REPORT_ID}`)
@@ -180,6 +206,15 @@ describe("Message Flow Integration Test (Technical Staff <-> External Maintainer
         .set("Cookie", officerCookie);
 
       expect(res.statusCode).toBe(404);
+    });
+
+    test("should return 400 for an invalid report ID", async () => {
+      const invalidId = "abc123";
+      const res = await request(app)
+        .get(`/messages/reports/${invalidId}`)
+        .set("Cookie", officerCookie);
+
+      expect(res.statusCode).toBe(400);
     });
   });
 });
