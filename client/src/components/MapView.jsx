@@ -374,7 +374,7 @@ export function MapView({ reports = [], selectedReport = null }) {
               >
                 <Popup className="custom-popup">
                   <div className="p-4 min-w-[200px]">
-                    <h3 className="font-semibold text-sm mb-2">{report.title}</h3>
+                    <h3 className="font-semibold text-sm mb-2 text-foreground">{report.title}</h3>
                     <p className="text-xs text-muted-foreground">
                       Author: <span className="font-medium text-foreground">{report.reporterName || "Anonymous"}</span>
                     </p>
