@@ -30,11 +30,11 @@ A comprehensive testing strategy is the primary tool to ensure system stability 
 
 ### 4.1 Backend Testing
 * **Unit Testing:** We utilize **Jest** to test individual components in isolation. We rely heavily on mocking dependencies (e.g., mocking repositories when testing services) to ensure tests are fast and deterministic.
+* **Integration Testing:** These tests verify the correct interaction and data flow between multiple backend components. Their primary goal is to ensure that interfaces and contracts between these units function correctly as a subsystem.
 * **Coverage Goal:** We aim for high code coverage (targeting 80-100% for critical business logic) to minimize the risk of regression bugs.
 
 ### 4.2 Frontend and End-to-End (E2E) Testing
-* **E2E Testing:** We verify critical user flows (e.g., Registration, Login, Report Submission) using **Cypress** or **Supertest**. These tests ensure that the integrated system (Frontend + Backend + Database) functions correctly from the user's perspective.
-* **Integration Checks:** E2E tests are updated alongside new features to guarantee that new code does not break existing functionality.
+* **E2E Testing:** We verify critical user flows (e.g., Registration, Login, Report Submission) using **Cypress**. These tests ensure that the integrated system (Frontend + Backend + Database) functions correctly from the user's perspective.
 
 ## 5. Documentation
 Lack of documentation is a form of "Knowledge Debt". To mitigate this:
