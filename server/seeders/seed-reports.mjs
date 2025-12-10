@@ -91,6 +91,7 @@ export const seedReports = async () => {
         ],
         userId: 2,
         categoryId: 8, // Public Green Areas and Playgrounds
+        technicalOfficerId: 18,
       },
       // 6. Assigned (Author: Paolo Gialli / User ID 3)
       {
@@ -108,7 +109,8 @@ export const seedReports = async () => {
         ],
         userId: 3,
         categoryId: 5, // Waste,
-        technicalOfficerId: 14,
+        technicalOfficerId: 15,
+        externalMaintainerId: 8,
       },
       {
         title: "Work around traffic lights",
@@ -127,6 +129,7 @@ export const seedReports = async () => {
         ],
         userId: 3,
         categoryId: 6, // Road Signs and Traffic Lights,
+        technicalOfficeId: 17,
       },
       {
         title: "Pin in the middle of the cycle path",

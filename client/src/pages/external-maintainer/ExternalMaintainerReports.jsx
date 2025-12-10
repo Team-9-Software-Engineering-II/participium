@@ -52,7 +52,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
 
       const filteredData = allData.filter((report) => {
         const isFinished = FINISHED_STATUSES.has(report.status);
-        
+
         if (type === "active") {
           return !isFinished;
         } else {
@@ -60,8 +60,10 @@ export default function ExternalMaintainerReports({ type = "active" }) {
         }
       });
 
-      filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      
+      filteredData.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
       setReports(filteredData);
     } catch (error) {
       console.error("Failed to fetch reports", error);
@@ -78,16 +80,16 @@ export default function ExternalMaintainerReports({ type = "active" }) {
   const handleUpdateStatus = async (reportId, newStatus) => {
     try {
       await staffAPI.updateReportStatus(reportId, { status: newStatus });
-      
+
       toast({
         title: "Status updated",
         description: `Report status changed to ${newStatus}`,
       });
 
       fetchReports();
-      
+
       // Emetti evento per aggiornare i contatori nel layout
-      globalThis.dispatchEvent(new Event('maintainerReportsRefresh'));
+      globalThis.dispatchEvent(new Event("maintainerReportsRefresh"));
     } catch (error) {
       console.error("Failed to update status", error);
       toast({
@@ -117,7 +119,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
         <div className="text-center max-w-md">
           <h3 className="text-lg font-semibold mb-2">No reports found</h3>
           <p className="text-sm text-muted-foreground">
-            {type === "active" 
+            {type === "active"
               ? "You don't have any active reports assigned to you at the moment."
               : "You haven't completed any reports yet."}
           </p>
@@ -165,7 +167,11 @@ export default function ExternalMaintainerReports({ type = "active" }) {
               </thead>
               <tbody className="divide-y">
                 {reports.map((report) => (
-                  <tr key={report.id} className="hover:bg-muted/50 transition-colors" data-cy="report-row">
+                  <tr
+                    key={report.id}
+                    className="hover:bg-muted/50 transition-colors"
+                    data-cy="report-row"
+                  >
                     <td className="px-4 py-4">
                       <div className="font-medium">{report.title}</div>
                       <div className="text-sm text-muted-foreground line-clamp-1">
@@ -175,7 +181,9 @@ export default function ExternalMaintainerReports({ type = "active" }) {
                     <td className="px-4 py-4">
                       <div className="flex items-start gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">{report.address || "No address"}</span>
+                        <span className="text-sm">
+                          {report.address || "No address"}
+                        </span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -185,7 +193,10 @@ export default function ExternalMaintainerReports({ type = "active" }) {
                           onUpdateStatus={handleUpdateStatus}
                         />
                       ) : (
-                        <Badge className={getStatusColor(report.status, 'dark')} data-cy="status-badge">
+                        <Badge
+                          className={getStatusColor(report.status, "dark")}
+                          data-cy="status-badge"
+                        >
                           {report.status}
                         </Badge>
                       )}
@@ -278,7 +289,10 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
 
   return (
     <div className="flex items-center gap-2 w-full md:w-auto">
-      <Badge className={getStatusColor(report.status)} data-cy="current-status-badge">
+      <Badge
+        className={getStatusColor(report.status)}
+        data-cy="current-status-badge"
+      >
         {report.status}
       </Badge>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -288,45 +302,57 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
           </Button>
         </DialogTrigger>
         <DialogContent data-cy="status-dialog">
-        <DialogHeader>
-          <DialogTitle>Update Report Status</DialogTitle>
-          <DialogDescription>
-            Change the status of this report
-          </DialogDescription>
-        </DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Update Report Status</DialogTitle>
+            <DialogDescription>
+              Change the status of this report
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label htmlFor="status-select" className="text-sm font-medium">New Status</label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger data-cy="status-select-trigger">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ALLOWED_TRANSITIONS.map((status) => (
-                  <SelectItem key={status.value} value={status.value} data-cy="status-option">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${status.color}`} />
-                      {status.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="status-select" className="text-sm font-medium">
+                New Status
+              </label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger data-cy="status-select-trigger">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALLOWED_TRANSITIONS.map((status) => (
+                    <SelectItem
+                      key={status.value}
+                      value={status.value}
+                      data-cy="status-option"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`h-2 w-2 rounded-full ${status.color}`}
+                        />
+                        {status.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={selectedStatus === report.status} data-cy="save-changes-button">
-            <Save className="mr-2 h-4 w-4" />
-            Save Changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={selectedStatus === report.status}
+              data-cy="save-changes-button"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
