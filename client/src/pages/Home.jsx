@@ -5,6 +5,7 @@ import Navbar from "../components/common/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -95,10 +96,9 @@ const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, 
         </div>
       ) : (
         displayReports.map((report) => (
-          <button
+          <Card
             key={report.id}
-            type="button"
-            className="w-full p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors text-left"
+            className="p-4 cursor-pointer transition-colors hover:bg-accent"
             onClick={() => navigate(`/reports/${report.id}`)}
           >
             <h3 className="font-semibold mb-2">{report.title}</h3>
@@ -152,7 +152,7 @@ const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, 
                 View in map
               </button>
             </div>
-          </button>
+          </Card>
         ))
       )}
     </div>
@@ -249,7 +249,6 @@ export default function Home() {
     { value: "Assigned", label: "Assigned" },
     { value: "In Progress", label: "In Progress" },
     { value: "Suspended", label: "Suspended" },
-    { value: "Rejected", label: "Rejected" },
     { value: "Resolved", label: "Resolved" },
   ];
 
@@ -556,12 +555,15 @@ export default function Home() {
                       </Button>
                     </div>
 
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm font-medium">My reports</span>
-                      <Switch
-                        checked={showMyReports}
-                        onCheckedChange={setShowMyReports}
-                      />
+                    <div>
+                      <span className="text-xl font-bold">All reports</span>
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="text-sm font-medium">My reports</span>
+                        <Switch
+                          checked={showMyReports}
+                          onCheckedChange={setShowMyReports}
+                        />
+                      </div>
                     </div>
 
                     <div className="py-2">
@@ -885,28 +887,35 @@ export default function Home() {
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                     style={{ backgroundColor: "#3B82F6" }}
                   />
-                  <span className="text-sm">To Assign</span>
+                  <span className="text-sm">Pending Approval</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#F59E0B" }}
+                    style={{ backgroundColor: "#F97316" }}
                   />
                   <span className="text-sm">Assigned</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#EAB308" }}
+                    style={{ backgroundColor: "#FACC15" }}
                   />
                   <span className="text-sm">In Progress</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#10B981" }}
+                    style={{ backgroundColor: "#22C55E" }}
                   />
-                  <span className="text-sm">Completed</span>
+                  <span className="text-sm">Resolved</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#6B7280" }}
+                  />
+                  <span className="text-sm">Suspended</span>
                 </div>
               </div>
             </div>

@@ -6,7 +6,6 @@ import { findAllProblemsCategories } from "../repositories/problem-category-repo
 import {
   validateCreateReportInput,
   validateNewReportCategory,
-  validateReportToBeAcceptedOrRejected,
 } from "../shared/validators/report-validator.mjs";
 
 /**
@@ -186,14 +185,23 @@ export async function changeProblemCategory(req, res, next) {
 }
 
 /**
- * Returns reports assigned to the currently logged-in technical staff member.
+ * Returns reports assigned to the currently logged-in technical staff member or external maintainer.
  */
 export async function getMyAssignedReports(req, res, next) {
   try {
-    // L'ID dell'utente loggato è in req.user.id (grazie a passport/session)
-    const officerId = req.user.id;
-
-    const reports = await ReportService.getReportsAssignedToOfficer(officerId);
+    const userId = req.user.id;
+    const userRole = req.user.role?.name;
+    
+    let reports;
+    
+    // Se è external maintainer, cerca per externalMaintainerId
+    if (userRole === 'external_maintainer') {
+      reports = await ReportService.getReportsByExternalMaintainer(userId);
+    } else {
+      // Altrimenti è technical staff, cerca per technicalOfficerId
+      reports = await ReportService.getReportsAssignedToOfficer(userId);
+    }
+    
     return res.status(200).json(reports);
   } catch (error) {
     return next(error);

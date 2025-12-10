@@ -13,7 +13,7 @@ const API_BASE_URL = (() => {
     return 'http://localhost:3000';
   }
   // Production fallback: use window location origin for same-origin requests
-  return typeof window !== 'undefined' ? window.location.origin : '';
+  return typeof globalThis !== 'undefined' ? globalThis.location.origin : '';
 })();
 
 // Crea un'istanza di axios con configurazione di base
@@ -129,7 +129,10 @@ export const staffAPI = {
   getEligibleCompanies: (reportId) => api.get(`/offices/reports/${reportId}/companies`),
   
   // NUOVO: Assegna il report a un manutentore esterno
-  assignExternal: (reportId, companyId) => api.put(`/offices/reports/${reportId}/assign-external`, { companyId }),
+  assignExternal: (reportId, companyId) => {
+    console.log('API call: assignExternal', { reportId, companyId, payload: { companyId } });
+    return api.put(`/offices/reports/${reportId}/assign-external`, { companyId });
+  },
 };
 
 // ==================== STATISTICS ====================

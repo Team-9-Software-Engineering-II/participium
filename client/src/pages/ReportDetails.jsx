@@ -18,8 +18,9 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
 import '@/components/MapView.css';
+import { getStatusColor } from '@/lib/reportColors';
 
-// ... (Il resto delle definizioni statiche come staticIcon, REPORT_STATUS_COLORS, getImageUrl rimane invariato)
+// ... (Il resto delle definizioni statiche come staticIcon, getImageUrl rimane invariato)
 const staticIcon = L.divIcon({
   html: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#000000" stroke="white" stroke-width="2"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`,
   className: 'custom-user-marker',
@@ -27,15 +28,6 @@ const staticIcon = L.divIcon({
   iconAnchor: [20, 40],
   popupAnchor: [0, -40],
 });
-
-const REPORT_STATUS_COLORS = {
-  'To Assign': 'bg-blue-500',
-  'Pending Approval': 'bg-blue-500',
-  'Assigned': 'bg-orange-500',
-  'In Progress': 'bg-yellow-500',
-  'Completed': 'bg-green-500',
-  'Rejected': 'bg-red-500'
-};
 
 const getImageUrl = (path) => {
   if (!path) return '';
@@ -120,7 +112,7 @@ export default function ReportDetails() {
   const isPending = () => {
     if (!report?.status) return false;
     const status = report.status.toLowerCase();
-    return status === 'pending approval' || status === 'to assign' || status === 'pending';
+    return status === 'pending approval' || status === 'pending';
   };
 
   const showActions = isOfficer() && isPending();
@@ -218,20 +210,36 @@ export default function ReportDetails() {
     }
 
     return (
-      <div className="text-primary flex flex-col items-start md:items-end">
-        <span className="text-xs text-muted-foreground mb-0.5">Assigned to</span>
-        {report.assignee ? (
-          <span className="flex items-center gap-2 font-semibold">
-            {report.assignee.firstName} {report.assignee.lastName} <User className="h-4 w-4" />
+      <div className="text-primary flex flex-col items-start md:items-end gap-2">
+        {/* Technical Officer Assignment */}
+        <div className="flex flex-col items-start md:items-end">
+          <span className="text-xs text-muted-foreground mb-0.5">Assigned to</span>
+          {report.assignee ? (
+            <span className="flex items-center gap-2 font-semibold">
+              {report.assignee.firstName} {report.assignee.lastName} <User className="h-4 w-4" />
+            </span>
+          ) : (
+             <span className="flex items-center gap-2 font-semibold">
+              Technical Staff <User className="h-4 w-4" />
+            </span>
+          )}
+          <span className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+            Office: {report.technicalOffice?.name || "Technical Office"} <Building2 className="h-3 w-3" />
           </span>
-        ) : (
-           <span className="flex items-center gap-2 font-semibold">
-            Technical Staff <User className="h-4 w-4" />
-          </span>
+        </div>
+        
+        {/* External Maintainer Assignment */}
+        {report.externalMaintainer && report.company && (
+          <div className="flex flex-col items-start md:items-end pt-2 border-t border-muted w-full md:w-auto">
+            <span className="text-xs text-muted-foreground mb-0.5">External Maintainer</span>
+            <span className="flex items-center gap-2 font-semibold text-sm">
+              {report.externalMaintainer.firstName} {report.externalMaintainer.lastName} <User className="h-3.5 w-3.5" />
+            </span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+              Company: {report.company.name} <Building2 className="h-3 w-3" />
+            </span>
+          </div>
         )}
-        <span className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-          Office: {report.technicalOffice?.name || "Technical Office"} <Building2 className="h-3 w-3" />
-        </span>
       </div>
     );
   };
@@ -267,7 +275,7 @@ export default function ReportDetails() {
               )}
             </div>
             <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto mt-2 md:mt-0">
-              <Badge data-cy="status-badge" className={`${REPORT_STATUS_COLORS[report.status] || 'bg-gray-500'} h-6 text-xs px-2 text-white border-0`}>{report.status}</Badge>
+              <Badge data-cy="status-badge" className={`${getStatusColor(report.status)} h-6 text-xs px-2 text-white border-0`}>{report.status}</Badge>
               <div className="text-sm font-medium text-left md:text-right">{renderAssigneeInfo()}</div>
             </div>
           </div>

@@ -11,6 +11,7 @@ const mockfindAllReportsFilteredByStatus = jest.fn();
 const mockFindReportsByTechnicalOfficerId = jest.fn();
 const mockUpdateReport = jest.fn();
 const mockFindUserById = jest.fn();
+const mockFindReportsByExternalMaintainerId = jest.fn();
 
 jest.unstable_mockModule("../../../repositories/user-repo.mjs", () => ({
   findUserById: mockFindUserById,
@@ -24,6 +25,7 @@ jest.unstable_mockModule("../../../repositories/report-repo.mjs", () => ({
   findAllReportsFilteredByStatus: mockfindAllReportsFilteredByStatus,
   findReportsByTechnicalOfficerId: mockFindReportsByTechnicalOfficerId,
   updateReport: mockUpdateReport,
+  findReportsByExternalMaintainerId: mockFindReportsByExternalMaintainerId,
 }));
 
 // Mocking the Problem Category Repository function
@@ -462,31 +464,20 @@ describe("ReportService (Unit)", () => {
     };
 
     it("should successfully assign report to the best maintainer", async () => {
-      mockFindReportById.mockResolvedValue(mockReportAssigned);
-      const { findCompanyById } = await import(
-        "../../../repositories/company-repo.mjs"
-      );
-      findCompanyById.mockResolvedValue(mockCompany);
-
-      const { findExternalMaintainerWithFewestReports } = await import(
-        "../../../repositories/user-repo.mjs"
-      );
-      findExternalMaintainerWithFewestReports.mockResolvedValue(mockMaintainer);
-
+      mockFindReportById.mockResolvedValue({ id: 10, status: "Assigned" });
+      mockFindCompanyById.mockResolvedValue({ id: 5, name: "FixIt" });
+      mockFindExternalMaintainerWithFewestReports.mockResolvedValue({ id: 100 });
+      
       mockUpdateReport.mockResolvedValue([1]);
 
-      const result = await ReportService.assignReportToExternalMaintainer(
-        reportId,
-        companyId
-      );
+      await ReportService.assignReportToExternalMaintainer(reportId, companyId);
 
-      expect(findExternalMaintainerWithFewestReports).toHaveBeenCalledWith(
-        companyId
-      );
-      expect(mockUpdateReport).toHaveBeenCalledWith(reportId, {
-        externalMaintainerId: 100,
+      expect(mockFindExternalMaintainerWithFewestReports).toHaveBeenCalledWith(companyId);
+      
+      expect(mockUpdateReport).toHaveBeenCalledWith(reportId, { 
+        externalMaintainerId: 100, 
+        companyId: 5 
       });
-      expect(result).toBeDefined();
     });
 
     it("should throw 404 if report not found", async () => {
@@ -971,6 +962,14 @@ describe("ReportService (Unit)", () => {
       expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
         address: null
       }));
+    });
+  });
+
+  describe("getReportsByExternalMaintainer", () => {
+    it("should call findReportsByExternalMaintainerId and return sanitized results", async () => {
+      mockFindReportsByExternalMaintainerId.mockResolvedValue([]);
+      await ReportService.getReportsByExternalMaintainer(5);
+      expect(mockFindReportsByExternalMaintainerId).toHaveBeenCalledWith(5);
     });
   });
 
