@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { reportAPI, urpAPI } from '@/services/api';
+import { reportAPI, urpAPI, messageAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import Navbar from '@/components/common/Navbar';
@@ -59,6 +59,8 @@ export default function ReportDetails() {
   
   // STATO PER LA CHAT
   const [chatOpen, setChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastMessageId, setLastMessageId] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -200,12 +202,94 @@ export default function ReportDetails() {
   const canAccessChat = () => {
     // Il backend restituisce assignee (technical officer) e externalMaintainer come oggetti
     // Dobbiamo verificare che entrambi esistano e che l'utente corrente sia uno dei due
+    console.log('canAccessChat check:', {
+      hasAssignee: !!report?.assignee?.id,
+      hasExternalMaintainer: !!report?.externalMaintainer?.id,
+      userId: user?.id,
+      assigneeId: report?.assignee?.id,
+      externalMaintainerId: report?.externalMaintainer?.id,
+      report: report
+    });
+    
     if (!report?.assignee?.id || !report?.externalMaintainer?.id) return false;
     
     const isTechOfficer = user?.id === report.assignee.id;
     const isExternalMaintainer = user?.id === report.externalMaintainer.id;
+    
+    console.log('Access check result:', { isTechOfficer, isExternalMaintainer });
+    
     return isTechOfficer || isExternalMaintainer;
   };
+
+  // Controlla periodicamente se ci sono nuovi messaggi (solo quando chat è chiusa)
+  useEffect(() => {
+    if (!chatOpen && canAccessChat() && report?.id && user) {
+      const checkNewMessages = async () => {
+        try {
+          const response = await messageAPI.getMessages(report.id);
+          const messages = response.data || [];
+          
+          console.log('Checking messages:', { 
+            totalMessages: messages.length, 
+            lastMessageId, 
+            chatOpen,
+            userId: user?.id 
+          });
+          
+          if (messages.length > 0) {
+            const latestMessage = messages[messages.length - 1];
+            
+            // Se è il primo caricamento, salva l'ultimo messaggio senza notificare
+            if (lastMessageId === null) {
+              console.log('First load, setting lastMessageId:', latestMessage.id);
+              setLastMessageId(latestMessage.id);
+              setUnreadCount(0);
+            } else if (latestMessage.id !== lastMessageId) {
+              // Conta solo i messaggi degli altri utenti
+              const newMessages = messages.filter(m => 
+                m.id > lastMessageId && m.author?.id !== user?.id
+              );
+              console.log('New messages detected:', { 
+                newMessagesCount: newMessages.length,
+                latestMessageId: latestMessage.id,
+                oldLastMessageId: lastMessageId
+              });
+              setUnreadCount(newMessages.length);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking messages:', error);
+        }
+      };
+
+      // Controlla subito
+      checkNewMessages();
+      
+      // Poi ogni 5 secondi
+      const interval = setInterval(checkNewMessages, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [chatOpen, report?.id, user, lastMessageId]);
+
+  // Reset contatore quando la chat viene aperta
+  useEffect(() => {
+    if (chatOpen) {
+      const resetUnread = async () => {
+        try {
+          const response = await messageAPI.getMessages(report.id);
+          const messages = response.data || [];
+          if (messages.length > 0) {
+            const latestMessage = messages[messages.length - 1];
+            setLastMessageId(latestMessage.id);
+          }
+          setUnreadCount(0);
+        } catch (error) {
+          console.error('Error resetting unread:', error);
+        }
+      };
+      resetUnread();
+    }
+  }, [chatOpen, report?.id]);
 
   const renderAssigneeInfo = () => {
     if (isPending()) {
@@ -425,11 +509,20 @@ export default function ReportDetails() {
       {canAccessChat() && (
         <>
           <Button
-            onClick={() => setChatOpen(true)}
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+            onClick={() => {
+              console.log('Chat button clicked, unreadCount:', unreadCount);
+              setChatOpen(true);
+            }}
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
             size="icon"
           >
             <MessageSquare className="h-6 w-6" />
+            {console.log('Rendering badge check:', { unreadCount, shouldShow: unreadCount > 0 })}
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </Button>
           
           <ChatSheet
