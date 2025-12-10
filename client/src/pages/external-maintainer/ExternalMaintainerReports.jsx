@@ -129,7 +129,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-1">
+        <h1 className="text-2xl font-bold mb-1" data-cy="reports-title">
           {type === "active" ? "Your Reports" : "Resolved Reports"}
         </h1>
         <p className="text-muted-foreground">
@@ -143,7 +143,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
       <div className="hidden md:block">
         <Card>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" data-cy="reports-table">
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -165,7 +165,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
               </thead>
               <tbody className="divide-y">
                 {reports.map((report) => (
-                  <tr key={report.id} className="hover:bg-muted/50 transition-colors">
+                  <tr key={report.id} className="hover:bg-muted/50 transition-colors" data-cy="report-row">
                     <td className="px-4 py-4">
                       <div className="font-medium">{report.title}</div>
                       <div className="text-sm text-muted-foreground line-clamp-1">
@@ -185,7 +185,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
                           onUpdateStatus={handleUpdateStatus}
                         />
                       ) : (
-                        <Badge className={getStatusColor(report.status, 'dark')}>
+                        <Badge className={getStatusColor(report.status, 'dark')} data-cy="status-badge">
                           {report.status}
                         </Badge>
                       )}
@@ -278,16 +278,16 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
 
   return (
     <div className="flex items-center gap-2 w-full md:w-auto">
-      <Badge className={getStatusColor(report.status)}>
+      <Badge className={getStatusColor(report.status)} data-cy="current-status-badge">
         {report.status}
       </Badge>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" data-cy="update-status-button">
             Update
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent data-cy="status-dialog">
         <DialogHeader>
           <DialogTitle>Update Report Status</DialogTitle>
           <DialogDescription>
@@ -299,12 +299,12 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
           <div className="space-y-2">
             <label htmlFor="status-select" className="text-sm font-medium">New Status</label>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger>
+              <SelectTrigger data-cy="status-select-trigger">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {ALLOWED_TRANSITIONS.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
+                  <SelectItem key={status.value} value={status.value} data-cy="status-option">
                     <div className="flex items-center gap-2">
                       <div className={`h-2 w-2 rounded-full ${status.color}`} />
                       {status.label}
@@ -320,7 +320,7 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
           <Button variant="outline" onClick={() => setIsOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={selectedStatus === report.status}>
+          <Button onClick={handleSave} disabled={selectedStatus === report.status} data-cy="save-changes-button">
             <Save className="mr-2 h-4 w-4" />
             Save Changes
           </Button>

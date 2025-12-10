@@ -68,7 +68,7 @@ export default function TechnicianReports({ type = "active" }) {
       const filteredData = allData.filter((report) => {
         const isFinished = FINISHED_STATUSES.has(report.status);
         const isExternal = !!report.externalMaintainerId;
-        
+
         console.log(`Report ${report.id}: status=${report.status}, externalMaintainerId=${report.externalMaintainerId}, isFinished=${isFinished}, isExternal=${isExternal}`);
         
         if (type === "active") {
@@ -158,13 +158,13 @@ export default function TechnicianReports({ type = "active" }) {
         </>
       );
     }
-    
+
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/5">
         {emptyStateContent}
       </div>
-    );
-  }
+      );
+   }
 
   const getTitle = () => {
     if (type === "active") return "Your Assigned Reports";
@@ -228,16 +228,16 @@ function AssignMaintainerDialog({ report, onRefresh }) {
       };
       fetchCompanies();
     }
-  }, [open, showSuccess, report.id, toast]);
+  }, [open, showSuccess,report.id, toast]);
 
   const handleAssign = async () => {
     if (!selectedCompany) return;
-    setOpen(false); // Chiudi il dialog di selezione
+    setOpen(false);
     setAssigning(true);
     try {
       const companyIdNumber = Number.parseInt(selectedCompany, 10);
       await staffAPI.assignExternal(report.id, companyIdNumber);
-      
+
       setShowSuccess(true);
       setAssigning(false);
     } catch (error) {
@@ -247,11 +247,12 @@ function AssignMaintainerDialog({ report, onRefresh }) {
         title: "Assignment Failed",
         description: error.response?.data?.message || "Could not assign the report. Please try again.",
       });
+    } finally {
       setAssigning(false);
     }
   };
 
-  const handleCloseSuccess = async () => {
+    const handleCloseSuccess = async () => {
     setShowSuccess(false);
     setSelectedCompany("");
     
@@ -267,20 +268,20 @@ function AssignMaintainerDialog({ report, onRefresh }) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full gap-2">
-            <HardHat className="h-4 w-4" /> Assign to Maintainer
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign to External Maintainer</DialogTitle>
-            <DialogDescription>
-              Select a compatible company to handle this report. The report will be moved to the Maintainer list.
-            </DialogDescription>
-          </DialogHeader>
-          
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full gap-2" data-cy="assign-maintainer-btn">
+          <HardHat className="h-4 w-4" /> Assign to Maintainer
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign to External Maintainer</DialogTitle>
+          <DialogDescription>
+            Select a compatible company to handle this report. The report will be moved to the Maintainer list.
+          </DialogDescription>
+        </DialogHeader>
+        
           <div className="py-4">
             {loading && (
               <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
@@ -289,24 +290,27 @@ function AssignMaintainerDialog({ report, onRefresh }) {
               <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
             )}
             {!loading && companies.length > 0 && (
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((c) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger data-cy="company-select-trigger">
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => {
+                  const formattedName = c.name.replace(/\s/g, "-");
+                  return (
+                  <SelectItem key={c.id} value={c.id.toString()} data-cy={`select-item-${formattedName}`}>
+                    {c.name}
+                  </SelectItem>
+                );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
 
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleAssign} disabled={!selectedCompany || assigning}>
+        <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={handleClose} data-cy="cancel-assignment-button">Cancel</Button>
+            <Button onClick={handleAssign} disabled={!selectedCompany || assigning} data-cy="confirm-assignment-button">
               {assigning ? "Assigning..." : "Confirm Assignment"}
             </Button>
           </div>
@@ -334,6 +338,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
     </>
   );
 }
+  
 
 // Sotto-componente per gestire lo stato locale del Select
 function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
@@ -444,7 +449,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
           )}
 
           <Button 
-            data-cy="view-details-btn"
+            data-cy="view-details-button"
             variant="ghost" 
             size="sm" 
             className="w-full md:w-auto mt-auto gap-2 text-primary hover:text-primary/80"

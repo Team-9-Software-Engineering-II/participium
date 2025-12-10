@@ -1,15 +1,27 @@
 /**
- * @fileoverview E2E tests for Technician Reports feature.
- * Covers active reports, history, status updates, navigation, and empty states.
+ * @fileoverview E2E tests for Technician Reports feature, covering general functionality
+ * and the External Maintainer Assignment user story (980).
  */
 
-describe("Technician Reports", () => {
+import technicianLayoutPage from "../../pages/technician/technician-layout.page";
+
+describe("Technician Report Management", () => {
+  // Reliance on seeded data for external assignment flow
+  const EXTERNAL_COMPANY_NAME = "C.I.T. Servizi Urbani";
+
+  /** @type {string} Stores the title of the first active report dynamically read from the UI. */
+  let dynamicReportTitle;
+
   /**
-   * Logs in as a technician and navigates to active reports before each test.
+   * Logs in as a technician and ensures the active report list is visited before each test.
    */
   beforeEach(() => {
     cy.loginAsTechOfficer();
-    cy.visit("/technical/reports/active");
+    technicianLayoutPage.visitActiveReports();
+    technicianLayoutPage.elements.reportTitleFirst().then(($title) => {
+      dynamicReportTitle = $title.text().trim();
+      expect(dynamicReportTitle).to.not.be.empty;
+    });
   });
 
   /**
@@ -17,8 +29,10 @@ describe("Technician Reports", () => {
    * Verifies that the active assigned reports list loads correctly.
    */
   it("should load the list of active assigned reports", () => {
-    cy.get("[data-cy=report-list]").should("exist");
-    cy.get("[data-cy=report-card]").should("have.length.greaterThan", 0);
+    technicianLayoutPage.elements.reportList().should("exist");
+    technicianLayoutPage.elements
+      .reportCardFirst()
+      .should("have.length.greaterThan", 0);
   });
 
   /**
@@ -26,14 +40,9 @@ describe("Technician Reports", () => {
    * Verifies that a report status can be updated and the update button appears only after a change.
    */
   it("should allow status update for a report", () => {
-    // Open the status select for the first report card
-    cy.get("[data-cy=status-select]").first().click({ force: true });
-
-    // Choose a new status (In Progress)
+    technicianLayoutPage.elements.statusSelect().click({ force: true });
     cy.contains("Suspended").click();
-
-    // Ensure update button appears after changing status and click it
-    cy.get("[data-cy=update-status-btn]").first().should("exist").click();
+    technicianLayoutPage.elements.updateStatusButton().should("exist").click();
   });
 
   /**
@@ -41,9 +50,7 @@ describe("Technician Reports", () => {
    * Verifies navigation from a report card to the report details page.
    */
   it("should navigate to details page from a report card", () => {
-    cy.get("[data-cy=view-details-btn]").first().click();
-
-    // URL should contain /reports/ to confirm navigation
+    technicianLayoutPage.elements.viewDetailsButton().click();
     cy.url().should("include", "/reports/");
   });
 
@@ -55,8 +62,13 @@ describe("Technician Reports", () => {
     cy.visit("/technical/reports/history");
 
     cy.get("body").then(($body) => {
-      if ($body.find("[data-cy=report-list]").length) {
-        cy.get("[data-cy=report-card]").should("have.length.greaterThan", 0);
+      const isReportListPresent =
+        $body.find('[data-cy="report-list"]').length > 0;
+
+      if (isReportListPresent) {
+        technicianLayoutPage.elements
+          .reportCardFirst()
+          .should("have.length.greaterThan", 0);
       } else {
         cy.contains("No history").should("exist");
       }
@@ -68,14 +80,12 @@ describe("Technician Reports", () => {
    * Verifies that the report creation date and coordinates are displayed correctly.
    */
   it("should display report creation date and coordinates", () => {
-    cy.get("[data-cy=report-card]")
-      .first()
-      .within(() => {
-        cy.get("span").contains(/\d{4}/).should("exist"); // year part of date
-        cy.get("span")
-          .contains(/\d+\.\d+/)
-          .should("exist"); // latitude or longitude
-      });
+    technicianLayoutPage.elements.reportCardFirst().within(() => {
+      cy.get("span").contains(/\d{4}/).should("exist");
+      cy.get("span")
+        .contains(/\d+\.\d+/)
+        .should("exist");
+    });
   });
 
   /**
@@ -83,10 +93,10 @@ describe("Technician Reports", () => {
    * Ensures that the update button appears only after changing the status select value.
    */
   it("should show update button only when status changes", () => {
-    cy.get("[data-cy=status-select]").first().click({ force: true });
+    technicianLayoutPage.elements.statusSelect().click({ force: true });
     cy.contains("In Progress").click();
 
-    cy.get("[data-cy=update-status-btn]").should("exist");
+    technicianLayoutPage.elements.updateStatusButton().should("exist");
   });
 
   /**
@@ -94,10 +104,79 @@ describe("Technician Reports", () => {
    * Verifies navigation to report details page and back to the active list.
    */
   it("should navigate to report details and back", () => {
-    cy.get("[data-cy=view-details-btn]").first().click();
+    technicianLayoutPage.elements.viewDetailsButton().click();
     cy.url().should("include", "/reports/");
 
     cy.go("back");
     cy.url().should("include", "/technical/reports/active");
+  });
+
+  describe("External Maintainer Assignment Flow", () => {
+    /**
+     * @test
+     * Verifies assigning the report externally and verifying
+     * its movement from the Active tab to the Maintainer tab.
+     */
+    it("should successfully assign a report externally and verify tab change", () => {
+      // ARRANGE: Verify the report is visible in the Active queue
+      technicianLayoutPage.verifyReportVisible(dynamicReportTitle);
+
+      // ACT 1: Open the assignment dialog
+      technicianLayoutPage.openAssignMaintainerDialog(dynamicReportTitle);
+
+      // ACT 2: Select the external company and confirm assignment
+      technicianLayoutPage.selectAndConfirmAssignment(EXTERNAL_COMPANY_NAME);
+
+      // ACT 3: Navigate to the 'Maintainers Reports' tab
+      technicianLayoutPage.goToMaintainerReports();
+
+      // ASSERT 3: Verify the report appears in the 'Maintainers Reports' tab
+      technicianLayoutPage.verifyReportVisible(dynamicReportTitle);
+
+      // ASSERT 4: Verify the report card indicates external assignment status
+      technicianLayoutPage.elements
+        .reportCard(dynamicReportTitle)
+        .should("contain", "External");
+    });
+
+    /**
+     * @test
+     * Verifies that the assignment confirmation button is disabled if no company is selected.
+     */
+    it("should disable confirmation button when no company is selected in the dialog", () => {
+      // ARRANGE: Open dialog
+      technicianLayoutPage.openAssignMaintainerDialog(dynamicReportTitle);
+
+      // ASSERT: Confirm button should be disabled by default
+      technicianLayoutPage.elements
+        .confirmAssignmentButton()
+        .should("be.disabled");
+
+      // ACT: Select a company to enable the button
+      technicianLayoutPage.elements.companySelectTrigger().click();
+      technicianLayoutPage.elements.selectItem(EXTERNAL_COMPANY_NAME).click();
+
+      // ASSERT: Confirm button should be enabled after selection
+      technicianLayoutPage.elements
+        .confirmAssignmentButton()
+        .should("not.be.disabled");
+
+      // Cleanup: Close the dialog
+      technicianLayoutPage.elements.cancelAssignmentButton().click();
+    });
+
+    /**
+     * @test
+     * Verifies that the "Maintainers Reports" tab loads correctly and shows external badges.
+     */
+    it("should load the external maintainers report list", () => {
+      technicianLayoutPage.goToMaintainerReports();
+      technicianLayoutPage.elements.reportList().should("exist");
+
+      // Verify that reports in this list have the 'External' badge
+      technicianLayoutPage.elements
+        .reportCardFirst()
+        .should("contain", "External");
+    });
   });
 });
