@@ -309,8 +309,8 @@ function AssignMaintainerDialog({ report, onRefresh }) {
         </div>
 
         <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleAssign} disabled={!selectedCompany || assigning}>
+            <Button variant="ghost" onClick={handleClose} data-cy="cancel-assignment-button">Cancel</Button>
+            <Button onClick={handleAssign} disabled={!selectedCompany || assigning} data-cy="confirm-assignment-button">
               {assigning ? "Assigning..." : "Confirm Assignment"}
             </Button>
           </div>
