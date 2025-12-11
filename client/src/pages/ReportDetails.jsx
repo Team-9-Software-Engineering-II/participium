@@ -239,13 +239,30 @@ export default function ReportDetails() {
           if (messages.length > 0) {
             const latestMessage = messages[messages.length - 1];
             
-            // Se è il primo caricamento, salva l'ultimo messaggio senza notificare
+            // Se è il primo caricamento della pagina
             if (lastMessageId === null) {
-              console.log('First load, setting lastMessageId:', latestMessage.id);
-              setLastMessageId(latestMessage.id);
-              setUnreadCount(0);
+              // Controlla localStorage per vedere se abbiamo già letto questi messaggi
+              const storageKey = `lastReadMessage_${report.id}_${user?.id}`;
+              const lastReadId = localStorage.getItem(storageKey);
+              
+              if (lastReadId) {
+                // Abbiamo già letto fino a lastReadId, conta solo i nuovi
+                const lastReadIdNum = Number.parseInt(lastReadId, 10);
+                const newMessages = messages.filter(m => 
+                  m.id > lastReadIdNum && m.author?.id !== user?.id
+                );
+                console.log('First load, lastReadId from storage:', lastReadIdNum, 'new messages:', newMessages.length);
+                setLastMessageId(latestMessage.id);
+                setUnreadCount(newMessages.length);
+              } else {
+                // Mai aperta la chat prima, conta tutti i messaggi degli altri
+                const unreadMessages = messages.filter(m => m.author?.id !== user?.id);
+                console.log('First load, no history, unread messages from others:', unreadMessages.length);
+                setLastMessageId(latestMessage.id);
+                setUnreadCount(unreadMessages.length);
+              }
             } else if (latestMessage.id !== lastMessageId) {
-              // Conta solo i messaggi degli altri utenti
+              // Ci sono nuovi messaggi rispetto all'ultimo check
               const newMessages = messages.filter(m => 
                 m.id > lastMessageId && m.author?.id !== user?.id
               );
@@ -254,7 +271,10 @@ export default function ReportDetails() {
                 latestMessageId: latestMessage.id,
                 oldLastMessageId: lastMessageId
               });
-              setUnreadCount(newMessages.length);
+              // Incrementa il contatore esistente
+              setUnreadCount(prev => prev + newMessages.length);
+              // Aggiorna lastMessageId per non contare di nuovo gli stessi messaggi
+              setLastMessageId(latestMessage.id);
             }
           }
         } catch (error) {
@@ -262,34 +282,82 @@ export default function ReportDetails() {
         }
       };
 
-      // Controlla subito
-      checkNewMessages();
-      
-      // Poi ogni 5 secondi
+      // NON controllare subito - dai tempo a ChatSheet di salvare in localStorage
+      // Controlla solo ogni 5 secondi
       const interval = setInterval(checkNewMessages, 5000);
       return () => clearInterval(interval);
     }
   }, [chatOpen, report?.id, user, lastMessageId]);
 
-  // Reset contatore quando la chat viene aperta
+  // Reset contatore quando la chat viene aperta/chiusa
   useEffect(() => {
-    if (chatOpen) {
-      const resetUnread = async () => {
+    const handleChatState = async () => {
+      if (chatOpen) {
+        // Chat APERTA - resetta tutto
         try {
           const response = await messageAPI.getMessages(report.id);
           const messages = response.data || [];
           if (messages.length > 0) {
             const latestMessage = messages[messages.length - 1];
             setLastMessageId(latestMessage.id);
+            
+            // Salva in localStorage per sincronizzare con i badge delle card
+            const storageKey = `lastReadMessage_${report.id}_${user?.id}`;
+            localStorage.setItem(storageKey, latestMessage.id.toString());
+            
+            console.log('[ReportDetails] Chat opened - saved to localStorage:', latestMessage.id);
+            
+            // Emetti evento per aggiornare i badge nelle liste
+            globalThis.dispatchEvent(new Event('chatMessageRead'));
           }
           setUnreadCount(0);
         } catch (error) {
           console.error('Error resetting unread:', error);
         }
-      };
-      resetUnread();
+      }
+    };
+    
+    handleChatState();
+  }, [chatOpen, report?.id, user?.id]);
+  
+  // Quando la chat si chiude, aggiorna SUBITO da localStorage
+  useEffect(() => {
+    if (!chatOpen && report?.id && user?.id) {
+      console.log('[ReportDetails] Chat closed - rechecking messages IMMEDIATELY');
+      const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+      const lastReadId = localStorage.getItem(storageKey);
+      
+      if (lastReadId) {
+        console.log('[ReportDetails] Found lastReadId in localStorage:', lastReadId);
+        const lastReadIdNum = Number.parseInt(lastReadId, 10);
+        // Aggiorna IMMEDIATAMENTE e SINCRONAMENTE
+        setLastMessageId(lastReadIdNum);
+        setUnreadCount(0);
+      }
     }
-  }, [chatOpen, report?.id]);
+  }, [chatOpen, report?.id, user?.id]);
+
+  // Ascolta l'evento chatMessageRead per aggiornare il badge quando la chat viene chiusa
+  useEffect(() => {
+    const handleChatRead = () => {
+      // Rileggi da localStorage e aggiorna il badge
+      if (report?.id && user?.id) {
+        const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+        const lastReadId = localStorage.getItem(storageKey);
+        
+        if (lastReadId && lastMessageId) {
+          const lastReadIdNum = Number.parseInt(lastReadId, 10);
+          // Se l'ultimo letto in storage è >= all'ultimo che conosciamo, reset badge
+          if (lastReadIdNum >= lastMessageId) {
+            setUnreadCount(0);
+          }
+        }
+      }
+    };
+
+    globalThis.addEventListener('chatMessageRead', handleChatRead);
+    return () => globalThis.removeEventListener('chatMessageRead', handleChatRead);
+  }, [report?.id, user?.id, lastMessageId]);
 
   const renderAssigneeInfo = () => {
     if (isPending()) {

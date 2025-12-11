@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { staffAPI } from "@/services/api";
+import { staffAPI, messageAPI } from "@/services/api";
 import {
   Card,
 } from "@/components/ui/card";
@@ -32,10 +32,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, HardHat, Building2 } from "lucide-react";
+import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, HardHat, Building2, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { getStatusColor } from "@/lib/reportColors";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Stati in cui il tecnico può spostare il report
 const ALLOWED_TRANSITIONS = [
@@ -48,6 +49,7 @@ const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function TechnicianReports({ type = "active" }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -192,6 +194,7 @@ export default function TechnicianReports({ type = "active" }) {
           type={type} 
           onUpdateStatus={handleUpdateStatus}
           onRefresh={fetchReports}
+          userId={user?.id}
         />
       ))}
     </div>
@@ -362,8 +365,73 @@ function AssignMaintainerDialog({ report, onRefresh }) {
   
 
 // Sotto-componente per gestire lo stato locale del Select
-function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
+function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Controlla se ci sono messaggi non letti
+  useEffect(() => {
+    const checkUnreadMessages = async () => {
+      if (!userId || !report.id) return;
+      
+      // Solo se il report ha un external maintainer (quindi c'è la chat)
+      if (!report.externalMaintainerId) return;
+
+      try {
+        const response = await messageAPI.getMessages(report.id);
+        const messages = response.data || [];
+        
+        if (messages.length === 0) {
+          setUnreadCount(0);
+          return;
+        }
+
+        // Recupera l'ultimo messaggio visto da localStorage
+        const storageKey = `lastReadMessage_${report.id}_${userId}`;
+        const lastReadId = localStorage.getItem(storageKey);
+        
+        console.log(`[Badge Tech] Report ${report.id}:`, {
+          totalMessages: messages.length,
+          lastReadId,
+          userId,
+          externalMaintainerId: report.externalMaintainerId
+        });
+        
+        if (lastReadId) {
+          // Conta solo i nuovi messaggi dopo l'ultimo letto
+          const lastReadIdNum = Number.parseInt(lastReadId, 10);
+          const newMessages = messages.filter(m => 
+            m.id > lastReadIdNum && m.author?.id !== userId
+          );
+          console.log(`[Badge Tech] LastReadId=${lastReadIdNum}, new messages:`, newMessages.length);
+          setUnreadCount(newMessages.length);
+        } else {
+          // Se non abbiamo mai aperto la chat, conta tutti i messaggi degli altri
+          const unread = messages.filter(m => m.author?.id !== userId);
+          console.log(`[Badge Tech] No lastReadId, unread from others:`, unread.length);
+          setUnreadCount(unread.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch messages for badge:', error);
+      }
+    };
+
+    checkUnreadMessages();
+    
+    // Ricontrolla ogni 10 secondi
+    const interval = setInterval(checkUnreadMessages, 10000);
+    
+    // Ascolta eventi per aggiornare il badge
+    const handleStorageChange = () => checkUnreadMessages();
+    globalThis.addEventListener('storage', handleStorageChange);
+    globalThis.addEventListener('chatMessageRead', handleStorageChange);
+    
+    return () => {
+      clearInterval(interval);
+      globalThis.removeEventListener('storage', handleStorageChange);
+      globalThis.removeEventListener('chatMessageRead', handleStorageChange);
+    };
+  }, [report.id, report.externalMaintainerId, report.assigneeId, userId]);
 
   return (
     <Card data-cy="report-card" className="transition-all hover:shadow-md border-l-4 border-l-primary/20">
@@ -469,15 +537,23 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh }) {
             </div>
           )}
 
-          <Button 
-            data-cy="view-details-button"
-            variant="ghost" 
-            size="sm" 
-            className="w-full md:w-auto mt-auto gap-2 text-primary hover:text-primary/80"
-            onClick={() => navigate(`/reports/${report.id}`)}
-          >
-            View Full Details <ArrowRight className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
+            <Button 
+              data-cy="view-details-button"
+              variant="ghost" 
+              size="sm" 
+              className="w-full md:w-auto gap-2 text-primary hover:text-primary/80"
+              onClick={() => navigate(`/reports/${report.id}`)}
+            >
+              View Full Details <ArrowRight className="h-4 w-4" />
+            </Button>
+            {unreadCount > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-full">
+                <MessageCircle className="h-3 w-3" />
+                <span>{unreadCount > 9 ? '9+' : unreadCount} new {unreadCount === 1 ? 'message' : 'messages'}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>

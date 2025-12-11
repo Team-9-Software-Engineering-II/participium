@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { staffAPI } from "@/services/api";
+import { staffAPI, messageAPI } from "@/services/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,11 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MapPin, Calendar, ArrowRight, Save } from "lucide-react";
+import { MapPin, Calendar, ArrowRight, Save, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { getStatusColor } from "@/lib/reportColors";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ALLOWED_TRANSITIONS = [
   { value: "In Progress", label: "In Progress", color: "bg-yellow-400" },
@@ -37,6 +38,7 @@ const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function ExternalMaintainerReports({ type = "active" }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +54,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
 
       const filteredData = allData.filter((report) => {
         const isFinished = FINISHED_STATUSES.has(report.status);
-
+        
         if (type === "active") {
           return !isFinished;
         } else {
@@ -60,10 +62,8 @@ export default function ExternalMaintainerReports({ type = "active" }) {
         }
       });
 
-      filteredData.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-
+      filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
       setReports(filteredData);
     } catch (error) {
       console.error("Failed to fetch reports", error);
@@ -80,16 +80,16 @@ export default function ExternalMaintainerReports({ type = "active" }) {
   const handleUpdateStatus = async (reportId, newStatus) => {
     try {
       await staffAPI.updateReportStatus(reportId, { status: newStatus });
-
+      
       toast({
         title: "Status updated",
         description: `Report status changed to ${newStatus}`,
       });
 
       fetchReports();
-
+      
       // Emetti evento per aggiornare i contatori nel layout
-      globalThis.dispatchEvent(new Event("maintainerReportsRefresh"));
+      globalThis.dispatchEvent(new Event('maintainerReportsRefresh'));
     } catch (error) {
       console.error("Failed to update status", error);
       toast({
@@ -119,7 +119,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
         <div className="text-center max-w-md">
           <h3 className="text-lg font-semibold mb-2">No reports found</h3>
           <p className="text-sm text-muted-foreground">
-            {type === "active"
+            {type === "active" 
               ? "You don't have any active reports assigned to you at the moment."
               : "You haven't completed any reports yet."}
           </p>
@@ -167,11 +167,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
               </thead>
               <tbody className="divide-y">
                 {reports.map((report) => (
-                  <tr
-                    key={report.id}
-                    className="hover:bg-muted/50 transition-colors"
-                    data-cy="report-row"
-                  >
+                  <tr key={report.id} className="hover:bg-muted/50 transition-colors" data-cy="report-row">
                     <td className="px-4 py-4">
                       <div className="font-medium">{report.title}</div>
                       <div className="text-sm text-muted-foreground line-clamp-1">
@@ -181,9 +177,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
                     <td className="px-4 py-4">
                       <div className="flex items-start gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">
-                          {report.address || "No address"}
-                        </span>
+                        <span className="text-sm">{report.address || "No address"}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -193,10 +187,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
                           onUpdateStatus={handleUpdateStatus}
                         />
                       ) : (
-                        <Badge
-                          className={getStatusColor(report.status, "dark")}
-                          data-cy="status-badge"
-                        >
+                        <Badge className={getStatusColor(report.status, 'dark')} data-cy="status-badge">
                           {report.status}
                         </Badge>
                       )}
@@ -208,14 +199,17 @@ export default function ExternalMaintainerReports({ type = "active" }) {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/reports/${report.id}`)}
-                      >
-                        View
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/reports/${report.id}`)}
+                        >
+                          View
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                        <UnreadMessageBadge reportId={report.id} userId={user?.id} />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -250,16 +244,19 @@ export default function ExternalMaintainerReports({ type = "active" }) {
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                {type === "active" ? (
-                  <StatusUpdateDialog
-                    report={report}
-                    onUpdateStatus={handleUpdateStatus}
-                  />
-                ) : (
-                  <Badge className={getStatusColor(report.status)}>
-                    {report.status}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {type === "active" ? (
+                    <StatusUpdateDialog
+                      report={report}
+                      onUpdateStatus={handleUpdateStatus}
+                    />
+                  ) : (
+                    <Badge className={getStatusColor(report.status)}>
+                      {report.status}
+                    </Badge>
+                  )}
+                  <UnreadMessageBadge reportId={report.id} userId={user?.id} />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -276,6 +273,80 @@ export default function ExternalMaintainerReports({ type = "active" }) {
   );
 }
 
+// Badge per messaggi non letti
+function UnreadMessageBadge({ reportId, userId }) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const checkUnreadMessages = async () => {
+      if (!userId || !reportId) return;
+
+      try {
+        const response = await messageAPI.getMessages(reportId);
+        const messages = response.data || [];
+        
+        if (messages.length === 0) {
+          setUnreadCount(0);
+          return;
+        }
+
+        // Recupera l'ultimo messaggio visto da localStorage
+        const storageKey = `lastReadMessage_${reportId}_${userId}`;
+        const lastReadId = localStorage.getItem(storageKey);
+        
+        console.log(`[Badge Maintainer] Report ${reportId}:`, {
+          totalMessages: messages.length,
+          lastReadId,
+          userId,
+          messageAuthors: messages.map(m => m.author?.id)
+        });
+        
+        if (lastReadId) {
+          // Conta solo i nuovi messaggi dopo l'ultimo letto
+          const lastReadIdNum = Number.parseInt(lastReadId, 10);
+          const newMessages = messages.filter(m => 
+            m.id > lastReadIdNum && m.author?.id !== userId
+          );
+          console.log(`[Badge Maintainer] LastReadId=${lastReadIdNum}, new messages:`, newMessages.length);
+          setUnreadCount(newMessages.length);
+        } else {
+          // Se non abbiamo mai aperto la chat, conta tutti i messaggi degli altri
+          const unread = messages.filter(m => m.author?.id !== userId);
+          console.log(`[Badge Maintainer] No lastReadId, unread from others:`, unread.length);
+          setUnreadCount(unread.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch messages for badge:', error);
+      }
+    };
+
+    checkUnreadMessages();
+    
+    // Ricontrolla ogni 10 secondi
+    const interval = setInterval(checkUnreadMessages, 10000);
+    
+    // Ascolta eventi per aggiornare il badge
+    const handleStorageChange = () => checkUnreadMessages();
+    globalThis.addEventListener('storage', handleStorageChange);
+    globalThis.addEventListener('chatMessageRead', handleStorageChange);
+    
+    return () => {
+      clearInterval(interval);
+      globalThis.removeEventListener('storage', handleStorageChange);
+      globalThis.removeEventListener('chatMessageRead', handleStorageChange);
+    };
+  }, [reportId, userId]);
+
+  if (unreadCount === 0) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-xs font-semibold rounded-full">
+      <MessageCircle className="h-3 w-3" />
+      {unreadCount > 9 ? '9+' : unreadCount}
+    </span>
+  );
+}
+
 function StatusUpdateDialog({ report, onUpdateStatus }) {
   const [selectedStatus, setSelectedStatus] = useState(report.status);
   const [isOpen, setIsOpen] = useState(false);
@@ -289,10 +360,7 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
 
   return (
     <div className="flex items-center gap-2 w-full md:w-auto">
-      <Badge
-        className={getStatusColor(report.status)}
-        data-cy="current-status-badge"
-      >
+      <Badge className={getStatusColor(report.status)} data-cy="current-status-badge">
         {report.status}
       </Badge>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -302,57 +370,45 @@ function StatusUpdateDialog({ report, onUpdateStatus }) {
           </Button>
         </DialogTrigger>
         <DialogContent data-cy="status-dialog">
-          <DialogHeader>
-            <DialogTitle>Update Report Status</DialogTitle>
-            <DialogDescription>
-              Change the status of this report
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Update Report Status</DialogTitle>
+          <DialogDescription>
+            Change the status of this report
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="status-select" className="text-sm font-medium">
-                New Status
-              </label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger data-cy="status-select-trigger">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALLOWED_TRANSITIONS.map((status) => (
-                    <SelectItem
-                      key={status.value}
-                      value={status.value}
-                      data-cy="status-option"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`h-2 w-2 rounded-full ${status.color}`}
-                        />
-                        {status.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="status-select" className="text-sm font-medium">New Status</label>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger data-cy="status-select-trigger">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALLOWED_TRANSITIONS.map((status) => (
+                  <SelectItem key={status.value} value={status.value} data-cy="status-option">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${status.color}`} />
+                      {status.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={selectedStatus === report.status}
-              data-cy="save-changes-button"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={selectedStatus === report.status} data-cy="save-changes-button">
+            <Save className="mr-2 h-4 w-4" />
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }
