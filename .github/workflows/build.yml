@@ -28,8 +28,10 @@ jobs:
           node-version: '20'
           cache: 'yarn'
           cache-dependency-path: server/yarn.lock
+      
       - name: Install dependencies
-        run: yarn install --ignore-scripts  # nosemgrep: yaml.github-actions.security.run-shell-injection.run-shell-injection
+        run: yarn install --network-timeout 100000
+        
       - name: Print CI environment
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
@@ -55,11 +57,11 @@ jobs:
       
       - name: Install client dependencies
         working-directory: ./client
-        run: yarn install --ignore-scripts  # nosemgrep: yaml.github-actions.security.run-shell-injection.run-shell-injection
+        run: yarn install --network-timeout 100000
           
       - name: Install server dependencies
         working-directory: ./server
-        run: yarn install --ignore-scripts  # nosemgrep: yaml.github-actions.security.run-shell-injection.run-shell-injection
+        run: yarn install --network-timeout 100000
         
       - name: Test server with coverage
         working-directory: ./server
