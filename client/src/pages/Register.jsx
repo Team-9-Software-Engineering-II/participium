@@ -281,7 +281,7 @@ export default function Register() {
 
             <form onSubmit={handleVerification} className="space-y-6">
               {error && (
-                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+                <div data-cy="verification-error-message" className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
                   {error}
                 </div>
               )}
@@ -295,6 +295,7 @@ export default function Register() {
                     maxLength={6}
                     value={verificationCode}
                     onChange={setVerificationCode}
+                    data-cy="verification-code-input"
                   >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
@@ -316,6 +317,7 @@ export default function Register() {
 
               <Button 
                 type="submit" 
+                data-cy="verify-button"
                 className="w-full"
                 disabled={loading || verificationCode.length !== 6}
               >
@@ -327,6 +329,7 @@ export default function Register() {
                   type="button"
                   onClick={handleResendCode}
                   disabled={loading}
+                  data-cy="resend-code-button"
                   className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 disabled:opacity-50"
                 >
                   Resend code

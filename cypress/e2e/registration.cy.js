@@ -7,26 +7,62 @@ import { requiredFieldsRegistration } from "../support/constants";
  * @type {Cypress.Spec}
  */
 describe("Registration Flow", () => {
-  /**
-   * @description Test case for a successful user registration.
-   * It uses unique credentials to avoid conflicts and verifies the final state (status code and URL).
-   */
-  it("should allow successful registration", () => {
+  const uniqueId = Date.now();
+  const userEmail = `fullflow${uniqueId}@example.com`;
+  const correctCode = "654321";
+
+  const goToVerificationStep = () => {
     RegisterPage.visit();
-    const uniqueId = Date.now();
 
     RegisterPage.fillForm({
-      email: `test${uniqueId}@example.com`,
+      email: userEmail,
       username: `user${uniqueId}`,
       firstName: "Mario",
       lastName: "Rossi",
       password: "Password123",
       confirmPassword: "Password123",
     });
-    cy.intercept("POST", "/auth/register").as("registerUser");
+
     RegisterPage.submit();
-    cy.wait("@registerUser").its("response.statusCode").should("eq", 201);
-    cy.url().should("eq", Cypress.config().baseUrl + "/");
+
+    cy.url().should("eq", Cypress.config().baseUrl + "/register");
+    RegisterPage.elements.verificationCodeInput().should("be.visible");
+  };
+  /**
+   * @description Test case for a successful user registration.
+   * It uses unique credentials to avoid conflicts and verifies the final state (status code and URL).
+   */
+  it("should allow successful registration", () => {
+    goToVerificationStep();
+
+    RegisterPage.enterVerificationCode(correctCode);
+    RegisterPage.verify();
+  });
+
+  /**
+   * @description Test case for failed verification with an incorrect code.
+   */
+  it("should display error on invalid verification code", () => {
+    goToVerificationStep();
+
+    RegisterPage.enterVerificationCode("999999");
+    RegisterPage.verify();
+
+    RegisterPage.elements.verificationCodeInput().should("have.value", "");
+  });
+
+  /**
+   * @description Test case for resending the verification code.
+   */
+  it("should allow resending the verification code", () => {
+    goToVerificationStep();
+
+    RegisterPage.elements.resendButton().click();
+
+    cy.get(".bg-green-500\\/10").should(
+      "contain.text",
+      "Verification code resent successfully"
+    );
   });
 
   /**
