@@ -47,30 +47,7 @@ import { MapView } from "@/components/MapView";
 import { reportAPI } from "@/services/api";
 
 // Reusable Reports List component
-const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, navigate, onViewInMap }) => {
-  // Se non autenticato, mostra il box di login
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-        <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No reports</h3>
-        <p className="text-sm text-muted-foreground max-w-xs mb-6">
-          Log in to view and manage reports in your area.
-        </p>
-        <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
-          <p className="text-sm font-medium">Log in to see reports</p>
-          <Button
-            onClick={() => navigate("/login")}
-            className="w-full"
-            size="sm"
-          >
-            Log in
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+const ReportsList = ({ loading, displayReports, showMyReports, navigate, onViewInMap }) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -354,6 +331,15 @@ export default function Home() {
     }
   };
 
+  const handleToggleMyReports = (checked) => {
+    // Se l'utente non è autenticato e prova ad attivare "My reports", mostra il dialog di login
+    if (!isAuthenticated && checked) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setShowMyReports(checked);
+  };
+
   const handleResetFilters = () => {
     setSelectedCategory("");
     setSelectedStatus("");
@@ -384,51 +370,45 @@ export default function Home() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Left Sidebar - Reports List */}
         <div className="w-96 border-r border-border bg-background flex flex-col relative">
-          {/* Mostra Search Bar solo se autenticato */}
-          {isAuthenticated && (
-            <div className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search for a report"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                  onClick={() => setShowFilters(true)}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
+          {/* Search Bar - sempre visibile */}
+          <div className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search for a report"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                onClick={() => setShowFilters(true)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </Button>
             </div>
-          )}
+          </div>
 
-          {/* Mostra Toggle "My reports" solo se autenticato */}
-          {isAuthenticated && (
-            <div className="px-4 py-3">
-              <span className="text-xl font-bold">All reports</span>
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-sm font-medium">My reports</span>
-                <Switch
-                  checked={showMyReports}
-                  onCheckedChange={setShowMyReports}
-                />
-              </div>
+          {/* Toggle "My reports" - sempre visibile */}
+          <div className="px-4 py-3">
+            <span className="text-xl font-bold">All reports</span>
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-sm font-medium">My reports</span>
+              <Switch
+                checked={showMyReports}
+                onCheckedChange={handleToggleMyReports}
+              />
             </div>
-          )}
+          </div>
 
           {/* Reports List Area */}
           <div className="px-4 py-4">
-            {isAuthenticated && (
-              <p className="text-sm text-muted-foreground">
-                {totalResults} results
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {totalResults} results
+            </p>
           </div>
           <div className="flex-1 overflow-y-auto px-4">
             <ReportsList 
@@ -534,45 +514,41 @@ export default function Home() {
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
-                {/* Search bar e Toggle visibili solo se autenticato */}
-                {isAuthenticated && (
-                  <>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search for a report"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-10"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                        onClick={() => setShowFilters(true)}
-                      >
-                        <SlidersHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
+                {/* Search bar e Toggle - sempre visibili */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search for a report"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                    onClick={() => setShowFilters(true)}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
 
-                    <div>
-                      <span className="text-xl font-bold">All reports</span>
-                      <div className="flex items-center justify-between mt-4">
-                        <span className="text-sm font-medium">My reports</span>
-                        <Switch
-                          checked={showMyReports}
-                          onCheckedChange={setShowMyReports}
-                        />
-                      </div>
-                    </div>
+                <div>
+                  <span className="text-xl font-bold">All reports</span>
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-sm font-medium">My reports</span>
+                    <Switch
+                      checked={showMyReports}
+                      onCheckedChange={handleToggleMyReports}
+                    />
+                  </div>
+                </div>
 
-                    <div className="py-2">
-                      <p className="text-sm text-muted-foreground">
-                        {totalResults} results
-                      </p>
-                    </div>
-                  </>
-                )}
+                <div className="py-2">
+                  <p className="text-sm text-muted-foreground">
+                    {totalResults} results
+                  </p>
+                </div>
 
                 <div
                   className="overflow-y-auto"
@@ -841,13 +817,18 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Login required</DialogTitle>
             <DialogDescription>
-              You must log in to access this feature.
+              {showMyReports 
+                ? "You must log in to view your personal reports."
+                : "You must log in to access this feature."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
             <Button
               variant="outline"
-              onClick={() => setShowLoginPrompt(false)}
+              onClick={() => {
+                setShowLoginPrompt(false);
+                setShowMyReports(false);
+              }}
               className="flex-1"
             >
               Cancel
