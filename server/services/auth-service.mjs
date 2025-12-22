@@ -8,6 +8,8 @@ import {
 import { findRoleById } from "../repositories/role-repo.mjs";
 import { findRoleByName } from "../repositories/role-repo.mjs"; // added for refactoring
 import { findTechnicalOfficeById } from "../repositories/technical-office-repo.mjs";
+import { saveTemporaryUser, getTemporaryUser, deleteTemporaryUser } from "../repositories/redis-repo.mjs";
+import { EmailService } from "./email-service.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -214,15 +216,114 @@ export class AuthService {
   static #sanitizeUser(user) {
     const plainUser = user.get ? user.get({ plain: true }) : { ...user };
     delete plainUser.hashedPassword;
-    
+
     // Ensure role is properly converted to a plain object with name property
-    if (plainUser.role && typeof plainUser.role === 'object') {
+    if (plainUser.role && typeof plainUser.role === "object") {
       plainUser.role = {
         id: plainUser.role.id,
-        name: plainUser.role.name
+        name: plainUser.role.name,
       };
     }
-    
+
     return plainUser;
+  }
+
+  /**
+   * Generates a random 6-digit confirmation code.
+   * @returns {string} A 6-digit string code.
+   * @private
+   */
+  static #generateConfirmationCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  /**
+   * Registers a new user temporarily in Redis with a confirmation code.
+   * If the email or username already exists in the database, an error is thrown.
+   * If the same email exists in Redis, it will be overwritten.
+   * Sends a verification email with the confirmation code.
+   * @param {object} userInput - Raw registration data from the client.
+   * @returns {Promise<object>} An object containing the confirmation code and expiration time.
+   */
+  static async registerUserRequest(userInput) {
+    const { email, username, password, firstName, lastName } = userInput;
+
+    this.#validateEmailFormat(email);
+
+    // Check if email or username already exist in the database
+    await this.#ensureEmailAvailable(email);
+    await this.#ensureUsernameAvailable(username);
+
+    // Generate a 6-digit confirmation code
+    const confirmationCode = this.#generateConfirmationCode();
+
+    // Save user data temporarily in Redis (overwrites if same email exists)
+    await saveTemporaryUser(email, {
+      email,
+      username,
+      password,
+      firstName,
+      lastName,
+    }, confirmationCode);
+
+    // Send verification email with the confirmation code
+    const emailResult = await EmailService.sendVerificationCode(email, confirmationCode, firstName);
+
+    return {
+      message: "Registration request submitted successfully. Please check your email for the verification code.",
+      confirmationCode,
+      expiresIn: 1800,
+      emailPreviewUrl: emailResult.previewUrl,
+    };
+  }
+
+  /**
+   * Verifies the OTP code and creates the user in the database if valid.
+   * @param {string} email - Email used to look up the temporary registration data.
+   * @param {string} confirmationCode - The 6-digit confirmation code to verify.
+   * @returns {Promise<object>} A sanitized user representation without sensitive fields.
+   */
+  static async verifyAndCreateUser(email, confirmationCode) {
+    this.#validateEmailFormat(email);
+
+    // Retrieve temporary user data from Redis
+    const temporaryUser = await getTemporaryUser(email);
+
+    if (!temporaryUser) {
+      const error = new Error("Registration request not found or has expired. Please submit a new registration request.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Verify the confirmation code
+    if (temporaryUser.verificationCode !== confirmationCode) {
+      const error = new Error("Invalid confirmation code.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Double-check that email and username are still available (race condition protection)
+    await this.#ensureEmailAvailable(temporaryUser.email);
+    await this.#ensureUsernameAvailable(temporaryUser.username);
+
+    // Get the default citizen role
+    const defaultCitizenRole = await this.#assignCitizenRole();
+
+    // Hash the password and create the user
+    const hashedPassword = await this.#hashPassword(temporaryUser.password);
+    const createdUser = await createUser({
+      email: temporaryUser.email,
+      username: temporaryUser.username,
+      firstName: temporaryUser.firstName,
+      lastName: temporaryUser.lastName,
+      hashedPassword,
+      roleId: defaultCitizenRole,
+    });
+
+    // Delete the temporary data from Redis after successful registration
+    await deleteTemporaryUser(email);
+
+    const hydratedUser = await findUserByIdRepo(createdUser.id);
+    return this.#sanitizeUser(hydratedUser ?? createdUser);
   }
 }

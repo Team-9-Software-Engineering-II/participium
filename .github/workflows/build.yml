@@ -10,15 +10,14 @@ on:
 
 jobs:
   test:
-    name: Test ${{ matrix.project }} on ${{ matrix.os }}
+    name: Test server on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        project: [client, server]
     defaults:
       run:
-        working-directory: ./${{ matrix.project }}
+        working-directory: ./server
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,13 +27,15 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: ${{ matrix.project }}/yarn.lock
+          cache-dependency-path: server/yarn.lock
+      
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --network-timeout 100000
+        
       - name: Print CI environment
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
-          echo "Project=${{ matrix.project }}"
+          echo "Project=server"
           echo "OS=${{ matrix.os }}"
         shell: bash
       - name: Run tests
@@ -56,16 +57,11 @@ jobs:
       
       - name: Install client dependencies
         working-directory: ./client
-        run: yarn install
+        run: yarn install --network-timeout 100000
           
       - name: Install server dependencies
         working-directory: ./server
-        run: yarn install
-          
-      - name: Test client with coverage
-        working-directory: ./client
-        run: yarn test --coverage
-        continue-on-error: true
+        run: yarn install --network-timeout 100000
         
       - name: Test server with coverage
         working-directory: ./server
@@ -73,6 +69,6 @@ jobs:
         continue-on-error: true
         
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602  # v6.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

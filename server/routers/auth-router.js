@@ -4,6 +4,8 @@ import {
   login,
   logout,
   register,
+  registerRequest,
+  verifyRegistration,
 } from "../controllers/auth-controller.js";
 import { isAdmin, isAuthenticated } from "../middlewares/auth.mjs";
 
@@ -13,6 +15,8 @@ const router = Router();
  * Registers authentication endpoints.
  */
 router.post("/register", register);
+router.post("/register-request", registerRequest);
+router.post("/verify-registration", verifyRegistration);
 router.post("/login", login);
 router.post("/logout", isAuthenticated, logout);
 router.get("/session", isAuthenticated, currentSession);

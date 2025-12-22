@@ -18,6 +18,11 @@ export async function findAllUsers() {
         required: false,
         include: { model: db.Category, as: "category" },
       },
+      {
+        model: db.Company,
+        as: "company",
+        required: false,
+      },
       { model: db.Report, as: "reports", required: false },
     ],
   });
@@ -80,6 +85,19 @@ export async function findUserByUsername(username) {
 }
 
 /**
+ * Finds all users belonging to a specific company.
+ * Include role.
+ * * @param {number} companyId - The ID of the company.
+ * @returns {Promise<Array<object>>} A list of users.
+ */
+export async function findUsersByCompanyId(companyId) {
+  return db.User.findAll({
+    where: { companyId },
+    include: [{ model: db.Role, as: "role" }],
+  });
+}
+
+/**
  * Updates a user by its ID.
  */
 export async function updateUser(id, userData) {
@@ -99,22 +117,7 @@ export async function deleteUser(id) {
   return deletedRows > 0;
 }
 
-/**
- * Retrieves the number of currently active reports assigned to a staff member
- * based on their user ID.
- * * @param {number} id - The ID of the staff member (User).
- * @returns {Promise<number|null>} The count of active reports, or null if the user is not found.
- */
-export async function getNumberOfCurrentActiveReportsByStaffMemberId(id) {
-  const user = await db.User.findByPk(id);
-
-  if (!user) {
-    return null;
-  }
-  return user.counterActiveReports;
-}
-
-// --- 2. NUOVA FUNZIONE PER L'ALGORITMO DI ASSEGNAZIONE ---
+// --- 2. NEW FUNCTION FOR ASSIGNMENT ALGORITHM ---
 
 /**
  * Finds the staff member of a specific office who has the fewest active reports.
@@ -128,24 +131,24 @@ export async function getNumberOfCurrentActiveReportsByStaffMemberId(id) {
  * @returns {Promise<object|null>} The user with the lowest workload, or null if office is empty.
  */
 export async function findStaffWithFewestReports(technicalOfficeId) {
-  // Recupera tutti gli utenti dell'ufficio tecnico specificato
+  // Retrieve all users of the specified technical office
   const staffMembers = await db.User.findAll({
-    where: { 
-      technicalOfficeId: technicalOfficeId 
+    where: {
+      technicalOfficeId,
     },
     include: [
       {
         model: db.Report,
-        as: "assignedReports", // Usiamo l'alias definito nel model
+        as: "assignedReports", // Use the alias defined in the model
         where: {
-          // Contiamo solo i report che sono ancora "attivi" (carico di lavoro corrente)
-          // Escludiamo quelli chiusi o non ancora assegnati
+          // Count only reports that are still "active" (current workload)
+          // Exclude closed or not yet assigned ones
           status: {
-            [Op.notIn]: ["Resolved", "Rejected", "Pending Approval"]
+            [Op.notIn]: ["Resolved", "Rejected", "Pending Approval"],
           },
         },
-        required: false, // LEFT JOIN: Importante per includere anche chi ha 0 report!
-        attributes: ["id"], // Ottimizzazione: scarichiamo solo gli ID
+        required: false, // LEFT JOIN: Important to include those with 0 reports!
+        attributes: ["id"], // Optimization: only fetch IDs
       },
     ],
   });
@@ -154,29 +157,102 @@ export async function findStaffWithFewestReports(technicalOfficeId) {
     return null;
   }
 
-  // Eseguiamo l'ordinamento (Sorting) in JavaScript
-  // È più affidabile e facile da testare rispetto a query SQL complesse con GROUP BY
+  // Perform sorting in JavaScript
+  // More reliable and easier to test than complex SQL queries with GROUP BY
   staffMembers.sort((a, b) => {
-    // Calcoliamo il carico di lavoro (lunghezza dell'array assignedReports)
+    // Calculate workload (length of assignedReports array)
     const countA = a.assignedReports ? a.assignedReports.length : 0;
     const countB = b.assignedReports ? b.assignedReports.length : 0;
 
-    // 1. Criterio principale: Numero di report (Crescente)
-    // Chi ha meno report viene prima
+    // 1. Primary criterion: Number of reports (Ascending)
+    // Those with fewer reports come first
     if (countA !== countB) {
       return countA - countB;
     }
 
-    // 2. Spareggio: Ordine alfabetico per Cognome
+    // 2. Tie-breaker: Alphabetical order by Last Name
     const lastNameComparison = a.lastName.localeCompare(b.lastName);
     if (lastNameComparison !== 0) {
       return lastNameComparison;
     }
 
-    // 3. Spareggio finale: Ordine alfabetico per Nome
+    // 3. Final tie-breaker: Alphabetical order by First Name
     return a.firstName.localeCompare(b.firstName);
   });
 
-  // Restituisce il vincitore (il primo della lista ordinata)
+  // Return the winner (the first in the sorted list)
   return staffMembers[0];
+}
+
+/**
+ * Finds the external maintainer of a specific company who has the fewest active reports.
+ * "Active" means currently assigned, in progress, or suspended.
+ * Excludes Resolved, Rejected, and Pending Approval reports from the workload count.
+ * Algorithm:
+ * 1. Fetch all external maintainers in the company.
+ * 2. Include their active reports count.
+ * 3. Sort by Count (ASC) -> Last Name (ASC) -> First Name (ASC).
+ * @param {number} companyId - The ID of the company to search.
+ * @returns {Promise<object|null>} The user with the lowest workload, or null if company has no external maintainers.
+ */
+export async function findExternalMaintainerWithFewestReports(companyId) {
+  // Retrieve all users of the company with external_maintainer role
+  const externalMaintainers = await db.User.findAll({
+    where: {
+      companyId,
+    },
+    include: [
+      {
+        model: db.Role,
+        as: "role",
+        where: {
+          name: "external_maintainer",
+        },
+        required: true,
+      },
+      {
+        model: db.Report,
+        as: "externalReports", // Use the alias defined in the model
+        where: {
+          // Count only reports that are still "active" (current workload)
+          // Exclude closed or not yet assigned ones
+          status: {
+            [Op.notIn]: ["Resolved", "Rejected", "Pending Approval"],
+          },
+        },
+        required: false, // LEFT JOIN: Important to include those with 0 reports!
+        attributes: ["id"], // Optimization: only fetch IDs
+      },
+    ],
+  });
+
+  if (!externalMaintainers || externalMaintainers.length === 0) {
+    return null;
+  }
+
+  // Perform sorting in JavaScript
+  // More reliable and easier to test than complex SQL queries with GROUP BY
+  externalMaintainers.sort((a, b) => {
+    // Calculate workload (length of externalReports array)
+    const countA = a.externalReports ? a.externalReports.length : 0;
+    const countB = b.externalReports ? b.externalReports.length : 0;
+
+    // 1. Primary criterion: Number of reports (Ascending)
+    // Those with fewer reports come first
+    if (countA !== countB) {
+      return countA - countB;
+    }
+
+    // 2. Tie-breaker: Alphabetical order by Last Name
+    const lastNameComparison = a.lastName.localeCompare(b.lastName);
+    if (lastNameComparison !== 0) {
+      return lastNameComparison;
+    }
+
+    // 3. Final tie-breaker: Alphabetical order by First Name
+    return a.firstName.localeCompare(b.firstName);
+  });
+
+  // Return the winner (the first in the sorted list)
+  return externalMaintainers[0];
 }

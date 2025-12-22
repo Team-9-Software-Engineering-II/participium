@@ -1,4 +1,6 @@
 import { seedCategories } from "./seed-category.mjs";
+import { seedCompanyCategories } from "./seed-company-category.mjs";
+import { seedCompanies } from "./seed-company.mjs";
 import { seedReports } from "./seed-reports.mjs";
 import { seedRoles } from "./seed-roles.mjs";
 import { seedTechnicalOffices } from "./seed-technical-office.mjs";
@@ -16,6 +18,8 @@ export const seedDatabase = async () => {
     await seedRoles();
     await seedCategories();
     await seedTechnicalOffices();
+    await seedCompanies();
+    await seedCompanyCategories();
     await seedUsers();
     await seedReports();
 

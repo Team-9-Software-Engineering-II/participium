@@ -172,6 +172,65 @@ const getStaffUsers = (hashedPassword) => {
 };
 
 /**
+ * Generates the list of External Maintainer users.
+ * Assumes Role ID 5 is the External Maintainer role.
+ * @param {string} hashedPassword - The hashed password to use.
+ */
+const getExternalMaintainers = (hashedPassword) => {
+  return [
+    // External Maintainer 1 (SMAT - Water, Company ID 1)
+    {
+      email: "maint1@smat.it",
+      username: "em_water_smat",
+      hashedPassword,
+      firstName: "Davide",
+      lastName: "Rizzo",
+      roleId: 5,
+      companyId: 1,
+    },
+    // External Maintainer 2 (IREN - Lighting, Company ID 2)
+    {
+      email: "maint2@iren.it",
+      username: "em_light_iren",
+      hashedPassword,
+      firstName: "Chiara",
+      lastName: "Galli",
+      roleId: 5,
+      companyId: 2,
+    },
+    // External Maintainer 3 (AMIAT - Waste, Company ID 3)
+    {
+      email: "maint3@amiat.it",
+      username: "em_waste_amiat",
+      hashedPassword,
+      firstName: "Simone",
+      lastName: "Longo",
+      roleId: 5,
+      companyId: 3,
+    },
+    // External Maintainer 4 (GTT - Traffic/Roads, Company ID 4)
+    {
+      email: "maint4@gtt.it",
+      username: "em_traffic_gtt",
+      hashedPassword,
+      firstName: "Federica",
+      lastName: "Mancini",
+      roleId: 5,
+      companyId: 4,
+    },
+    {
+      email: "maint5@cit.it",
+      username: "em_urban_services",
+      hashedPassword,
+      firstName: "Federico",
+      lastName: "Bianchi",
+      roleId: 5,
+      companyId: 5,
+    },
+  ];
+};
+
+/**
  * Generates the Test user.
  * @param {string} hashedPassword - The specific hashed password for test user.
  */
@@ -213,6 +272,7 @@ export const seedUsers = async () => {
     const admins = getAdminUsers(defaultHashedPassword);
     const municipals = getMunicipalUsers(defaultHashedPassword);
     const staff = getStaffUsers(defaultHashedPassword);
+    const external_maintainers = getExternalMaintainers(defaultHashedPassword);
     const testUser = getTestUser(testHashedPassword);
 
     // 3. Combine all users into a single array
@@ -220,6 +280,7 @@ export const seedUsers = async () => {
       ...citizens,
       ...admins,
       ...municipals,
+      ...external_maintainers,
       ...staff,
       testUser,
     ];

@@ -31,6 +31,60 @@ paths:
         '409':
           description: Email or username already exists
 
+  /auth/register-request:
+    post:
+      summary: Request citizen registration with email verification
+      description: >
+        Submits a registration request that stores user data temporarily in Redis with a 6-digit confirmation code.
+        The data expires after 1800 seconds (30 minutes). If the user submits the same email again before expiration,
+        the previous record is replaced with the new one. If different credentials are used, a new record is created
+        and old records expire naturally.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '200':
+          description: Registration request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterRequestResponse'
+        '400':
+          description: Invalid input data (e.g. incorrect email format or missing required fields)
+        '409':
+          description: Email or username already exists in the system
+
+  /auth/verify-registration:
+    post:
+      summary: Verify OTP and complete citizen registration
+      description: >
+        Verifies the 6-digit confirmation code sent during registration request. If the code matches the one stored
+        in Redis for the given email, the user is created in the database and automatically logged in.
+        The temporary registration data in Redis is deleted after successful verification.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRegistrationRequest'
+      responses:
+        '201':
+          description: User successfully created and logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          description: Invalid confirmation code or missing required fields
+        '404':
+          description: Registration request not found or has expired
+        '409':
+          description: Email or username already exists in the system (race condition)
 
   /auth/login:
     post:
@@ -557,6 +611,160 @@ paths:
         '403':
           description: Forbidden (technical staff only)
 
+  /offices/reports/{reportId}/assign-external:
+    put:
+      summary: (Technical Staff) Assign a report to an external maintainer
+      description: >
+        Allows a technical staff member to assign a report to an external maintainer from a specific company.
+        The system uses load balancing to automatically select the external maintainer with the fewest active reports
+        within the specified company. Only reports in 'Assigned' or 'In Progress' status can be assigned to external maintainers.
+      tags: [Technical Offices]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report to assign
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalMaintainerAssignment'
+      responses:
+        '200':
+          description: Report successfully assigned to external maintainer. Returns the updated report object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId, invalid companyId, or report is not in a valid status for external assignment
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (technical staff only)
+        '404':
+          description: Report or company not found
+        '409':
+          description: No external maintainers found in the specified company
+
+  /offices/reports/{reportId}/companies:
+    get:
+      summary: (Technical Staff) Get eligible companies for a report
+      description: Retrieves the list of external maintainer companies capable of handling a specific report based on its category.
+      tags: [Technical Offices]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report.
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff
+      responses:
+        '200':
+          description: List of eligible companies found.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyDetails'
+        '400':
+          description: Invalid report ID supplied.
+        '401':
+          description: User not authenticated.
+        '403':
+          description: Forbidden (technical staff only).
+        '404':
+          description: Report not found.
+
+  /messages/reports/{reportId}:
+    post:
+      summary: Create a new message for a report
+      description: >
+        Allows a technical officer or external maintainer assigned to a report to create a new message.
+        The user must be either the technicalOfficerId or externalMaintainerId of the specified report.
+        The userId is automatically taken from the authenticated session.
+      tags: [Messages]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Message successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Invalid reportId, missing content, or empty content
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - user must be the technical officer or external maintainer assigned to this report
+        '404':
+          description: Report not found
+
+    get:
+      summary: Retrieve all messages for a report
+      description: >
+        Get the internal chat history for a specific report.
+        Access is restricted:
+        - Citizens cannot access this endpoint.
+        - Admins can access all reports.
+        - Technical Officers and External Maintainers can access only if assigned to the specific report.
+      tags: [Messages]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of messages successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '400':
+          description: Invalid reportId supplied
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - User is a citizen OR not assigned to this report
+        '404':
+          description: Report not found
+
 components:
   securitySchemes:
     CookieAuth:
@@ -582,6 +790,36 @@ components:
         password:
           type: string
           format: password
+
+    RegisterRequestResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message indicating the registration request was submitted
+          example: "Registration request submitted successfully. Please verify your email with the confirmation code."
+        confirmationCode:
+          type: string
+          description: A 6-digit confirmation code for email verification
+          example: "123456"
+        expiresIn:
+          type: integer
+          description: Time in seconds until the registration request expires (default 1800 seconds)
+          example: 1800
+
+    VerifyRegistrationRequest:
+      type: object
+      required: [email, confirmationCode]
+      properties:
+        email:
+          type: string
+          format: email
+          description: The email address used during registration request
+          example: "user@example.com"
+        confirmationCode:
+          type: string
+          description: The 6-digit confirmation code received during registration request
+          example: "123456"
 
     AuthSessionResponse:
       type: object
@@ -1077,6 +1315,86 @@ components:
         name:
           type: string
           description: Name of the Technical Office.
+
+    ExternalMaintainerAssignment:
+      type: object
+      required: [companyId]
+      properties:
+        companyId:
+          type: integer
+          minimum: 1
+          description: The ID of the company from which to select an external maintainer. The system will automatically assign the report to the maintainer with the fewest active reports.
+
+    CompanyDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the company.
+        name:
+          type: string
+          description: Name of the company (e.g., Enel X).
+        address:
+          type: string
+          description: Physical address of the company.
+        region:
+          type: string
+        country:
+          type: string
+      required: [id, name, address, region, country]
+
+    MessageCreate:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: The message content/text
+          minLength: 1
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the message
+        content:
+          type: string
+          description: The message content/text
+        reportId:
+          type: integer
+          description: ID of the report this message belongs to
+        userId:
+          type: integer
+          description: ID of the user who created the message
+        author:
+          $ref: '#/components/schemas/MessageAuthor'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the message was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the message was last updated
+
+    MessageAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoURL:
+          type: string
+          format: uri
+          nullable: true
+        roleId:
+          type: integer
           
           
 

@@ -7,6 +7,8 @@ import reportRouter from "./report-router.js";
 import uploadRouter from "./upload-router.js";
 import municipalRouter from "./municipal-router.mjs";
 import techOfficeRouter from "./technical-office-router.mjs";
+import externalMaintainerRouter from "./external-maintainer-router.mjs";
+import messageRouter from "./message-router.js";
 
 const router = Router();
 
@@ -21,5 +23,7 @@ router.use("/admin/users", adminUserRouter);
 router.use("/admin/roles", adminRoleRouter);
 router.use("/municipal", municipalRouter);
 router.use("/offices", techOfficeRouter);
+router.use("/external-maintainer", externalMaintainerRouter);
+router.use("/messages", messageRouter);
 
 export default router;

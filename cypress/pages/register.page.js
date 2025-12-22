@@ -8,6 +8,11 @@ class RegisterPage {
     confirmPassword: () => cy.get("#confirmPassword"),
     submitButton: () => cy.get('[data-cy="submit-button"]'),
     errorMessage: () => cy.get('[data-cy="error-message"]'),
+    verificationCodeInput: () => cy.get('[data-cy="verification-code-input"]'),
+    verifyButton: () => cy.get('[data-cy="verify-button"]'),
+    verificationErrorMessage: () =>
+      cy.get('[data-cy="verification-error-message"]'),
+    resendButton: () => cy.get('[data-cy="resend-code-button"]'),
   };
 
   /**
@@ -15,6 +20,14 @@ class RegisterPage {
    */
   visit() {
     cy.visit("/register");
+  }
+
+  enterVerificationCode(code) {
+    this.elements.verificationCodeInput().type(code, { force: true });
+  }
+
+  verify() {
+    this.elements.verifyButton().click();
   }
 
   /**

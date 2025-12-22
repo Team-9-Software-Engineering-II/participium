@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { staffAPI } from "@/services/api";
+import { staffAPI, messageAPI } from "@/services/api";
 import {
   Card,
 } from "@/components/ui/card";
@@ -15,28 +15,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, Save } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, HardHat, Building2, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getStatusColor } from "@/lib/reportColors";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Stati in cui il tecnico può spostare il report
 const ALLOWED_TRANSITIONS = [
-  { value: "In Progress", label: "In Progress", color: "bg-amber-500" },
-  { value: "Suspended", label: "Suspended", color: "bg-red-500" },
+  { value: "In Progress", label: "In Progress", color: "bg-yellow-400" },
+  { value: "Suspended", label: "Suspended", color: "bg-gray-500" },
   { value: "Resolved", label: "Resolved", color: "bg-green-500" },
 ];
 
 const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
-const getStatusBadgeClass = (status, variant = 'default') => {
-  if (status === "Assigned") return variant === 'mobile' ? "bg-blue-500" : "bg-blue-600";
-  if (status === "In Progress") return "bg-amber-500";
-  if (status === "Resolved") return variant === 'mobile' ? "bg-green-500" : "bg-green-600";
-  return "bg-gray-500";
-};
-
 export default function TechnicianReports({ type = "active" }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,19 +64,28 @@ export default function TechnicianReports({ type = "active" }) {
       // 1. Scarica TUTTI i report assegnati
       const response = await staffAPI.getAssignedReports();
       const allData = response.data;
+      console.log('All assigned reports:', allData);
 
       // 2. Filtra in base al tipo di vista richiesto
       const filteredData = allData.filter((report) => {
         const isFinished = FINISHED_STATUSES.has(report.status);
+        const isExternal = !!report.externalMaintainerId;
+
+        console.log(`Report ${report.id}: status=${report.status}, externalMaintainerId=${report.externalMaintainerId}, isFinished=${isFinished}, isExternal=${isExternal}`);
         
         if (type === "active") {
-          // Mostra: Assigned, In Progress, Suspended
-          return !isFinished;
+          // Mostra: Assigned, In Progress, Suspended MA NON assegnati esternamente
+          return !isFinished && !isExternal;
+        } else if (type === "maintainer") {
+          // Mostra solo quelli assegnati a maintainer
+          return !isFinished && isExternal;
         } else {
           // Mostra: Resolved, Rejected
           return isFinished;
         }
       });
+
+      console.log(`Filtered reports for type "${type}":`, filteredData);
 
       // 3. Ordina per data (più recenti in alto)
       filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -111,36 +133,58 @@ export default function TechnicianReports({ type = "active" }) {
   }
 
   if (reports.length === 0) {
+    let emptyStateContent;
+    
+    if (type === "active") {
+      emptyStateContent = (
+        <>
+          <CheckCircle2 className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">All caught up!</h3>
+          <p className="text-muted-foreground">You have no pending reports assigned.</p>
+        </>
+      );
+    } else if (type === "maintainer") {
+      emptyStateContent = (
+        <>
+          <HardHat className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">No external assignments</h3>
+          <p className="text-muted-foreground">You haven't assigned any reports to external maintainers.</p>
+        </>
+      );
+    } else {
+      emptyStateContent = (
+        <>
+          <Clock className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">No history</h3>
+          <p className="text-muted-foreground">You haven't resolved any reports yet.</p>
+        </>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/5">
-        {type === "active" ? (
-          <>
-            <CheckCircle2 className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">All caught up!</h3>
-            <p className="text-muted-foreground">You have no pending reports assigned.</p>
-          </>
-        ) : (
-          <>
-            <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">No history</h3>
-            <p className="text-muted-foreground">You haven't resolved any reports yet.</p>
-          </>
-        )}
+        {emptyStateContent}
       </div>
-    );
-  }
+      );
+   }
+
+  const getTitle = () => {
+    if (type === "active") return "Your Assigned Reports";
+    if (type === "maintainer") return "External Maintainer Reports";
+    return "Resolved Reports History";
+  };
+
+  const getDescription = () => {
+    if (type === "active") return "Manage reports assigned to you.";
+    if (type === "maintainer") return "Monitor reports assigned to external companies.";
+    return "Archive of reports you have processed.";
+  };
 
   return (
     <div className="space-y-4" data-cy="report-list">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold tracking-tight">
-          {type === "active" ? "Your Assigned Reports" : "Resolved Reports History"}
-        </h2>
-        <p className="text-muted-foreground">
-          {type === "active" 
-            ? "Manage and update the status of reports assigned to you." 
-            : "Archive of reports you have processed."}
-        </p>
+        <h2 className="text-2xl font-bold tracking-tight">{getTitle()}</h2>
+        <p className="text-muted-foreground">{getDescription()}</p>
       </div>
 
       {reports.map((report) => (
@@ -148,25 +192,246 @@ export default function TechnicianReports({ type = "active" }) {
           key={report.id} 
           report={report} 
           type={type} 
-          onUpdateStatus={handleUpdateStatus} 
+          onUpdateStatus={handleUpdateStatus}
+          onRefresh={fetchReports}
+          userId={user?.id}
         />
       ))}
     </div>
   );
 }
 
-// Sotto-componente per gestire lo stato locale del Select
-function ReportCard({ report, type, onUpdateStatus }) {
-  const navigate = useNavigate();
-  // Stato locale per il valore selezionato nel dropdown
-  const [selectedStatus, setSelectedStatus] = useState(report.status);
+// Dialog Component for Assignment
+function AssignMaintainerDialog({ report, onRefresh }) {
+  const [open, setOpen] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const { toast } = useToast();
 
-  // Se il report cambia (es. ricaricamento lista), resetta la selezione
   useEffect(() => {
-    setSelectedStatus(report.status);
-  }, [report.status]);
+    if (open && !showSuccess) {
+      const fetchCompanies = async () => {
+        setLoading(true);
+        try {
+          const res = await staffAPI.getEligibleCompanies(report.id);
+          setCompanies(res.data);
+        } catch (error) {
+          console.error("Failed to fetch companies", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load companies.",
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCompanies();
+    }
+  }, [open, showSuccess,report.id, toast]);
 
-  const hasChanged = selectedStatus !== report.status;
+  const handleAssign = async () => {
+    if (!selectedCompany) return;
+    setOpen(false);
+    setAssigning(true);
+    try {
+      const companyIdNumber = Number.parseInt(selectedCompany, 10);
+      await staffAPI.assignExternal(report.id, companyIdNumber);
+
+      setShowSuccess(true);
+      setAssigning(false);
+    } catch (error) {
+      console.error('❌ Assignment error:', error);
+      const message = error.response?.data?.message || "Could not assign the report. Please try again.";
+      setErrorMessage(message);
+      setShowError(true);
+      setAssigning(false);
+    }
+  };
+
+    const handleCloseSuccess = async () => {
+    setShowSuccess(false);
+    setSelectedCompany("");
+    
+    // Ricarica la lista e aggiorna i contatori DOPO che l'utente ha visto la conferma
+    await onRefresh();
+    globalThis.dispatchEvent(new Event('technicianReportsRefresh'));
+  };
+
+  const handleCloseError = () => {
+    setShowError(false);
+    setErrorMessage("");
+    setSelectedCompany("");
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setSelectedCompany("");
+  };
+
+  return (
+    <>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full gap-2" data-cy="assign-maintainer-btn">
+          <HardHat className="h-4 w-4" /> Assign to Maintainer
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign to External Maintainer</DialogTitle>
+          <DialogDescription>
+            Select a compatible company to handle this report. The report will be moved to the Maintainer list.
+          </DialogDescription>
+        </DialogHeader>
+        
+          <div className="py-4">
+            {loading && (
+              <div className="text-sm text-center text-muted-foreground">Loading companies...</div>
+            )}
+            {!loading && companies.length === 0 && (
+              <div className="text-sm text-center text-red-500">No eligible companies found for this category.</div>
+            )}
+            {!loading && companies.length > 0 && (
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger data-cy="company-select-trigger">
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => {
+                  const formattedName = c.name.replaceAll(" ", "-");
+                  return (
+                  <SelectItem key={c.id} value={c.id.toString()} data-cy={`select-item-${formattedName}`}>
+                    {c.name}
+                  </SelectItem>
+                );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={handleClose} data-cy="cancel-assignment-button">Cancel</Button>
+            <Button onClick={handleAssign} disabled={!selectedCompany || assigning} data-cy="confirm-assignment-button">
+              {assigning ? "Assigning..." : "Confirm Assignment"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showSuccess} onOpenChange={setShowSuccess}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle2 className="h-5 w-5" />
+              Assignment Successful
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The report has been successfully assigned to the external maintainer and moved to the Maintainers Reports section.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleCloseSuccess}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showError} onOpenChange={setShowError}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              Assignment Failed
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {errorMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleCloseError}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+  
+
+// Sotto-componente per gestire lo stato locale del Select
+function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
+  const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Controlla se ci sono messaggi non letti
+  useEffect(() => {
+    const checkUnreadMessages = async () => {
+      if (!userId || !report.id) return;
+      
+      // Solo se il report ha un external maintainer (quindi c'è la chat)
+      if (!report.externalMaintainerId) return;
+
+      try {
+        const response = await messageAPI.getMessages(report.id);
+        const messages = response.data || [];
+        
+        if (messages.length === 0) {
+          setUnreadCount(0);
+          return;
+        }
+
+        // Recupera l'ultimo messaggio visto da localStorage
+        const storageKey = `lastReadMessage_${report.id}_${userId}`;
+        const lastReadId = localStorage.getItem(storageKey);
+        
+        console.log(`[Badge Tech] Report ${report.id}:`, {
+          totalMessages: messages.length,
+          lastReadId,
+          userId,
+          externalMaintainerId: report.externalMaintainerId
+        });
+        
+        if (lastReadId) {
+          // Conta solo i nuovi messaggi dopo l'ultimo letto
+          const lastReadIdNum = Number.parseInt(lastReadId, 10);
+          const newMessages = messages.filter(m => 
+            m.id > lastReadIdNum && m.author?.id !== userId
+          );
+          console.log(`[Badge Tech] LastReadId=${lastReadIdNum}, new messages:`, newMessages.length);
+          setUnreadCount(newMessages.length);
+        } else {
+          // Se non abbiamo mai aperto la chat, conta tutti i messaggi degli altri
+          const unread = messages.filter(m => m.author?.id !== userId);
+          console.log(`[Badge Tech] No lastReadId, unread from others:`, unread.length);
+          setUnreadCount(unread.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch messages for badge:', error);
+      }
+    };
+
+    checkUnreadMessages();
+    
+    // Ricontrolla ogni 10 secondi
+    const interval = setInterval(checkUnreadMessages, 10000);
+    
+    // Ascolta eventi per aggiornare il badge
+    const handleStorageChange = () => checkUnreadMessages();
+    globalThis.addEventListener('storage', handleStorageChange);
+    globalThis.addEventListener('chatMessageRead', handleStorageChange);
+    
+    return () => {
+      clearInterval(interval);
+      globalThis.removeEventListener('storage', handleStorageChange);
+      globalThis.removeEventListener('chatMessageRead', handleStorageChange);
+    };
+  }, [report.id, report.externalMaintainerId, report.assigneeId, userId]);
 
   return (
     <Card data-cy="report-card" className="transition-all hover:shadow-md border-l-4 border-l-primary/20">
@@ -180,10 +445,15 @@ function ReportCard({ report, type, onUpdateStatus }) {
             </Badge>
             {/* Mobile Badge */}
             <Badge 
-              className={`md:hidden ${getStatusBadgeClass(report.status, 'mobile')}`}
+              className={`md:hidden ${getStatusColor(report.status)}`}
             >
               {report.status}
             </Badge>
+            {report.companyId && (
+               <Badge variant="secondary" className="gap-1">
+                 <Building2 className="w-3 h-3" /> External
+               </Badge>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -216,13 +486,14 @@ function ReportCard({ report, type, onUpdateStatus }) {
           <div className="hidden md:flex items-center gap-2 mb-1">
             <span className="text-xs font-medium text-muted-foreground">Current:</span>
             <Badge 
-              className={`text-white px-3 py-1 ${getStatusBadgeClass(report.status, 'desktop')}`}
+              className={`text-white px-3 py-1 ${getStatusColor(report.status, 'dark')}`}
             >
               {report.status}
             </Badge>
           </div>
 
           {/* Status Updater (SOLO se siamo nella vista Active) */}
+          {/* COMMENTATO PER RICHIESTA: Rimuoviamo temporaneamente il cambio stato
           {type === "active" && (
             <div className="w-full space-y-2">
               <Select
@@ -244,7 +515,6 @@ function ReportCard({ report, type, onUpdateStatus }) {
                 </SelectContent>
               </Select>
 
-              {/* Show Update Button only if status is changed */}
               {hasChanged && (
                 <Button 
                   data-cy="update-status-btn"
@@ -258,16 +528,32 @@ function ReportCard({ report, type, onUpdateStatus }) {
               )}
             </div>
           )}
+          */}
 
-          <Button 
-            data-cy="view-details-btn"
-            variant="ghost" 
-            size="sm" 
-            className="w-full md:w-auto mt-auto gap-2 text-primary hover:text-primary/80"
-            onClick={() => navigate(`/reports/${report.id}`)}
-          >
-            View Full Details <ArrowRight className="h-4 w-4" />
-          </Button>
+          {/* Pulsante per assegnazione esterna (Solo Active) */}
+          {type === "active" && (
+            <div className="w-full md:w-[240px]">
+              <AssignMaintainerDialog report={report} onRefresh={onRefresh} />
+            </div>
+          )}
+
+          <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
+            <Button 
+              data-cy="view-details-button"
+              variant="ghost" 
+              size="sm" 
+              className="w-full md:w-auto gap-2 text-primary hover:text-primary/80"
+              onClick={() => navigate(`/reports/${report.id}`)}
+            >
+              View Full Details <ArrowRight className="h-4 w-4" />
+            </Button>
+            {unreadCount > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-full">
+                <MessageCircle className="h-3 w-3" />
+                <span>{unreadCount > 9 ? '9+' : unreadCount} new {unreadCount === 1 ? 'message' : 'messages'}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>

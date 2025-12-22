@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Menu, X, ClipboardList, CheckCircle2, User } from "lucide-react";
+import { Menu, X, ClipboardList, CheckCircle2, User, Users } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { staffAPI } from "@/services/api"; // Usa staffAPI per i report assegnati
@@ -11,7 +11,8 @@ const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function TechnicianLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [counts, setCounts] = useState({ active: 0, history: 0 });
+  const [counts, setCounts] = useState({ active: 0, maintainer: 0, history: 0 });
+  const [refreshKey, setRefreshKey] = useState(0);
   const { user } = useAuth();
   const location = useLocation();
 
@@ -23,22 +24,36 @@ export default function TechnicianLayout() {
         const response = await staffAPI.getAssignedReports();
         const allReports = response.data;
 
+        // Attivi: Non finiti E non assegnati a ditta esterna (externalMaintainerId nullo o assente)
         const activeCount = allReports.filter(
-          (r) => !FINISHED_STATUSES.has(r.status)
+          (r) => !FINISHED_STATUSES.has(r.status) && !r.externalMaintainerId
         ).length;
 
+        // Maintainer: Non finiti E assegnati a ditta esterna
+        const maintainerCount = allReports.filter(
+            (r) => !FINISHED_STATUSES.has(r.status) && r.externalMaintainerId
+        ).length;
+
+        // Storico: Finiti
         const historyCount = allReports.filter(
           (r) => FINISHED_STATUSES.has(r.status)
         ).length;
 
-        setCounts({ active: activeCount, history: historyCount });
+        setCounts({ active: activeCount, maintainer: maintainerCount, history: historyCount });
       } catch (error) {
         console.error("Error fetching report counts:", error);
       }
     }; 
 
     fetchCounts();
-  }, [location.pathname]); // Aggiorna i conteggi quando cambi pagina (utile dopo aver risolto un report)
+  }, [location.pathname, refreshKey]); // Aggiorna i conteggi quando cambi pagina o refreshKey cambia
+
+  // Ascolta eventi personalizzati per refresh
+  useEffect(() => {
+    const handleRefresh = () => setRefreshKey(prev => prev + 1);
+    globalThis.addEventListener('technicianReportsRefresh', handleRefresh);
+    return () => globalThis.removeEventListener('technicianReportsRefresh', handleRefresh);
+  }, []);
 
   const navigationItems = [
     {
@@ -48,6 +63,16 @@ export default function TechnicianLayout() {
       icon: ClipboardList,
       count: counts.active,
       badgeVariant: "destructive", // Rosso per attirare attenzione
+      dataCy: "nav-active-reports",
+    },
+    {
+      name: "Maintainers Reports",
+      description: "External assignments",
+      to: "reports/maintainer",
+      icon: Users,
+      count: counts.maintainer,
+      badgeVariant: "secondary",
+      dataCy: "nav-maintainer",
     },
     {
       name: "Resolved Reports",
@@ -56,6 +81,7 @@ export default function TechnicianLayout() {
       icon: CheckCircle2,
       count: counts.history,
       badgeVariant: "secondary",
+      dataCy: "nav-history",
     },
   ];
 
@@ -99,7 +125,7 @@ export default function TechnicianLayout() {
             <div className="flex-1 overflow-y-auto py-6 px-4">
               <nav className="flex flex-col gap-2" data-cy="technician-sidebar">
                 {navigationItems.map((item) => (
-                  <NavLink key={item.name} to={item.to} className={navLinkClasses}>
+                  <NavLink key={item.name} to={item.to} className={navLinkClasses} data-cy={item.dataCy}>
                     <div className="flex items-center gap-3">
                       <item.icon className="h-4 w-4" />
                       <span>{item.name}</span>

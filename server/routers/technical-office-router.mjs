@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { isAuthenticated, isAdmin, isTechnicalStaff } from "../middlewares/auth.mjs";
+import { isAuthenticated, isAdmin, isTechnicalStaff, isTechnicalStaffOrExternalMaintainer } from "../middlewares/auth.mjs";
 import { getAllTechnicalOffices } from "../controllers/technical-office-controller.mjs";
-import { getMyAssignedReports, updateReportStatus } from "../controllers/report-controller.js";
+import { getMyAssignedReports, updateReportStatus, assignReportToExternalMaintainer, getEligibleCompanies } from "../controllers/report-controller.js";
 
 const router = Router();
 
@@ -11,13 +11,13 @@ const router = Router();
 router.get("/", isAuthenticated, isAdmin, getAllTechnicalOffices);
 
 /**
- * Retrieve reports assigned to the logged-in technical staff member.
- * Route: GET /staff/reports/assigned
+ * Retrieve reports assigned to the logged-in technical staff member or external maintainer.
+ * Route: GET /offices/reports/assigned
  */
 router.get(
   "/reports/assigned",
   isAuthenticated,
-  isTechnicalStaff,
+  isTechnicalStaffOrExternalMaintainer,
   getMyAssignedReports
 );
 
@@ -28,8 +28,32 @@ router.get(
 router.put(
   "/reports/:reportId/status",
   isAuthenticated,
-  isTechnicalStaff,
+  isTechnicalStaffOrExternalMaintainer,
   updateReportStatus
 );
+
+/**
+ * Assign a report to an external maintainer from a company.
+ * Route: PUT /offices/reports/:reportId/assign-external
+ */
+router.put(
+  "/reports/:reportId/assign-external",
+  isAuthenticated,
+  isTechnicalStaff,
+  assignReportToExternalMaintainer
+);
+
+/**
+ * Get eligible companies for a specific report.
+ * Route: GET /offices/reports/:reportId/companies
+ */
+// <-- 2. NUOVA ROTTA
+router.get(
+  "/reports/:reportId/companies",
+  isAuthenticated,
+  isTechnicalStaff,
+  getEligibleCompanies
+);
+
 
 export default router;

@@ -8,7 +8,7 @@ export async function createReport(reportData) {
 }
 
 /**
- * Finds all reports, including the author (User) and Category.
+ * Finds all reports, including  Reporter details, Category, Technical Officer and External Maintainer.
  */
 export async function findAllReports() {
   return db.Report.findAll({
@@ -22,13 +22,30 @@ export async function findAllReports() {
         model: db.Category,
         as: "category",
       },
+      {
+        model: db.User,
+        as: "technicalOfficer",
+        attributes: ["id", "username", "firstName", "lastName", "email"],
+      },
+      {
+        model: db.User,
+        as: "externalMaintainer",
+        attributes: [
+          "id",
+          "username",
+          "firstName",
+          "lastName",
+          "email",
+          "companyId",
+        ],
+      },
     ],
     order: [["createdAt", "DESC"]],
   });
 }
 
 /**
- * Finds all reports filtered by status, including the author (User) and Category.
+ * Finds all reports filtered by status, including  Reporter details, Category, Technical Officer and External Maintainer.
  */
 export async function findAllReportsFilteredByStatus(status) {
   return db.Report.findAll({
@@ -42,6 +59,23 @@ export async function findAllReportsFilteredByStatus(status) {
       {
         model: db.Category,
         as: "category",
+      },
+      {
+        model: db.User,
+        as: "technicalOfficer",
+        attributes: ["id", "username", "firstName", "lastName", "email"],
+      },
+      {
+        model: db.User,
+        as: "externalMaintainer",
+        attributes: [
+          "id",
+          "username",
+          "firstName",
+          "lastName",
+          "email",
+          "companyId",
+        ],
       },
     ],
     order: [["createdAt", "DESC"]],
@@ -74,6 +108,23 @@ export async function findReportById(id) {
         model: db.User,
         as: "technicalOfficer",
         attributes: ["id", "username", "firstName", "lastName", "email"],
+      },
+      {
+        model: db.User,
+        as: "externalMaintainer",
+        attributes: [
+          "id",
+          "username",
+          "firstName",
+          "lastName",
+          "email",
+          "companyId",
+        ],
+      },
+      {
+        model: db.Company,
+        as: "company",
+        attributes: ["id", "name"],
       },
     ],
   });
@@ -146,8 +197,33 @@ export async function deleteReport(id) {
  */
 export async function findReportsByTechnicalOfficerId(officerId) {
   return db.Report.findAll({
-    where: { 
-      technicalOfficerId: officerId
+    where: {
+      technicalOfficerId: officerId,
+    },
+    include: [
+      {
+        model: db.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName", "photoURL"],
+      },
+      {
+        model: db.Category,
+        as: "category",
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+  });
+}
+
+/**
+ * Finds all reports assigned to a specific external maintainer.
+ * @param {number} externalMaintainerId - The ID of the external maintainer.
+ * @returns {Promise<Report[]>} Array of Report instances.
+ */
+export async function findReportsByExternalMaintainerId(externalMaintainerId) {
+  return db.Report.findAll({
+    where: {
+      externalMaintainerId: externalMaintainerId,
     },
     include: [
       {
