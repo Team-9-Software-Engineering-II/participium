@@ -22,6 +22,8 @@ import {
   sanitizeReports,
 } from "../shared/utils/report-utils.mjs";
 import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
+import AppError from "../shared/utils/app-error.mjs";
+import logger from "../shared/logging/logger.mjs";
 /**
  * Encapsulates report business logic and orchestrates repository calls.
  */
@@ -35,14 +37,10 @@ export class ReportService {
   static async createCitizenReport(userId, payload) {
     await this.#ensureCategoryExists(payload.categoryId);
 
-    let address = null;
-    if (payload.latitude && payload.longitude) {
-      // Recuperiamo l'indirizzo in modo asincrono prima di salvare
-      address = await this.#fetchAddressFromOSM(
-        payload.latitude,
-        payload.longitude
-      );
-    }
+    const address =
+      payload.latitude && payload.longitude
+        ? await this.#fetchAddressFromOSM(payload.latitude, payload.longitude)
+        : null;
 
     const createdReport = await createReport({
       title: payload.title,
@@ -57,7 +55,9 @@ export class ReportService {
       userId,
       categoryId: payload.categoryId,
     });
-
+    logger.info(
+      `Report created successfully. ID: ${createdReport.id}, User: ${userId}, Category: ${payload.categoryId}`
+    );
     const hydratedReport = await findReportById(createdReport.id);
     return sanitizeReport(hydratedReport ?? createdReport);
   }
@@ -71,17 +71,14 @@ export class ReportService {
     // 1. Recupera il report e valida lo stato corrente
     const report = await findReportById(reportId);
     if (!report) {
-      const error = new Error("Report not found.");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError("Report not found.", 404);
     }
 
     if (report.status !== "Pending Approval") {
-      const error = new Error(
-        `Cannot accept report. Current status is '${report.status}', expected 'Pending Approval'.`
+      throw new AppError(
+        `Cannot accept report. Current status is '${report.status}', expected 'Pending Approval'.`,
+        400
       );
-      error.statusCode = 400;
-      throw error;
     }
 
     // 2. Recupera la categoria per identificare l'Ufficio Tecnico competente
@@ -89,12 +86,12 @@ export class ReportService {
 
     // (Nota: findProblemCategoryById include già il modello TechnicalOffice come 'technicalOffice')
     if (!category?.technicalOffice) {
-      console.log(category);
-      const error = new Error(
+      logger.error(
+        `Configuration Error: Category ${report.categoryId} is not linked to any Technical Office.`
+      );
+      throw new Error(
         "Configuration Error: This report category is not linked to any Technical Office."
       );
-      error.statusCode = 500;
-      throw error;
     }
 
     const targetOfficeId = category.technicalOffice.id;
@@ -103,11 +100,13 @@ export class ReportService {
     const bestOfficer = await findStaffWithFewestReports(targetOfficeId);
 
     if (!bestOfficer) {
-      const error = new Error(
-        `No technical officers found in the '${category.technicalOffice.name}' office.`
+      logger.warn(
+        `Accept Report Failed: No technical officers found in office '${category.technicalOffice.name}' (ID: ${targetOfficeId}).`
       );
-      error.statusCode = 409;
-      throw error;
+      throw new AppError(
+        `No technical officers found in the '${category.technicalOffice.name}' office.`,
+        409
+      );
     }
 
     // 4. Aggiorna il report: Stato "Assigned" e assegna all'ufficiale trovato
@@ -116,6 +115,9 @@ export class ReportService {
       technicalOfficerId: bestOfficer.id, // <-- Usiamo il nome corretto definito nel model
     });
 
+    logger.info(
+      `Report ${reportId} accepted and assigned to Officer ${bestOfficer.username} (ID: ${bestOfficer.id}).`
+    );
     // Ritorna il report aggiornato
     return this.getReportById(reportId);
   }
@@ -127,13 +129,7 @@ export class ReportService {
    * @returns {Promise<object>} The updated sanitized report.
    */
   static async rejectReport(reportId, rejectionReason) {
-    // 1. Recupera il report
-    const report = await findReportById(reportId);
-    if (!report) {
-      const error = new Error("Report not found.");
-      error.statusCode = 404;
-      throw error;
-    }
+    const report = await this.getReportById(reportId);
 
     // 2. Verifica lo stato (deve essere Pending Approval)
     if (report.status !== "Pending Approval") {
@@ -150,6 +146,7 @@ export class ReportService {
       rejection_reason: rejectionReason,
     });
 
+    logger.info(`Report ${reportId} rejected. Reason: "${rejectionReason}"`);
     // Ritorna il report aggiornato
     return this.getReportById(reportId);
   }
@@ -170,7 +167,9 @@ export class ReportService {
    * @returns {Promise<object[]>} Sanitized reports collection.
    */
   static async getReportsByExternalMaintainer(externalMaintainerId) {
-    const reports = await findReportsByExternalMaintainerId(externalMaintainerId);
+    const reports = await findReportsByExternalMaintainerId(
+      externalMaintainerId
+    );
     return sanitizeReports(reports);
   }
 
@@ -202,6 +201,10 @@ export class ReportService {
    */
   static async getReportById(reportId) {
     const report = await findReportById(reportId);
+    if (!report) {
+      logger.warn(`Report with ID ${reportId} not found`);
+      throw new AppError(`Report with ID ${reportId} not found`, 404);
+    }
     return sanitizeReport(report);
   }
 
@@ -242,19 +245,11 @@ export class ReportService {
     if (category) {
       return;
     }
-    const error = new Error(`Category with id "${categoryId}" not found.`);
-    error.statusCode = 404;
-    throw error;
+    throw new AppError(`Category with id "${categoryId}" not found.`, 404);
   }
 
   static async #ensureReportExists(reportId) {
-    const report = await findReportById(reportId);
-    if (report) {
-      return;
-    }
-    const error = new Error(`Report with id "${reportId}" not found.`);
-    error.statusCode = 404;
-    throw error;
+    await this.getReportById(reportId);
   }
 
   /**
@@ -275,7 +270,9 @@ export class ReportService {
       );
 
       if (!response.ok) {
-        console.warn("OSM response not ok:", response.status);
+        logger.warn(
+          `OSM response not ok: ${response.status} for coords [${lat}, ${lon}]`
+        );
         return null;
       }
 
@@ -295,7 +292,10 @@ export class ReportService {
 
       return formattedAddress || null;
     } catch (error) {
-      console.error("Error fetching address from OSM:", error);
+      logger.error(
+        `Error fetching address from OSM for coords [${lat}, ${lon}]:`,
+        error
+      );
       return null;
     }
   }
@@ -319,19 +319,16 @@ export class ReportService {
     // 2. Validate that the company exists
     const company = await findCompanyById(companyId);
     if (!company) {
-      const error = new Error(`Company with id "${companyId}" not found.`);
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(`Company with id "${companyId}" not found.`, 404);
     }
 
     // 3. Validate that the report is in a state that allows external assignment
     // Reports should be "Assigned" or "In Progress" to be assigned to external maintainers
     if (report.status === "Pending Approval" || report.status === "Rejected") {
-      const error = new Error(
-        `Cannot assign report to external maintainer. Current status is '${report.status}'. Report must be 'Assigned' or 'In Progress'.`
+      throw new AppError(
+        `Cannot assign report to external maintainer. Current status is '${report.status}'. Report must be 'Assigned' or 'In Progress'.`,
+        400
       );
-      error.statusCode = 400;
-      throw error;
     }
 
     // 4. Find the external maintainer with the fewest active reports
@@ -340,11 +337,13 @@ export class ReportService {
     );
 
     if (!bestMaintainer) {
-      const error = new Error(
-        `No external maintainers found in company '${company.name}'.`
+      logger.warn(
+        `External Assignment Failed: No maintainers found in company ${companyId} for Report ${reportId}.`
       );
-      error.statusCode = 409;
-      throw error;
+      throw new AppError(
+        `No external maintainers found in company '${company.name}'.`,
+        409
+      );
     }
 
     // 5. Update the report: assign to the external maintainer AND set the companyId
@@ -352,7 +351,9 @@ export class ReportService {
       externalMaintainerId: bestMaintainer.id,
       companyId: companyId,
     });
-
+    logger.info(
+      `Report ${reportId} assigned to External Maintainer ${bestMaintainer.username} (ID: ${bestMaintainer.id}) of Company ${companyId}.`
+    );
     // Return the updated report
     return this.getReportById(reportId);
   }
@@ -366,9 +367,7 @@ export class ReportService {
   static async getEligibleCompaniesForReport(reportId) {
     const report = await findReportById(reportId);
     if (!report) {
-      const error = new Error("Report not found.");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError("Report not found.", 404);
     }
 
     const companies = await findCompaniesByCategoryId(report.categoryId);

@@ -1,3 +1,5 @@
+import { findReportById } from "../repositories/report-repo.mjs";
+import { ReportService } from "../services/report-service.mjs";
 import { ROLE } from "../shared/constants/models.mjs";
 
 export function isAuthenticated(req, res, next) {
@@ -39,7 +41,9 @@ export function isTechnicalStaffOrExternalMaintainer(req, res, next) {
   if (role === "technical_staff" || role === "external_maintainer") {
     return next();
   }
-  return res.status(403).json({ error: "Forbidden: technical staff or external maintainer only" });
+  return res
+    .status(403)
+    .json({ error: "Forbidden: technical staff or external maintainer only" });
 }
 
 export function isPublicRelationsOfficer(req, res, next) {
@@ -112,20 +116,17 @@ export async function isReportParticipant(req, res, next) {
       return res.status(400).json({ error: "Invalid report ID" });
     }
 
-    // Dynamically import to avoid circular dependencies
-    const { findReportById } = await import("../repositories/report-repo.mjs");
     const report = await findReportById(reportId);
-
     if (!report) {
       return res.status(404).json({ error: "Report not found" });
     }
 
     // Check both the foreign key fields and the related objects (in case includes are used)
-    const isTechnicalOfficer = 
-      report.technicalOfficerId === userId || 
+    const isTechnicalOfficer =
+      report.technicalOfficerId === userId ||
       report.technicalOfficer?.id === userId;
-    const isExternalMaintainer = 
-      report.externalMaintainerId === userId || 
+    const isExternalMaintainer =
+      report.externalMaintainerId === userId ||
       report.externalMaintainer?.id === userId;
 
     if (isTechnicalOfficer || isExternalMaintainer) {
@@ -133,7 +134,8 @@ export async function isReportParticipant(req, res, next) {
     }
 
     return res.status(403).json({
-      error: "Forbidden: You must be the technical officer or external maintainer assigned to this report",
+      error:
+        "Forbidden: You must be the technical officer or external maintainer assigned to this report",
     });
   } catch (error) {
     return next(error);

@@ -1,5 +1,5 @@
 import { isIdNumberAndPositive } from "./common-validator.mjs";
-
+import logger from "../logging/logger.mjs";
 /**
  * Extracts and validates registration data from the request body.
  * If validation fails, it sends a 400 response and returns null.
@@ -16,6 +16,9 @@ export function validateRegistrationInput(req, res) {
       message:
         "Missing required fields: email, username, firstName, lastName, password.",
     });
+    logger.warn(
+      "Missing required fields: email, username, firstName, lastName, password."
+    );
     return null;
   }
 
@@ -47,18 +50,14 @@ export function validateRegistrationInputForMunicipalOrStaffCreation(req, res) {
     technicalOfficeId,
   } = req.body ?? {};
 
-  if (
-    !email ||
-    !username ||
-    !firstName ||
-    !lastName ||
-    !password ||
-    !roleId
-  ) {
+  if (!email || !username || !firstName || !lastName || !password || !roleId) {
     res.status(400).json({
       message:
         "Missing required fields: email, username, firstName, lastName, password, roleId, technicalOfficeId.",
     });
+    logger.warn(
+      "Missing required fields: email, username, firstName, lastName, password, roleId, technicalOfficeId."
+    );
     return null;
   }
 
@@ -68,19 +67,23 @@ export function validateRegistrationInputForMunicipalOrStaffCreation(req, res) {
       res.status(400).json({
         message: "roleId must be a positive integer when provided.",
       });
+      logger.warn("roleId must be a positive integer when provided.");
       return null;
     }
   }
 
   // Validazione opzionale del technicalOfficeId se presente
-  if (technicalOfficeId !== undefined && technicalOfficeId !== null && technicalOfficeId !== "") {
-      const parsedTechId = Number(technicalOfficeId);
-      if (!isIdNumberAndPositive(parsedTechId)) {
-          res.status(400).json({
-              message: "technicalOfficeId must be a positive integer when provided.",
-          });
-          return null;
-      }
+  if (technicalOfficeId != null && technicalOfficeId !== "") {
+    const parsedTechId = Number(technicalOfficeId);
+    if (!isIdNumberAndPositive(parsedTechId)) {
+      res.status(400).json({
+        message: "technicalOfficeId must be a positive integer when provided.",
+      });
+      logger.warn(
+        "technicalOfficeId must be a positive integer when provided."
+      );
+      return null;
+    }
   }
 
   return {

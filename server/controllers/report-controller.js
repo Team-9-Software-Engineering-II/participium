@@ -133,7 +133,6 @@ export async function reviewReport(req, res, next) {
       const updatedReport = await ReportService.acceptReport(reportId);
       return res.status(200).json(updatedReport);
     } else if (action === "rejected") {
-      // Validazione base per il rifiuto
       if (!rejectionReason || rejectionReason.trim() === "") {
         return res.status(400).json({
           message: "Rejection reason is mandatory when rejecting a report.",
@@ -191,17 +190,17 @@ export async function getMyAssignedReports(req, res, next) {
   try {
     const userId = req.user.id;
     const userRole = req.user.role?.name;
-    
+
     let reports;
-    
+
     // Se è external maintainer, cerca per externalMaintainerId
-    if (userRole === 'external_maintainer') {
+    if (userRole === "external_maintainer") {
       reports = await ReportService.getReportsByExternalMaintainer(userId);
     } else {
       // Altrimenti è technical staff, cerca per technicalOfficerId
       reports = await ReportService.getReportsAssignedToOfficer(userId);
     }
-    
+
     return res.status(200).json(reports);
   } catch (error) {
     return next(error);

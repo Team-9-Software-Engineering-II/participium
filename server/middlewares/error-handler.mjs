@@ -18,7 +18,10 @@ export const globalErrorHandler = (err, req, res, next) => {
 
   logger.error(err.message, logData);
 
-  if (process.env.NODE_ENV === "development") {
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test"
+  ) {
     return res.status(err.statusCode).json({
       success: false,
       status: err.status,

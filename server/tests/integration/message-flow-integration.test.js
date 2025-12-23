@@ -74,7 +74,7 @@ describe("Message Flow Integration Test (Technical Staff <-> External Maintainer
     // Clean up created messages
     await db.Message.destroy({ where: { reportId: REPORT_ID } });
     await teardownTestDatabase();
-  });
+  }, 10_000);
 
   // --- MESSAGE CREATION TESTS ---
 

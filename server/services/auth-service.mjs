@@ -8,8 +8,14 @@ import {
 import { findRoleById } from "../repositories/role-repo.mjs";
 import { findRoleByName } from "../repositories/role-repo.mjs"; // added for refactoring
 import { findTechnicalOfficeById } from "../repositories/technical-office-repo.mjs";
-import { saveTemporaryUser, getTemporaryUser, deleteTemporaryUser } from "../repositories/redis-repo.mjs";
+import {
+  saveTemporaryUser,
+  getTemporaryUser,
+  deleteTemporaryUser,
+} from "../repositories/redis-repo.mjs";
 import { EmailService } from "./email-service.mjs";
+import AppError from "../shared/utils/app-error.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -68,9 +74,7 @@ export class AuthService {
     await this.#ensureTechnicalOfficeExists(technicalOfficeId);
     const isRoleExisting = await this.#isRoleExsisting(roleId);
     if (!isRoleExisting) {
-      const error = new Error(`Role with id ${roleId} not found`);
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(`Role with id ${roleId} not found`, 404);
     }
 
     const hashedPassword = await this.#hashPassword(password);
@@ -97,9 +101,7 @@ export class AuthService {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!email || !emailRegex.test(email)) {
-      const error = new Error("Invalid email format.");
-      error.statusCode = 400; // <-- Error 400 Bad Request
-      throw error;
+      throw new AppError("Invalid email format.", 400);
     }
   }
 
@@ -143,9 +145,7 @@ export class AuthService {
   static async #ensureEmailAvailable(email) {
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      const error = new Error("Email is already registered.");
-      error.statusCode = 409;
-      throw error;
+      throw new AppError("Email is already registered.", 409);
     }
   }
 
@@ -158,9 +158,7 @@ export class AuthService {
   static async #ensureUsernameAvailable(username) {
     const existingUser = await findUserByUsername(username);
     if (existingUser) {
-      const error = new Error("Username is already registered.");
-      error.statusCode = 409;
-      throw error;
+      throw new AppError("Username is already registered.", 409);
     }
   }
 
@@ -172,11 +170,10 @@ export class AuthService {
   static async #assignCitizenRole() {
     const citizenRole = await findRoleByName("citizen");
     if (!citizenRole) {
-      const error = new Error(
-        "Default citizen role not found in database. Registration process stops"
+      throw new Error(
+        "Default citizen role not found in database. Registration process stops",
+        500
       );
-      error.statusCode = 500;
-      throw error;
     }
     return citizenRole.id;
   }
@@ -192,9 +189,7 @@ export class AuthService {
     if (existingTechnicalOffice || id === null) {
       return;
     }
-    const error = new Error(`Technical office with id ${id} not found.`);
-    error.statusCode = 404;
-    throw error;
+    throw new AppError(`Technical office with id ${id} not found.`, 404);
   }
 
   /**
@@ -258,19 +253,28 @@ export class AuthService {
     const confirmationCode = this.#generateConfirmationCode();
 
     // Save user data temporarily in Redis (overwrites if same email exists)
-    await saveTemporaryUser(email, {
+    await saveTemporaryUser(
       email,
-      username,
-      password,
-      firstName,
-      lastName,
-    }, confirmationCode);
+      {
+        email,
+        username,
+        password,
+        firstName,
+        lastName,
+      },
+      confirmationCode
+    );
 
     // Send verification email with the confirmation code
-    const emailResult = await EmailService.sendVerificationCode(email, confirmationCode, firstName);
+    const emailResult = await EmailService.sendVerificationCode(
+      email,
+      confirmationCode,
+      firstName
+    );
 
     return {
-      message: "Registration request submitted successfully. Please check your email for the verification code.",
+      message:
+        "Registration request submitted successfully. Please check your email for the verification code.",
       confirmationCode,
       expiresIn: 1800,
       emailPreviewUrl: emailResult.previewUrl,
@@ -290,16 +294,17 @@ export class AuthService {
     const temporaryUser = await getTemporaryUser(email);
 
     if (!temporaryUser) {
-      const error = new Error("Registration request not found or has expired. Please submit a new registration request.");
-      error.statusCode = 404;
-      throw error;
+      const registrationReqNotFoundOrExpiredMessage =
+        "Registration request not found or has expired. Please submit a new registration request.";
+      logger.warn(registrationReqNotFoundOrExpiredMessage);
+      throw new AppError(registrationReqNotFoundOrExpiredMessage, 404);
     }
 
     // Verify the confirmation code
     if (temporaryUser.verificationCode !== confirmationCode) {
-      const error = new Error("Invalid confirmation code.");
-      error.statusCode = 400;
-      throw error;
+      const invalidConfirmationCodeMessage = "Invalid confirmation code.";
+      logger.warn(invalidConfirmationCodeMessage);
+      throw new AppError(invalidConfirmationCodeMessage, 400);
     }
 
     // Double-check that email and username are still available (race condition protection)

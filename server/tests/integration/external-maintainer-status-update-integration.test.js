@@ -41,13 +41,13 @@ const anotherExternalMaintainerLogin = {
 /** @type {number} ID of the primary external maintainer (em_water_smat). */
 let MAINTAINER_USER_ID = 6;
 /** @type {number} ID of a report assigned to the primary external maintainer, starting at 'In Progress'. */
-let REPORT_ASSIGNED_TO_ME_ID_IP = 7;
+let REPORT_ASSIGNED_TO_ME_ID_IP = 900;
 /** @type {number} ID of a report assigned to another external maintainer (IREN). */
-let REPORT_ASSIGNED_TO_OTHER_ID = 8;
+let REPORT_ASSIGNED_TO_OTHER_ID = 901;
 /** @type {number} ID of a report NOT assigned to any external maintainer (Tech Staff). */
-let REPORT_NOT_ASSIGNED_ID = 9;
+let REPORT_NOT_ASSIGNED_ID = 902;
 /** @type {number} ID of a valid report for status update, starting at 'Assigned'. */
-let VALID_REPORT_ID_ASSIGNED = 10;
+let VALID_REPORT_ID_ASSIGNED = 903;
 
 // --- Setup & Teardown Hooks ---
 
@@ -91,24 +91,24 @@ beforeAll(async () => {
 
   // 3. Create reports manually, using the STRING ID for externalMaintainerId
 
-  // R. ID 7: Assigned to me, In Progress
+  // R. ID 900: Assigned to me, In Progress
   await db.Report.create({
-    id: 7,
+    id: 900,
     title: "EM Assigned Water Leak",
     description: "Assigned to SMAT",
     status: "In Progress",
-    externalMaintainerId: MAINTAINER_USER_ID_AS_STRING,
+    externalMaintainerId: maintainerUser.id,
     userId: citizenUser.id,
     categoryId: categoryId,
     latitude: 45,
     longitude: 9,
     anonymous: false,
   });
-  REPORT_ASSIGNED_TO_ME_ID_IP = 7;
+  REPORT_ASSIGNED_TO_ME_ID_IP = 900;
 
-  // R. ID 8: Assigned to other EM (using numeric ID for comparison)
+  // R. ID 901: Assigned to other EM (using numeric ID for comparison)
   await db.Report.create({
-    id: 8,
+    id: 901,
     title: "Other EM Assigned Lighting Issue",
     description: "Assigned to IREN",
     status: "In Progress",
@@ -119,11 +119,11 @@ beforeAll(async () => {
     longitude: 10,
     anonymous: false,
   });
-  REPORT_ASSIGNED_TO_OTHER_ID = 8;
+  REPORT_ASSIGNED_TO_OTHER_ID = 901;
 
-  // R. ID 9: Assigned to Tech Staff
+  // R. ID 902: Assigned to Tech Staff
   await db.Report.create({
-    id: 9,
+    id: 902,
     title: "Tech Staff Road Issue",
     description: "Assigned to Technical Staff",
     status: "Assigned",
@@ -134,22 +134,22 @@ beforeAll(async () => {
     longitude: 11,
     anonymous: false,
   });
-  REPORT_NOT_ASSIGNED_ID = 9;
+  REPORT_NOT_ASSIGNED_ID = 902;
 
-  // R. ID 10: Assigned to me, Assigned status (for 'In Progress' transition test)
+  // R. ID 903: Assigned to me, Assigned status (for 'In Progress' transition test)
   await db.Report.create({
-    id: 10,
+    id: 903,
     title: "Fresh Assigned Report",
     description: "Ready for status update test",
     status: "Assigned",
-    externalMaintainerId: MAINTAINER_USER_ID_AS_STRING,
+    externalMaintainerId: maintainerUser.id,
     userId: citizenUser.id,
-    categoryId: categoryId,
+    categoryId,
     latitude: 45.1,
     longitude: 9.1,
     anonymous: false,
   });
-  VALID_REPORT_ID_ASSIGNED = 10;
+  VALID_REPORT_ID_ASSIGNED = 903;
 
   console.log(
     `SETUP DEBUG: Report IDs: [Assigned/IP: ${REPORT_ASSIGNED_TO_ME_ID_IP}, Assigned: ${VALID_REPORT_ID_ASSIGNED}]`
