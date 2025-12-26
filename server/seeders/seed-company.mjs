@@ -1,4 +1,5 @@
 import db from "../models/index.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 /**
  * Seeds the 'companies' table with external maintenance providers in Turin.
@@ -54,9 +55,9 @@ export const seedCompanies = async () => {
       },
     ]);
 
-    console.log("Companies seeded successfully.");
+    logger.info("Companies seeded successfully.");
   } catch (err) {
-    console.error("Error seeding companies:", err);
+    logger.error("Error seeding companies:", err);
     throw err;
   }
 };

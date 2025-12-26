@@ -1,4 +1,5 @@
 import db from "../models/index.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 /**
  * Seeds the 'Reports' table with sample data covering various statuses and categories.
@@ -166,9 +167,9 @@ export const seedReports = async () => {
       },
     ]);
 
-    console.log("Reports seeded successfully.");
+    logger.info("Reports seeded successfully.");
   } catch (err) {
-    console.error("Error seeding reports:", err);
+    logger.error("Error seeding reports:", err);
     throw err;
   }
 };

@@ -1,3 +1,4 @@
+import logger from "../shared/logging/logger.mjs";
 import { seedCategories } from "./seed-category.mjs";
 import { seedCompanyCategories } from "./seed-company-category.mjs";
 import { seedCompanies } from "./seed-company.mjs";
@@ -12,7 +13,7 @@ import { seedUsers } from "./seed-users.mjs";
  * to respect Foreign Key constraints.
  */
 export const seedDatabase = async () => {
-  console.log("Starting database seeding...");
+  logger.info("Starting database seeding...");
 
   try {
     await seedRoles();
@@ -23,9 +24,9 @@ export const seedDatabase = async () => {
     await seedUsers();
     await seedReports();
 
-    console.log("Database seeding finished successfully.");
+    logger.info("Database seeding finished successfully.");
   } catch (err) {
-    console.error("A critical error occurred during database seeding:", err);
+    logger.error("A critical error occurred during database seeding:", err);
 
     throw err;
   }

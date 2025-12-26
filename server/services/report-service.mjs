@@ -133,11 +133,10 @@ export class ReportService {
 
     // 2. Verifica lo stato (deve essere Pending Approval)
     if (report.status !== "Pending Approval") {
-      const error = new Error(
-        `Cannot reject report. Current status is '${report.status}', expected 'Pending Approval'.`
+      throw new AppError(
+        `Cannot reject report. Current status is '${report.status}', expected 'Pending Approval'.`,
+        400
       );
-      error.statusCode = 400;
-      throw error;
     }
 
     // 3. Aggiorna il report: Stato "Rejected" e motivo del rifiuto

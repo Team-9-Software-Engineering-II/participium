@@ -1,4 +1,9 @@
-import { getTransporter, getPreviewUrl, getEmailProvider, getResendClient } from "../config/email.mjs";
+import {
+  getTransporter,
+  getPreviewUrl,
+  getEmailProvider,
+  getResendClient,
+} from "../config/email.mjs";
 import logger from "../shared/logging/logger.mjs";
 
 /**
@@ -29,7 +34,7 @@ export class EmailService {
    */
   static async #sendWithResend(email, confirmationCode, firstName) {
     const resend = getResendClient();
-    
+
     try {
       const { data, error } = await resend.emails.send({
         from: process.env.EMAIL_FROM || "Participium <onboarding@resend.dev>",
@@ -52,8 +57,8 @@ export class EmailService {
         module: "EmailService",
       });
 
-      console.log(`\n📧 Real email sent to: ${email}`);
-      console.log(`   Email ID: ${data.id}\n`);
+      logger.info(`\n📧 Real email sent to: ${email}`);
+      logger.info(`   Email ID: ${data.id}\n`);
 
       return {
         success: true,
@@ -76,7 +81,7 @@ export class EmailService {
    */
   static async #sendWithNodemailer(email, confirmationCode, firstName) {
     const transporter = getTransporter();
-    
+
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"Participium" <noreply@participium.com>',
       to: email,
@@ -87,7 +92,7 @@ export class EmailService {
 
     try {
       const info = await transporter.sendMail(mailOptions);
-      
+
       logger.info(`Verification email sent to ${email}`, {
         messageId: info.messageId,
         module: "EmailService",
