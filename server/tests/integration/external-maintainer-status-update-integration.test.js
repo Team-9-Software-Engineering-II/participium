@@ -175,7 +175,7 @@ describe("PUT /external-maintainer/reports/:reportId/status E2E", () => {
       .send(PAYLOAD("In Progress"));
 
     expect(res.statusCode).toBe(401);
-    expect(res.body.error).toBe("User not authenticated");
+    expect(res.body.error).toStrictEqual({"isOperational": true, "status": "fail", "statusCode": 401});
   });
 
   it("should return 403 if user is a Citizen (not External Maintainer)", async () => {
@@ -185,7 +185,7 @@ describe("PUT /external-maintainer/reports/:reportId/status E2E", () => {
       .send(PAYLOAD("In Progress"));
 
     expect(res.statusCode).toBe(403);
-    expect(res.body.error).toBe("Forbidden: external maintainer only");
+    expect(res.body.error).toStrictEqual({"isOperational": true, "status": "fail", "statusCode": 403});
   });
 
   it("should return 403 if External Maintainer tries to update a report assigned to another External Maintainer", async () => {
