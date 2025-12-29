@@ -34,6 +34,19 @@ export async function createReport(req, res, next) {
 export async function getAllReports(req, res, next) {
   try {
     const reports = await ReportService.getAllReports();
+
+    // check if user is logged in
+    const isLoggedIn = req.isAuthenticated && req.isAuthenticated();
+    if (!isLoggedIn) {
+      // only accepted reports
+      const publicReports = reports.filter(
+        (r) =>
+          r.status !== REPORT.STATUS.PENDING_APPROVAL &&
+          r.status !== REPORT.STATUS.REJECTED
+      );
+      return res.status(200).json(publicReports);
+    }
+
     return res.status(200).json(reports);
   } catch (error) {
     return next(error);
@@ -86,6 +99,20 @@ export async function getReportById(req, res, next) {
     const report = await ReportService.getReportById(reportId);
     if (!report) {
       return res.status(404).json({ message: "Report not found." });
+    }
+
+    // check if user is logged in
+    const isLoggedIn = req.isAuthenticated && req.isAuthenticated();
+
+    if (!isLoggedIn) {
+      const isPrivate =
+        report.status === REPORT.STATUS.PENDING_APPROVAL ||
+        report.status === REPORT.STATUS.REJECTED;
+
+      if (isPrivate) {
+        // return 404 for security reasons
+        return res.status(404).json({ message: "Report not found." });
+      }
     }
 
     return res.status(200).json(report);
