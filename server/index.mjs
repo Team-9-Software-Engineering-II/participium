@@ -130,32 +130,28 @@ if (hasClientBuild) {
 
 app.use(globalErrorHandler);
 
-db.sequelize
-  .sync(syncOptions)
-  .then(async () => {
-    console.log("Database synced successfully.");
+if (NODE_ENV !== "test") {
+  db.sequelize
+    .sync(syncOptions)
+    .then(async () => {
+      console.log("Database synced successfully.");
 
-    if (shouldSeed) {
-      console.log("Running database seeder...");
-      await seedDatabase();
-    }
+      if (shouldSeed) {
+        console.log("Running database seeder...");
+        await seedDatabase();
+      }
 
-    await connectRedis();
-    await initializeEmailTransporter();
+      await connectRedis();
+      await initializeEmailTransporter();
 
-    if (NODE_ENV !== "test") {
-      if (NODE_ENV == "production") {
-        app.listen(PORT, () => {
-          console.log(`Server in production listening on port ${PORT}`);
-        });
-      } else
-        app.listen(PORT, () => {
-          console.log(`Server in development listening on port ${PORT}`);
-        });
-    }
-  })
-  .catch((err) => {
-    console.error("Error syncing database:", err);
-  });
+      const mode = NODE_ENV === "production" ? "production" : "development";
+      app.listen(PORT, () => {
+        console.log(`Server in ${mode} listening on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error("Error syncing database:", err);
+    });
+}
 
 export { app };

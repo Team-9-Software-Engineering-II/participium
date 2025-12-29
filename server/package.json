@@ -11,7 +11,7 @@
     "start": "cross-env NODE_ENV=production node index.mjs",
     "predev": "npm run redis:up && npm run wait:redis",
     "dev": "cross-env NODE_ENV=development nodemon index.mjs",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand"
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --detectOpenHandles"
   },
   "keywords": [],
   "author": "",

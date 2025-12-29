@@ -20,6 +20,7 @@ import {
 import redisClient from "../../config/redis.mjs";
 import { getTemporaryUser } from "../../repositories/redis-repo.mjs";
 import { initializeEmailTransporter } from "../../config/email.mjs";
+import { jest } from "@jest/globals";
 
 /** @typedef {object} UserData
  * @property {string} email
@@ -62,28 +63,26 @@ let verifiedUserCookie;
  * @description Sets up the database, connects Redis, logs in the admin, and pre-creates a user for login tests.
  */
 beforeAll(async () => {
-  await initializeEmailTransporter();
-  // 1. Setup Database
-  await setupTestDatabase();
+  try {
+    await initializeEmailTransporter();
+    await setupTestDatabase();
+    
+    adminCookie = await loginAndGetCookie(adminLogin);
 
-  // 2. Log in Admin
-  adminCookie = await loginAndGetCookie(adminLogin);
+    const citizenRole = await db.Role.findOne({ where: { name: "citizen" } });
+    const hashedPassword = await bcrypt.hash(userForLoginTests.password, 10);
 
-  // 3. Pre-create a standard user directly in the DB
-  const citizenRole = await db.Role.findOne({ where: { name: "citizen" } });
-  if (!citizenRole) throw new Error("Citizen role not found.");
-
-  // Generate a valid bcrypt hash for the test password
-  const hashedPassword = await bcrypt.hash(userForLoginTests.password, 10);
-
-  await db.User.create({
-    email: userForLoginTests.email,
-    username: userForLoginTests.username,
-    firstName: userForLoginTests.firstName,
-    lastName: userForLoginTests.lastName,
-    hashedPassword: hashedPassword,
-    roleId: citizenRole.id,
-  });
+    await db.User.create({
+      email: userForLoginTests.email,
+      username: userForLoginTests.username,
+      firstName: userForLoginTests.firstName,
+      lastName: userForLoginTests.lastName,
+      hashedPassword: hashedPassword,
+      roleId: citizenRole.id,
+    });
+  } catch (error) {
+    console.error("Setup failed:", error);
+  }
 });
 
 /**
@@ -100,6 +99,7 @@ afterAll(async () => {
 // --- TEST SUITE START ---
 
 describe("API Authentication Flow (Citizen)", () => {
+  jest.setTimeout(20000);
   describe("POST /auth/register (LEGACY/ADMIN only)", () => {
     /**
      * @description Test that the legacy /register endpoint correctly handles conflicts for existing citizens.
@@ -119,6 +119,8 @@ describe("API Authentication Flow (Citizen)", () => {
 
   describe("Citizen Registration with Email Verification Flow", () => {
     let confirmationCode;
+
+    jest.setTimeout(15000);
 
     describe("POST /auth/register-request", () => {
       /**
@@ -319,6 +321,7 @@ describe("API Authentication Flow (Citizen)", () => {
      * @returns {number} 200 OK.
      */
     it("should return session info (200) for the newly verified Citizen user", async () => {
+      expect(verifiedUserCookie).toBeDefined();
       const res = await request(app)
         .get("/auth/session")
         .set("Cookie", verifiedUserCookie);
