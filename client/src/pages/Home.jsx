@@ -40,14 +40,17 @@ import {
   SlidersHorizontal,
   ListTree,
   Info,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { reportAPI } from "@/services/api";
+import { calculateDistance, isReportOnStreet } from "@/lib/geoFilters";
+import { toast } from "sonner";
 
 // Reusable Reports List component
-const ReportsList = ({ loading, displayReports, showMyReports, navigate, onViewInMap }) => {
+const ReportsList = ({ loading, displayReports, showMyReports, navigate, onViewInMap, onNavigateToReport }) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -76,7 +79,7 @@ const ReportsList = ({ loading, displayReports, showMyReports, navigate, onViewI
           <Card
             key={report.id}
             className="p-4 cursor-pointer transition-colors hover:bg-accent"
-            onClick={() => navigate(`/reports/${report.id}`)}
+            onClick={() => onNavigateToReport(report.id)}
           >
             <h3 className="font-semibold mb-2">{report.title}</h3>
             <div className="space-y-1 text-sm text-muted-foreground">
@@ -152,6 +155,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
 
+  // Geographic filter state
+  const [geoFilter, setGeoFilter] = useState(null);
+  const [geoFilterActive, setGeoFilterActive] = useState(false);
+
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -162,6 +169,29 @@ export default function Home() {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Restore filters from sessionStorage on mount
+  useEffect(() => {
+    const savedFilters = sessionStorage.getItem('homeFilters');
+    if (savedFilters) {
+      try {
+        const filters = JSON.parse(savedFilters);
+        if (filters.searchQuery) setSearchQuery(filters.searchQuery);
+        if (filters.showMyReports) setShowMyReports(filters.showMyReports);
+        if (filters.selectedCategory) setSelectedCategory(filters.selectedCategory);
+        if (filters.selectedStatus) setSelectedStatus(filters.selectedStatus);
+        if (filters.selectedDate) setSelectedDate(filters.selectedDate);
+        if (filters.geoFilter) {
+          setGeoFilter(filters.geoFilter);
+          setGeoFilterActive(filters.geoFilterActive);
+        }
+        // Clear after restoring
+        sessionStorage.removeItem('homeFilters');
+      } catch (error) {
+        console.error('Error restoring filters:', error);
+      }
+    }
   }, []);
 
   // Load reports from API
@@ -310,8 +340,30 @@ export default function Home() {
 
       // Date filter
       const matchesDate = matchesDateFilter(report.createdAt);
+      
+      // Geographic filter
+      let matchesGeo = true;
+      if (geoFilterActive && geoFilter) {
+        if (geoFilter.type === 'street') {
+          // Filter by street name
+          matchesGeo = isReportOnStreet(report.address, geoFilter.streetName);
+        } else if (geoFilter.type === 'radius') {
+          // Filter by radius (500m)
+          if (report.latitude && report.longitude) {
+            const distance = calculateDistance(
+              geoFilter.center[0],
+              geoFilter.center[1],
+              report.latitude,
+              report.longitude
+            );
+            matchesGeo = distance <= geoFilter.radius;
+          } else {
+            matchesGeo = false;
+          }
+        }
+      }
 
-      return matchesSearch && matchesCategory && matchesStatus && matchesDate;
+      return matchesSearch && matchesCategory && matchesStatus && matchesDate && matchesGeo;
     });
   };
 
@@ -344,6 +396,7 @@ export default function Home() {
     setSelectedCategory("");
     setSelectedStatus("");
     setSelectedDate("");
+    sessionStorage.removeItem('homeFilters');
   };
 
   const handleApplyFilters = () => {
@@ -359,6 +412,42 @@ export default function Home() {
         sheetTrigger.click();
       }
     }
+  };
+  
+  const handleGeoFilterApplied = (filter) => {
+    setGeoFilter(filter);
+    setGeoFilterActive(true);
+    
+    // Show toast notification
+    if (filter.type === 'street') {
+      toast.success(`Showing reports on ${filter.streetName}`, {
+        duration: 4000,
+      });
+    } else if (filter.type === 'radius') {
+      toast.success('Showing reports within 500m radius', {
+        duration: 4000,
+      });
+    }
+  };
+  
+  const handleClearGeoFilter = () => {
+    setGeoFilter(null);
+    setGeoFilterActive(false);
+  };
+  
+  const handleNavigateToReport = (reportId) => {
+    // Save current filters to sessionStorage before navigating
+    const filtersToSave = {
+      searchQuery,
+      showMyReports,
+      selectedCategory,
+      selectedStatus,
+      selectedDate,
+      geoFilter,
+      geoFilterActive,
+    };
+    sessionStorage.setItem('homeFilters', JSON.stringify(filtersToSave));
+    navigate(`/reports/${reportId}`);
   };
 
 
@@ -402,6 +491,32 @@ export default function Home() {
                 onCheckedChange={handleToggleMyReports}
               />
             </div>
+            
+            {/* Geographic filter indicator and clear button */}
+            {geoFilterActive && geoFilter && (
+              <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-primary mb-1">
+                      {geoFilter.type === 'street' ? 'Filtered by street' : 'Filtered by radius'}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {geoFilter.type === 'street' 
+                        ? geoFilter.streetName 
+                        : '500m radius'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 flex-shrink-0"
+                    onClick={handleClearGeoFilter}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Reports List Area */}
@@ -418,6 +533,7 @@ export default function Home() {
               showMyReports={showMyReports}
               navigate={navigate}
               onViewInMap={handleViewInMap}
+              onNavigateToReport={handleNavigateToReport}
             />
           </div>
 
@@ -450,7 +566,14 @@ export default function Home() {
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
-            <MapView reports={displayReports} selectedReport={selectedReport} />
+            <MapView 
+              reports={displayReports} 
+              selectedReport={selectedReport}
+              onGeoFilterApplied={handleGeoFilterApplied}
+              geoFilterActive={geoFilterActive}
+              geoFilter={geoFilter}
+              onClearGeoFilter={handleClearGeoFilter}
+            />
           </div>
         </div>
       </div>
@@ -459,7 +582,14 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0 pointer-events-auto">
-          <MapView reports={displayReports} selectedReport={selectedReport} />
+          <MapView 
+            reports={displayReports} 
+            selectedReport={selectedReport}
+            onGeoFilterApplied={handleGeoFilterApplied}
+            geoFilterActive={geoFilterActive}
+            geoFilter={geoFilter}
+            onClearGeoFilter={handleClearGeoFilter}
+          />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
@@ -542,6 +672,32 @@ export default function Home() {
                       onCheckedChange={handleToggleMyReports}
                     />
                   </div>
+                  
+                  {/* Geographic filter indicator and clear button */}
+                  {geoFilterActive && geoFilter && (
+                    <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-primary mb-1">
+                            {geoFilter.type === 'street' ? 'Filtered by street' : 'Filtered by radius'}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {geoFilter.type === 'street' 
+                              ? geoFilter.streetName 
+                              : '500m radius'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 flex-shrink-0"
+                          onClick={handleClearGeoFilter}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="py-2">
@@ -561,6 +717,7 @@ export default function Home() {
                     showMyReports={showMyReports}
                     navigate={navigate}
                     onViewInMap={handleViewInMap}
+                    onNavigateToReport={handleNavigateToReport}
                   />
                 </div>
               </div>
