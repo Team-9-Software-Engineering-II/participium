@@ -42,11 +42,9 @@ describe("Report Validators", () => {
       const req = httpMocks.createRequest({ body: { title: "", description: "", categoryId: -1, latitude: 200, longitude: 200, photos: "notarray", anonymous: "yes" } });
       const res = httpMocks.createResponse();
 
-      const result = validateCreateReportInput(req, res);
-      expect(res.statusCode).toBe(400);
-      const data = res._getJSONData();
-      expect(data).toHaveProperty("errors");
-      expect(result).toBeNull();
+      expect(() => validateCreateReportInput(req, res)).toThrow();
+      expect(() => validateCreateReportInput(req, res)).toThrow(/Invalid report payload/);
+      expect(() => validateCreateReportInput(req, res)).toThrow(expect.objectContaining({ statusCode: 400 }));
     });
 
     it("should validate photos array content (must be strings)", () => {
@@ -54,9 +52,9 @@ describe("Report Validators", () => {
         body: { title: "T", description: "D", categoryId: 1, latitude: 0, longitude: 0, photos: ["", "  ", null] },
       });
       const res = httpMocks.createResponse();
-      const result = validateCreateReportInput(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(result).toBeNull();
+      expect(() => validateCreateReportInput(req, res)).toThrow();
+      expect(() => validateCreateReportInput(req, res)).toThrow(/Each photo must be a non-empty string/);
+      expect(() => validateCreateReportInput(req, res)).toThrow(expect.objectContaining({ statusCode: 400 }));
     });
 
     // --- NUOVI TEST PER COPERTURA COMPLETA ---
@@ -66,11 +64,10 @@ describe("Report Validators", () => {
         body: { title: "T", description: "D", categoryId: 1, latitude: 0, longitude: 0, photos: [] }, // Vuoto
       });
       const res = httpMocks.createResponse();
-      validateCreateReportInput(req, res);
       
-      expect(res.statusCode).toBe(400);
-      const data = res._getJSONData();
-      expect(data.errors).toContain("Photos array must contain between 1 and 3 items.");
+      expect(() => validateCreateReportInput(req, res)).toThrow();
+      expect(() => validateCreateReportInput(req, res)).toThrow(/Photos array must contain between 1 and 3 items/);
+      expect(() => validateCreateReportInput(req, res)).toThrow(expect.objectContaining({ statusCode: 400 }));
     });
 
     it("should fail if photos array has more than 3 items (Coverage Line 59)", () => {
@@ -78,11 +75,10 @@ describe("Report Validators", () => {
         body: { title: "T", description: "D", categoryId: 1, latitude: 0, longitude: 0, photos: ["1", "2", "3", "4"] },
       });
       const res = httpMocks.createResponse();
-      validateCreateReportInput(req, res);
       
-      expect(res.statusCode).toBe(400);
-      const data = res._getJSONData();
-      expect(data.errors).toContain("Photos array must contain between 1 and 3 items.");
+      expect(() => validateCreateReportInput(req, res)).toThrow();
+      expect(() => validateCreateReportInput(req, res)).toThrow(/Photos array must contain between 1 and 3 items/);
+      expect(() => validateCreateReportInput(req, res)).toThrow(expect.objectContaining({ statusCode: 400 }));
     });
 
     it("should handle request with undefined body", () => {
@@ -91,14 +87,11 @@ describe("Report Validators", () => {
 
       const res = httpMocks.createResponse();
 
-      const result = validateCreateReportInput(req, res);
-
       // Deve fallire con 400 perché mancano titolo, descrizione, ecc.
       // Ma NON deve lanciare eccezioni di destructuring.
-      expect(res.statusCode).toBe(400);
-      const data = res._getJSONData();
-      expect(data.errors).toContain("Title is required.");
-      expect(result).toBeNull();
+      expect(() => validateCreateReportInput(req, res)).toThrow();
+      expect(() => validateCreateReportInput(req, res)).toThrow(/Title is required/);
+      expect(() => validateCreateReportInput(req, res)).toThrow(expect.objectContaining({ statusCode: 400 }));
     });
   });
 
