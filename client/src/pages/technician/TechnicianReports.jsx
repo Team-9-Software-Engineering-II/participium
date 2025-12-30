@@ -56,6 +56,25 @@ export default function TechnicianReports({ type = "active" }) {
   // Ricarica i report quando cambia il tipo di vista (Active/History)
   useEffect(() => {
     fetchReports();
+    
+    // Aggiungi listener per ricaricare quando la chat viene chiusa o ci sono cambiamenti
+    const handleRefresh = () => {
+      console.log('[TechnicianReports] Refresh triggered by event');
+      fetchReports();
+    };
+    
+    globalThis.addEventListener('chatMessageRead', handleRefresh);
+    
+    // Polling automatico ogni 10 secondi per aggiornare l'ordinamento
+    const interval = setInterval(() => {
+      console.log('[TechnicianReports] Auto-refresh triggered');
+      fetchReports();
+    }, 10000);
+    
+    return () => {
+      globalThis.removeEventListener('chatMessageRead', handleRefresh);
+      clearInterval(interval);
+    };
   }, [type]);
 
   const fetchReports = async () => {
@@ -87,8 +106,64 @@ export default function TechnicianReports({ type = "active" }) {
 
       console.log(`Filtered reports for type "${type}":`, filteredData);
 
-      // 3. Ordina per data (più recenti in alto)
-      filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      // 3. Per ogni report, calcola il numero di messaggi non letti (SOLO per tipo "maintainer")
+      if (type === "maintainer" && user?.id) {
+        console.log('[Sorting] Starting unread count calculation for maintainer reports...');
+        await Promise.all(
+          filteredData.map(async (report) => {
+            try {
+              const messagesResponse = await messageAPI.getMessages(report.id);
+              const messages = messagesResponse.data || [];
+              
+              if (messages.length > 0) {
+                const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+                const lastReadId = localStorage.getItem(storageKey);
+                
+                if (lastReadId) {
+                  const lastReadIdNum = Number.parseInt(lastReadId, 10);
+                  const newMessages = messages.filter(m => 
+                    m.id > lastReadIdNum && m.author?.id !== user.id
+                  );
+                  report._unreadCount = newMessages.length;
+                  console.log(`[Sorting] Report ${report.id} (${report.title}): ${newMessages.length} unread messages (lastReadId: ${lastReadIdNum})`);
+                } else {
+                  const unread = messages.filter(m => m.author?.id !== user.id);
+                  report._unreadCount = unread.length;
+                  console.log(`[Sorting] Report ${report.id} (${report.title}): ${unread.length} unread messages (no history)`);
+                }
+              } else {
+                report._unreadCount = 0;
+                console.log(`[Sorting] Report ${report.id} (${report.title}): 0 messages`);
+              }
+            } catch (error) {
+              console.error(`Error fetching messages for report ${report.id}:`, error);
+              report._unreadCount = 0;
+            }
+          })
+        );
+        console.log('[Sorting] Unread count calculation completed');
+        console.log('[Sorting] Reports before sorting:', filteredData.map(r => ({ id: r.id, title: r.title, unread: r._unreadCount, date: r.createdAt })));
+      }
+
+      // 4. Ordina: prima per messaggi non letti (se tipo "maintainer"), poi per data
+      filteredData.sort((a, b) => {
+        if (type === "maintainer") {
+          // Prima i report con messaggi non letti
+          const aUnread = a._unreadCount || 0;
+          const bUnread = b._unreadCount || 0;
+          console.log(`[Sorting] Comparing: "${a.title}" (unread: ${aUnread}) vs "${b.title}" (unread: ${bUnread})`);
+          if (aUnread !== bUnread) {
+            console.log(`[Sorting] -> Sorting by unread count: ${bUnread - aUnread}`);
+            return bUnread - aUnread; // Decrescente
+          }
+        }
+        // Poi per data (più recenti in alto)
+        const result = new Date(b.createdAt) - new Date(a.createdAt);
+        console.log(`[Sorting] -> Sorting by date: ${result}`);
+        return result;
+      });
+      
+      console.log('[Sorting] Reports after sorting:', filteredData.map(r => ({ id: r.id, title: r.title, unread: r._unreadCount || 0, date: r.createdAt })));
       
       setReports(filteredData);
     } catch (error) {
@@ -418,8 +493,8 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
 
     checkUnreadMessages();
     
-    // Ricontrolla ogni 10 secondi
-    const interval = setInterval(checkUnreadMessages, 10000);
+    // Ricontrolla ogni 5 secondi (più frequente)
+    const interval = setInterval(checkUnreadMessages, 5000);
     
     // Ascolta eventi per aggiornare il badge
     const handleStorageChange = () => checkUnreadMessages();
