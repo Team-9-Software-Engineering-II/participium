@@ -66,7 +66,7 @@ beforeAll(async () => {
   try {
     await initializeEmailTransporter();
     await setupTestDatabase();
-    
+
     adminCookie = await loginAndGetCookie(adminLogin);
 
     const citizenRole = await db.Role.findOne({ where: { name: "citizen" } });
@@ -358,6 +358,71 @@ describe("API Authentication Flow (Citizen)", () => {
         .get("/auth/session")
         .set("Cookie", citizenCookie);
       expect(checkRes.statusCode).toBe(401);
+    });
+  });
+
+  describe("Authorization Middlewares (RBAC & Ownership)", () => {
+    /**
+     * @test Verifies isCitizen middleware.
+     * @description Ensures Admin role is blocked from Citizen-only report creation.
+     */
+    it("should return 403 if an Admin tries to access a citizen-only endpoint", async () => {
+      // The route in report-router is "/", but mounted under "/reports"
+      const res = await request(app)
+        .post("/reports")
+        .set("Cookie", adminCookie)
+        .send({});
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden: citizen only");
+    });
+
+    /**
+     * @test Verifies isAuthenticated middleware.
+     * @description Ensures unauthenticated guests cannot access assigned reports.
+     */
+    it("should return 401 if a guest attempts to access a protected route", async () => {
+      const res = await request(app).get("/reports/assigned");
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("User not authenticated");
+    });
+
+    /**
+     * @test Verifies isOwner middleware.
+     * @description Checks that a user cannot retrieve reports belonging to another user ID.
+     */
+    it("should return 401 if a user attempts to access another user's private data", async () => {
+      const targetUserId = 9999; // ID not belonging to the logged-in citizen
+      const res = await request(app)
+        .get(`/reports/user/${targetUserId}`)
+        .set("Cookie", citizenCookie);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("User not authenticated");
+    });
+
+    /**
+     * @test Verifies isOwnerOrPublicRelationsOfficer middleware.
+     * @description Confirms PR Officers can bypass ownership checks to view user reports.
+     */
+    it("should allow a PR Officer to access any user's reports", async () => {
+      // Fetch Mario Rossi (ID 1 from seeder)
+      const citizen = await db.User.findOne({
+        where: { username: "mario.rossi" },
+      });
+
+      const prOfficerLogin = {
+        username: "pr_officer",
+        password: "password123",
+      };
+      const prCookie = await loginAndGetCookie(prOfficerLogin);
+
+      const res = await request(app)
+        .get(`/reports/user/${citizen.id}`)
+        .set("Cookie", prCookie);
+
+      expect(res.statusCode).toBe(200);
     });
   });
 });
