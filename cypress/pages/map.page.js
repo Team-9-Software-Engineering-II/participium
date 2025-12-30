@@ -5,6 +5,12 @@ class MapViewPage {
     searchResults: () => cy.get('[data-cy="search-result"]'),
     userMarker: () => cy.get(".custom-user-marker"),
     createReportButton: () => cy.get('[data-cy="create-report-button"]'),
+    /** @returns {Cypress.Chainable} Selector for approved report markers */
+    reportMarkers: () => cy.get('[data-cy="report-marker"]'),
+    /** @returns {Cypress.Chainable} Selector for the report info window/popup */
+    reportPopup: () => cy.get('[data-cy="report-popup"]'),
+    /** @returns {Cypress.Chainable} Selector for clusters (optional, but useful) */
+    reportClusters: () => cy.get('[data-cy="report-cluster-icon"]'),
   };
 
   /**
