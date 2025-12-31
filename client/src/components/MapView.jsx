@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, GeoJSON } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, GeoJSON, Circle } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isPointInTurin, fetchTurinBoundary } from "@/lib/geoUtils";
+import { hasHouseNumber } from "@/lib/geoFilters";
 import { toast } from "sonner";
 import { REPORT_STATUS } from "@/lib/reportColors";
 
@@ -206,7 +207,14 @@ function CenterOnReport({ selectedReport }) {
 
 // --- MAIN COMPONENT ---
 
-export function MapView({ reports = [], selectedReport = null }) {
+export function MapView({ 
+  reports = [], 
+  selectedReport = null, 
+  onGeoFilterApplied = null,
+  geoFilterActive = false,
+  geoFilter = null,
+  onClearGeoFilter = null
+}) {
   const { theme } = useTheme();
   const [position, setPosition] = useState(DEFAULT_CENTER); 
   const [address, setAddress] = useState("");
@@ -217,6 +225,9 @@ export function MapView({ reports = [], selectedReport = null }) {
   const searchTimeoutRef = useRef(null);
   const [turinGeoJSON, setTurinGeoJSON] = useState(null);
   
+  // Geographic filter states
+  const [radiusCircle, setRadiusCircle] = useState(null);
+  
   const isSearching = useRef(false);
 
   useEffect(() => {
@@ -226,6 +237,30 @@ export function MapView({ reports = [], selectedReport = null }) {
     };
     loadData();
   }, []);
+  
+  // Clear search bar and map overlays when geoFilterActive becomes false
+  useEffect(() => {
+    if (!geoFilterActive) {
+      setSearchQuery("");
+      setRadiusCircle(null);
+    }
+  }, [geoFilterActive]);
+  
+  // Restore map position and visuals when geographic filter is applied (e.g., from sessionStorage)
+  useEffect(() => {
+    if (geoFilterActive && geoFilter) {
+      if (geoFilter.type === 'radius' && geoFilter.center) {
+        // Restore radius circle and position
+        setRadiusCircle({ center: geoFilter.center, radius: geoFilter.radius || 500 });
+        setPosition(geoFilter.center);
+        setSearchQuery(geoFilter.address || '');
+      } else if (geoFilter.type === 'street' && geoFilter.center) {
+        // Restore street filter position (coordinates are saved in geoFilter)
+        setPosition(geoFilter.center);
+        setSearchQuery(geoFilter.address || geoFilter.streetName || '');
+      }
+    }
+  }, [geoFilterActive, geoFilter]);
   
   // Geolocation is used to help users quickly select their current location for reporting urban issues
   // eslint-disable-next-line sonarjs/geolocation
@@ -248,14 +283,46 @@ export function MapView({ reports = [], selectedReport = null }) {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ', Torino')}&addressdetails=1&limit=1&countrycodes=it`);
       const results = await res.json();
       if (results.length > 0) {
-        const lat = Number.parseFloat(results[0].lat);
-        const lon = Number.parseFloat(results[0].lon);
+        const result = results[0];
+        const lat = Number.parseFloat(result.lat);
+        const lon = Number.parseFloat(result.lon);
         isSearching.current = true;
         setPosition([lat, lon]);
-        setAddress(results[0].display_name);
+        setAddress(result.display_name);
         setShowSearchResults(false);
+        
+        // Check if address has house number
+        const hasNumber = hasHouseNumber(result.display_name);
+        
+        if (hasNumber) {
+          // Address with house number - show radius circle
+          setRadiusCircle({ center: [lat, lon], radius: 500 });
+          if (onGeoFilterApplied) {
+            onGeoFilterApplied({
+              type: 'radius',
+              center: [lat, lon],
+              radius: 500,
+              address: result.display_name
+            });
+          }
+        } else {
+          // Street name only - filter by street name
+          setRadiusCircle(null);
+          const streetName = result.address?.road || result.display_name.split(',')[0];
+          
+          if (onGeoFilterApplied) {
+            onGeoFilterApplied({
+              type: 'street',
+              streetName: streetName,
+              address: result.display_name,
+              center: [lat, lon] // Save coordinates for later restore
+            });
+          }
+        }
       }
-    } catch (error) { console.error(error); }
+    } catch (error) { 
+      console.error(error);
+    }
   };
 
   const handleSearchInput = (value) => {
@@ -274,14 +341,53 @@ export function MapView({ reports = [], selectedReport = null }) {
   };
 
   const selectSearchResult = (result) => {
+    const lat = Number.parseFloat(result.lat);
+    const lon = Number.parseFloat(result.lon);
     isSearching.current = true;
-    setPosition([Number.parseFloat(result.lat), Number.parseFloat(result.lon)]);
+    setPosition([lat, lon]);
     setAddress(result.display_name);
     setSearchQuery(result.display_name);
     setShowSearchResults(false);
+    
+    // Check if address has house number
+    const hasNumber = hasHouseNumber(result.display_name);
+    
+    if (hasNumber) {
+      // Address with house number - show radius circle
+      setRadiusCircle({ center: [lat, lon], radius: 500 });
+      if (onGeoFilterApplied) {
+        onGeoFilterApplied({
+          type: 'radius',
+          center: [lat, lon],
+          radius: 500,
+          address: result.display_name
+        });
+      }
+    } else {
+      // Street name only - filter by street name
+      setRadiusCircle(null);
+      const streetName = result.address?.road || result.display_name.split(',')[0];
+      
+      if (onGeoFilterApplied) {
+        onGeoFilterApplied({
+          type: 'street',
+          streetName: streetName,
+          address: result.display_name,
+          center: [lat, lon] // Save coordinates for later restore
+        });
+      }
+    }
   };
 
-  const clearSearch = () => { setSearchQuery(""); setSearchResults([]); setShowSearchResults(false); };
+  const clearSearch = () => { 
+    setSearchQuery(""); 
+    setSearchResults([]); 
+    setShowSearchResults(false); 
+    setRadiusCircle(null);
+    if (onClearGeoFilter) {
+      onClearGeoFilter();
+    }
+  };
 
   return (
     <div className="relative w-full h-full">
@@ -365,7 +471,28 @@ export function MapView({ reports = [], selectedReport = null }) {
             turinGeoJSON={turinGeoJSON} 
           />
           
-          <MarkerClusterGroup chunkedLoading iconCreateFunction={createClusterCustomIcon} maxClusterRadius={80} spiderfyOnMaxZoom={true} showCoverageOnHover={false}>
+          {/* Radius circle overlay */}
+          {radiusCircle && (
+            <Circle 
+              center={radiusCircle.center} 
+              radius={radiusCircle.radius} 
+              pathOptions={{
+                color: '#3B82F6',
+                fillColor: '#3B82F6',
+                fillOpacity: 0.1,
+                weight: 2
+              }}
+            />
+          )}
+          
+          <MarkerClusterGroup 
+            key={`cluster-${reports.length}-${geoFilterActive}`}
+            chunkedLoading 
+            iconCreateFunction={createClusterCustomIcon} 
+            maxClusterRadius={80} 
+            spiderfyOnMaxZoom={true} 
+            showCoverageOnHover={false}
+          >
             {reports.map((report) => (
               <Marker 
                 key={report.id} 

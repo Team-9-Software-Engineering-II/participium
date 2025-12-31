@@ -44,6 +44,27 @@ export default function ExternalMaintainerReports({ type = "active" }) {
 
   useEffect(() => {
     fetchReports();
+    
+    // Aggiungi listener per ricaricare quando la chat viene chiusa o ci sono cambiamenti
+    const handleRefresh = () => {
+      console.log('[ExternalMaintainerReports] Refresh triggered by event');
+      fetchReports();
+    };
+    
+    globalThis.addEventListener('chatMessageRead', handleRefresh);
+    globalThis.addEventListener('maintainerReportsRefresh', handleRefresh);
+    
+    // Polling automatico ogni 10 secondi per aggiornare l'ordinamento
+    const interval = setInterval(() => {
+      console.log('[ExternalMaintainerReports] Auto-refresh triggered');
+      fetchReports();
+    }, 10000);
+    
+    return () => {
+      globalThis.removeEventListener('chatMessageRead', handleRefresh);
+      globalThis.removeEventListener('maintainerReportsRefresh', handleRefresh);
+      clearInterval(interval);
+    };
   }, [type]);
 
   const fetchReports = async () => {
@@ -62,7 +83,52 @@ export default function ExternalMaintainerReports({ type = "active" }) {
         }
       });
 
-      filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      // Calcola il numero di messaggi non letti per ogni report (SOLO per "active")
+      if (type === "active" && user?.id) {
+        await Promise.all(
+          filteredData.map(async (report) => {
+            try {
+              const messagesResponse = await messageAPI.getMessages(report.id);
+              const messages = messagesResponse.data || [];
+              
+              if (messages.length > 0) {
+                const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+                const lastReadId = localStorage.getItem(storageKey);
+                
+                if (lastReadId) {
+                  const lastReadIdNum = Number.parseInt(lastReadId, 10);
+                  const newMessages = messages.filter(m => 
+                    m.id > lastReadIdNum && m.author?.id !== user.id
+                  );
+                  report._unreadCount = newMessages.length;
+                } else {
+                  const unread = messages.filter(m => m.author?.id !== user.id);
+                  report._unreadCount = unread.length;
+                }
+              } else {
+                report._unreadCount = 0;
+              }
+            } catch (error) {
+              console.error(`Error fetching messages for report ${report.id}:`, error);
+              report._unreadCount = 0;
+            }
+          })
+        );
+      }
+
+      // Ordina: prima per messaggi non letti (se "active"), poi per data
+      filteredData.sort((a, b) => {
+        if (type === "active") {
+          // Prima i report con messaggi non letti
+          const aUnread = a._unreadCount || 0;
+          const bUnread = b._unreadCount || 0;
+          if (aUnread !== bUnread) {
+            return bUnread - aUnread; // Decrescente
+          }
+        }
+        // Poi per data (più recenti in alto)
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
       
       setReports(filteredData);
     } catch (error) {
@@ -322,8 +388,8 @@ function UnreadMessageBadge({ reportId, userId }) {
 
     checkUnreadMessages();
     
-    // Ricontrolla ogni 10 secondi
-    const interval = setInterval(checkUnreadMessages, 10000);
+    // Ricontrolla ogni 5 secondi (più frequente)
+    const interval = setInterval(checkUnreadMessages, 5000);
     
     // Ascolta eventi per aggiornare il badge
     const handleStorageChange = () => checkUnreadMessages();
