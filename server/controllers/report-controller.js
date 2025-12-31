@@ -41,8 +41,7 @@ export async function getAllReports(req, res, next) {
       // only accepted reports
       const publicReports = reports.filter(
         (r) =>
-          r.status !== REPORT.STATUS.PENDING_APPROVAL &&
-          r.status !== REPORT.STATUS.REJECTED
+          r.status == REPORT.STATUS.ASSIGNED
       );
       return res.status(200).json(publicReports);
     }
@@ -105,12 +104,8 @@ export async function getReportById(req, res, next) {
     const isLoggedIn = req.isAuthenticated && req.isAuthenticated();
 
     if (!isLoggedIn) {
-      const isPrivate =
-        report.status === REPORT.STATUS.PENDING_APPROVAL ||
-        report.status === REPORT.STATUS.REJECTED;
-
-      if (isPrivate) {
-        // return 404 for security reasons
+      // only accepted reports
+      if (report.status !== REPORT.STATUS.ASSIGNED) {
         return res.status(404).json({ message: "Report not found." });
       }
     }
