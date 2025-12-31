@@ -5,6 +5,8 @@ import { seedCompanies } from "./seed-company.mjs";
 import { seedReports } from "./seed-reports.mjs";
 import { seedRoles } from "./seed-roles.mjs";
 import { seedTechnicalOffices } from "./seed-technical-office.mjs";
+import { seedUserRoles } from "./seed-user-role.mjs";
+import { seedUserTechnicalOffices } from "./seed-user-technical-office.mjs";
 import { seedUsers } from "./seed-users.mjs";
 
 /**
@@ -23,6 +25,8 @@ export const seedDatabase = async () => {
     await seedCompanyCategories();
     await seedUsers();
     await seedReports();
+    await seedUserRoles();
+    await seedUserTechnicalOffices();
 
     logger.info("Database seeding finished successfully.");
   } catch (err) {

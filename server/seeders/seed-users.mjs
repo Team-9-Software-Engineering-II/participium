@@ -16,7 +16,6 @@ const getCitizenUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Mario",
       lastName: "Rossi",
-      roleId: 1,
     },
     {
       email: "citizen2@example.com",
@@ -24,7 +23,6 @@ const getCitizenUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Anna",
       lastName: "Neri",
-      roleId: 1,
     },
     {
       email: "citizen3@example.com",
@@ -32,7 +30,6 @@ const getCitizenUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Paolo",
       lastName: "Gialli",
-      roleId: 1,
     },
   ];
 };
@@ -50,7 +47,6 @@ const getAdminUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Admin",
       lastName: "User",
-      roleId: 2,
     },
   ];
 };
@@ -68,7 +64,6 @@ const getMunicipalUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Giulia",
       lastName: "Bianchi",
-      roleId: 3,
     },
   ];
 };
@@ -86,8 +81,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Luca",
       lastName: "Rossi",
-      roleId: 4,
-      technicalOfficeId: 1,
     },
     // Tech Staff 2 (Office ID 2: Accessibility and Mobility)
     {
@@ -96,8 +89,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Sara",
       lastName: "Neri",
-      roleId: 4,
-      technicalOfficeId: 2,
     },
     // Tech Staff 3 (Office ID 3: Sewerage Network)
     {
@@ -106,8 +97,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Marco",
       lastName: "Verdi",
-      roleId: 4,
-      technicalOfficeId: 3,
     },
     // Tech Staff 4 (Office ID 4: Public Lighting)
     {
@@ -116,8 +105,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Laura",
       lastName: "Gialli",
-      roleId: 4,
-      technicalOfficeId: 4,
     },
     // Tech Staff 5 (Office ID 5: Waste Management)
     {
@@ -126,8 +113,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Davide",
       lastName: "Bianchi",
-      roleId: 4,
-      technicalOfficeId: 5,
     },
     // Tech Staff 6 (Office ID 6: Traffic Management)
     {
@@ -136,8 +121,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Elena",
       lastName: "Marrone",
-      roleId: 4,
-      technicalOfficeId: 6,
     },
     // Tech Staff 7 (Office ID 7: Roads Maintenance)
     {
@@ -146,8 +129,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Andrea",
       lastName: "Blu",
-      roleId: 4,
-      technicalOfficeId: 7,
     },
     // Tech Staff 8 (Office ID 8: Parks and Green Areas)
     {
@@ -156,8 +137,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Silvia",
       lastName: "Nero",
-      roleId: 4,
-      technicalOfficeId: 8,
     },
     // Tech Staff 9 (Office ID 9: General Services)
     {
@@ -166,8 +145,6 @@ const getStaffUsers = (hashedPassword) => {
       hashedPassword,
       firstName: "Paolo",
       lastName: "Grigio",
-      roleId: 4,
-      technicalOfficeId: 9,
     },
   ];
 };
@@ -186,7 +163,6 @@ const getExternalMaintainers = (hashedPassword) => {
       hashedPassword,
       firstName: "Davide",
       lastName: "Rizzo",
-      roleId: 5,
       companyId: 1,
     },
     // External Maintainer 2 (IREN - Lighting, Company ID 2)
@@ -196,7 +172,7 @@ const getExternalMaintainers = (hashedPassword) => {
       hashedPassword,
       firstName: "Chiara",
       lastName: "Galli",
-      roleId: 5,
+
       companyId: 2,
     },
     // External Maintainer 3 (AMIAT - Waste, Company ID 3)
@@ -206,7 +182,7 @@ const getExternalMaintainers = (hashedPassword) => {
       hashedPassword,
       firstName: "Simone",
       lastName: "Longo",
-      roleId: 5,
+
       companyId: 3,
     },
     // External Maintainer 4 (GTT - Traffic/Roads, Company ID 4)
@@ -216,7 +192,7 @@ const getExternalMaintainers = (hashedPassword) => {
       hashedPassword,
       firstName: "Federica",
       lastName: "Mancini",
-      roleId: 5,
+
       companyId: 4,
     },
     {
@@ -225,7 +201,7 @@ const getExternalMaintainers = (hashedPassword) => {
       hashedPassword,
       firstName: "Federico",
       lastName: "Bianchi",
-      roleId: 5,
+
       companyId: 5,
     },
   ];
@@ -242,7 +218,6 @@ const getTestUser = (hashedPassword) => {
     hashedPassword,
     firstName: "test",
     lastName: "test",
-    roleId: 1,
   };
 };
 

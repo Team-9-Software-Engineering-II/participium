@@ -213,11 +213,22 @@ export class AuthService {
     delete plainUser.hashedPassword;
 
     // Ensure role is properly converted to a plain object with name property
-    if (plainUser.role && typeof plainUser.role === "object") {
+    if (
+      plainUser.roles &&
+      Array.isArray(plainUser.roles) &&
+      plainUser.roles.length > 0
+    ) {
       plainUser.role = {
-        id: plainUser.role.id,
-        name: plainUser.role.name,
+        id: plainUser.roles[0].id,
+        name: plainUser.roles[0].name,
       };
+      plainUser.roles = plainUser.roles.map((r) => ({
+        id: r.id,
+        name: r.name,
+      }));
+    } else {
+      plainUser.role = null;
+      plainUser.roles = [];
     }
 
     return plainUser;
