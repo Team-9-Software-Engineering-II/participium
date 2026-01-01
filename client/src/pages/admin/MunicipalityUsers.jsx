@@ -109,9 +109,13 @@ export default function MunicipalityUsers() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [editUserRoles, setEditUserRoles] = useState([]); // Array di ruoli assegnati all'utente
+  const [originalUserRoles, setOriginalUserRoles] = useState([]); // Ruoli originali per confronto
   const [newRoleToAdd, setNewRoleToAdd] = useState('');
+  const [newRoleTechnicalOfficeId, setNewRoleTechnicalOfficeId] = useState('');
+  const [newRoleCompanyId, setNewRoleCompanyId] = useState('');
   const [editError, setEditError] = useState(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [companies, setCompanies] = useState([]);
 
   // Delete User Dialog States
   const [userToDelete, setUserToDelete] = useState(null);
@@ -143,14 +147,14 @@ export default function MunicipalityUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Carica Ruoli e Uffici Tecnici quando si apre il dialog
+  // Carica Ruoli, Uffici Tecnici e Companies quando si apre il dialog
   const fetchDataForDialog = useCallback(async () => {
     setIsRolesLoading(true);
     setRolesError(null);
     try {
       const [rolesRes, officesRes] = await Promise.all([
         adminAPI.getRoles(),
-        adminAPI.getTechnicalOffices() // Chiama la nuova route /offices
+        adminAPI.getTechnicalOffices()
       ]);
 
       // Processa Ruoli
@@ -165,6 +169,11 @@ export default function MunicipalityUsers() {
 
       // Processa Uffici
       setTechnicalOffices(Array.isArray(officesRes.data) ? officesRes.data : []);
+
+      // TODO: Companies - L'endpoint /admin/companies non esiste ancora nel backend
+      // Quando sarà implementato, aggiungere: adminAPI.getCompanies()
+      // Per ora lasciamo vuoto - il campo company non sarà disponibile per External Maintainer
+      setCompanies([]);
 
     } catch (err) {
       console.error('Failed to load form data', err);
@@ -275,8 +284,12 @@ export default function MunicipalityUsers() {
     // Simula ruoli multipli - quando il backend sarà pronto, user.roles sarà un array
     // Per ora usiamo il ruolo singolo come array
     const userRoles = user.roles || (user.role ? [user.role] : []);
-    setEditUserRoles(Array.isArray(userRoles) ? userRoles : [userRoles]);
+    const normalizedRoles = Array.isArray(userRoles) ? userRoles : [userRoles];
+    setEditUserRoles(normalizedRoles);
+    setOriginalUserRoles(normalizedRoles); // Salva i ruoli originali
     setNewRoleToAdd('');
+    setNewRoleTechnicalOfficeId('');
+    setNewRoleCompanyId('');
     setEditError(null);
     setIsEditDialogOpen(true);
   };
@@ -285,7 +298,10 @@ export default function MunicipalityUsers() {
     setIsEditDialogOpen(false);
     setEditingUser(null);
     setEditUserRoles([]);
+    setOriginalUserRoles([]);
     setNewRoleToAdd('');
+    setNewRoleTechnicalOfficeId('');
+    setNewRoleCompanyId('');
     setEditError(null);
   };
 
@@ -298,6 +314,22 @@ export default function MunicipalityUsers() {
     const roleToAdd = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
     if (!roleToAdd) return;
 
+    const roleName = roleToAdd.name.toLowerCase();
+    const isTechnicalRole = roleName.includes('technical_staff') || roleName.includes('technician');
+    const isExternalRole = roleName.includes('external_maintainer') || roleName.includes('external');
+
+    // Validazione ufficio tecnico
+    if (isTechnicalRole && !newRoleTechnicalOfficeId) {
+      setEditError('Please select a Technical Office for this role.');
+      return;
+    }
+
+    // Validazione company
+    if (isExternalRole && !newRoleCompanyId) {
+      setEditError('Please select a Company for this role.');
+      return;
+    }
+
     // Controlla se il ruolo è già assegnato
     const alreadyHasRole = editUserRoles.some(r => 
       normalizeRole(r) === normalizeRole(roleToAdd.name)
@@ -308,11 +340,36 @@ export default function MunicipalityUsers() {
       return;
     }
 
-    // Aggiungi il ruolo alla lista
-    setEditUserRoles(prev => [...prev, { id: roleToAdd.id, name: roleToAdd.name }]);
+    // Aggiungi il ruolo alla lista con le informazioni aggiuntive
+    const newRole = { 
+      id: roleToAdd.id, 
+      name: roleToAdd.name 
+    };
+
+    if (isTechnicalRole) {
+      newRole.technicalOfficeId = Number(newRoleTechnicalOfficeId);
+    }
+    if (isExternalRole) {
+      newRole.companyId = Number(newRoleCompanyId);
+    }
+
+    setEditUserRoles(prev => [...prev, newRole]);
     setNewRoleToAdd('');
+    setNewRoleTechnicalOfficeId('');
+    setNewRoleCompanyId('');
     setEditError(null);
   };
+
+  // Verifica se ci sono modifiche ai ruoli
+  const hasRoleChanges = useMemo(() => {
+    if (editUserRoles.length !== originalUserRoles.length) return true;
+    
+    // Confronta i ruoli normalizzati
+    const currentRoleNames = editUserRoles.map(r => normalizeRole(r)).sort();
+    const originalRoleNames = originalUserRoles.map(r => normalizeRole(r)).sort();
+    
+    return !currentRoleNames.every((role, index) => role === originalRoleNames[index]);
+  }, [editUserRoles, originalUserRoles]);
 
   const handleRemoveRoleFromUser = (roleToRemove) => {
     if (editUserRoles.length === 1) {
@@ -797,13 +854,31 @@ export default function MunicipalityUsers() {
                   editUserRoles.map((role) => {
                     const roleName = extractRoleName(role);
                     const roleId = typeof role === 'object' ? role.id : role;
+                    
+                    // Determina informazioni aggiuntive (ufficio/company)
+                    let additionalInfo = null;
+                    if (typeof role === 'object') {
+                      if (role.technicalOfficeId) {
+                        const office = technicalOffices.find(o => o.id === role.technicalOfficeId);
+                        additionalInfo = office ? ` • ${office.name}` : ' • Office';
+                      } else if (role.companyId) {
+                        const company = companies.find(c => c.id === role.companyId);
+                        additionalInfo = company ? ` • ${company.name}` : ' • Company';
+                      }
+                    }
+                    
                     return (
                       <div
                         key={roleId || roleName}
                         className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
                         data-cy="assigned-role-item"
                       >
-                        <span className="text-sm font-medium">{roleName}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{roleName}</span>
+                          {additionalInfo && (
+                            <span className="text-xs text-muted-foreground">{additionalInfo}</span>
+                          )}
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
@@ -829,7 +904,12 @@ export default function MunicipalityUsers() {
               <div className="flex gap-2">
                 <Select
                   value={newRoleToAdd}
-                  onValueChange={setNewRoleToAdd}
+                  onValueChange={(value) => {
+                    setNewRoleToAdd(value);
+                    setNewRoleTechnicalOfficeId('');
+                    setNewRoleCompanyId('');
+                    setEditError(null);
+                  }}
                   disabled={isRolesLoading || !!rolesError}
                 >
                   <SelectTrigger id="newRole" data-cy="select-new-role" className="flex-1">
@@ -859,6 +939,68 @@ export default function MunicipalityUsers() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Campo condizionale per Technical Office */}
+              {(() => {
+                if (!newRoleToAdd) return null;
+                const selectedRole = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
+                const roleName = selectedRole?.name.toLowerCase() || '';
+                const isTechnicalRole = roleName.includes('technical_staff') || roleName.includes('technician');
+                
+                if (!isTechnicalRole) return null;
+
+                return (
+                  <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Label htmlFor="newRoleTechnicalOffice">Technical Office</Label>
+                    <Select
+                      value={newRoleTechnicalOfficeId}
+                      onValueChange={setNewRoleTechnicalOfficeId}
+                    >
+                      <SelectTrigger id="newRoleTechnicalOffice" data-cy="select-new-role-office">
+                        <SelectValue placeholder="Select an office" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {technicalOffices.map((office) => (
+                          <SelectItem key={office.id} value={String(office.id)}>
+                            {office.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()}
+
+              {/* Campo condizionale per Company */}
+              {(() => {
+                if (!newRoleToAdd) return null;
+                const selectedRole = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
+                const roleName = selectedRole?.name.toLowerCase() || '';
+                const isExternalRole = roleName.includes('external_maintainer') || roleName.includes('external');
+                
+                if (!isExternalRole) return null;
+
+                return (
+                  <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Label htmlFor="newRoleCompany">Company</Label>
+                    <Select
+                      value={newRoleCompanyId}
+                      onValueChange={setNewRoleCompanyId}
+                    >
+                      <SelectTrigger id="newRoleCompany" data-cy="select-new-role-company">
+                        <SelectValue placeholder="Select a company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={String(company.id)}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()}
             </div>
 
             {editError && (
@@ -877,7 +1019,7 @@ export default function MunicipalityUsers() {
             <Button
               type="button"
               onClick={handleSaveUserRoles}
-              disabled={isEditSubmitting || editUserRoles.length === 0}
+              disabled={isEditSubmitting || editUserRoles.length === 0 || !hasRoleChanges}
               data-cy="save-roles"
             >
               {isEditSubmitting ? 'Saving...' : 'Save changes'}
