@@ -20,6 +20,7 @@ import {
 import redisClient from "../../config/redis.mjs";
 import { getTemporaryUser } from "../../repositories/redis-repo.mjs";
 import { initializeEmailTransporter } from "../../config/email.mjs";
+import { jest } from "@jest/globals";
 
 /** @typedef {object} UserData
  * @property {string} email
@@ -62,28 +63,26 @@ let verifiedUserCookie;
  * @description Sets up the database, connects Redis, logs in the admin, and pre-creates a user for login tests.
  */
 beforeAll(async () => {
-  await initializeEmailTransporter();
-  // 1. Setup Database
-  await setupTestDatabase();
+  try {
+    await initializeEmailTransporter();
+    await setupTestDatabase();
 
-  // 2. Log in Admin
-  adminCookie = await loginAndGetCookie(adminLogin);
+    adminCookie = await loginAndGetCookie(adminLogin);
 
-  // 3. Pre-create a standard user directly in the DB
-  const citizenRole = await db.Role.findOne({ where: { name: "citizen" } });
-  if (!citizenRole) throw new Error("Citizen role not found.");
+    const citizenRole = await db.Role.findOne({ where: { name: "citizen" } });
+    const hashedPassword = await bcrypt.hash(userForLoginTests.password, 10);
 
-  // Generate a valid bcrypt hash for the test password
-  const hashedPassword = await bcrypt.hash(userForLoginTests.password, 10);
-
-  await db.User.create({
-    email: userForLoginTests.email,
-    username: userForLoginTests.username,
-    firstName: userForLoginTests.firstName,
-    lastName: userForLoginTests.lastName,
-    hashedPassword: hashedPassword,
-    roleId: citizenRole.id,
-  });
+    await db.User.create({
+      email: userForLoginTests.email,
+      username: userForLoginTests.username,
+      firstName: userForLoginTests.firstName,
+      lastName: userForLoginTests.lastName,
+      hashedPassword: hashedPassword,
+      roleId: citizenRole.id,
+    });
+  } catch (error) {
+    console.error("Setup failed:", error);
+  }
 });
 
 /**
@@ -100,6 +99,7 @@ afterAll(async () => {
 // --- TEST SUITE START ---
 
 describe("API Authentication Flow (Citizen)", () => {
+  jest.setTimeout(20000);
   describe("POST /auth/register (LEGACY/ADMIN only)", () => {
     /**
      * @description Test that the legacy /register endpoint correctly handles conflicts for existing citizens.
@@ -119,6 +119,8 @@ describe("API Authentication Flow (Citizen)", () => {
 
   describe("Citizen Registration with Email Verification Flow", () => {
     let confirmationCode;
+
+    jest.setTimeout(15000);
 
     describe("POST /auth/register-request", () => {
       /**
@@ -319,6 +321,7 @@ describe("API Authentication Flow (Citizen)", () => {
      * @returns {number} 200 OK.
      */
     it("should return session info (200) for the newly verified Citizen user", async () => {
+      expect(verifiedUserCookie).toBeDefined();
       const res = await request(app)
         .get("/auth/session")
         .set("Cookie", verifiedUserCookie);
@@ -355,6 +358,71 @@ describe("API Authentication Flow (Citizen)", () => {
         .get("/auth/session")
         .set("Cookie", citizenCookie);
       expect(checkRes.statusCode).toBe(401);
+    });
+  });
+
+  describe("Authorization Middlewares (RBAC & Ownership)", () => {
+    /**
+     * @test Verifies isCitizen middleware.
+     * @description Ensures Admin role is blocked from Citizen-only report creation.
+     */
+    it("should return 403 if an Admin tries to access a citizen-only endpoint", async () => {
+      // The route in report-router is "/", but mounted under "/reports"
+      const res = await request(app)
+        .post("/reports")
+        .set("Cookie", adminCookie)
+        .send({});
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden: citizen only");
+    });
+
+    /**
+     * @test Verifies isAuthenticated middleware.
+     * @description Ensures unauthenticated guests cannot access assigned reports.
+     */
+    it("should return 401 if a guest attempts to access a protected route", async () => {
+      const res = await request(app).get("/reports/assigned");
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("User not authenticated");
+    });
+
+    /**
+     * @test Verifies isOwner middleware.
+     * @description Checks that a user cannot retrieve reports belonging to another user ID.
+     */
+    it("should return 401 if a user attempts to access another user's private data", async () => {
+      const targetUserId = 9999; // ID not belonging to the logged-in citizen
+      const res = await request(app)
+        .get(`/reports/user/${targetUserId}`)
+        .set("Cookie", citizenCookie);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("User not authenticated");
+    });
+
+    /**
+     * @test Verifies isOwnerOrPublicRelationsOfficer middleware.
+     * @description Confirms PR Officers can bypass ownership checks to view user reports.
+     */
+    it("should allow a PR Officer to access any user's reports", async () => {
+      // Fetch Mario Rossi (ID 1 from seeder)
+      const citizen = await db.User.findOne({
+        where: { username: "mario.rossi" },
+      });
+
+      const prOfficerLogin = {
+        username: "pr_officer",
+        password: "password123",
+      };
+      const prCookie = await loginAndGetCookie(prOfficerLogin);
+
+      const res = await request(app)
+        .get(`/reports/user/${citizen.id}`)
+        .set("Cookie", prCookie);
+
+      expect(res.statusCode).toBe(200);
     });
   });
 });

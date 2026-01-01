@@ -7,7 +7,7 @@ import technicianLayoutPage from "../../pages/technician/technician-layout.page"
 
 describe("Technician Report Management", () => {
   // Reliance on seeded data for external assignment flow
-  const EXTERNAL_COMPANY_NAME = "C.I.T. Servizi Urbani";
+  const EXTERNAL_COMPANY_NAME = "SMAT S.p.A.";
 
   /** @type {string} Stores the title of the first active report dynamically read from the UI. */
   let dynamicReportTitle;
@@ -59,7 +59,9 @@ describe("Technician Report Management", () => {
    * Checks that the history view displays either the list of reports or the empty state.
    */
   it("should switch to history view and show report list/empty view", () => {
+    cy.intercept("GET", "**/offices/reports/**").as("getReports");
     cy.visit("/technical/reports/history");
+    cy.wait("@getReports");
 
     cy.get("body").then(($body) => {
       const isReportListPresent =
@@ -68,7 +70,7 @@ describe("Technician Report Management", () => {
       if (isReportListPresent) {
         technicianLayoutPage.elements
           .reportCardFirst()
-          .should("have.length.greaterThan", 0);
+          .should("be.visible");
       } else {
         cy.contains("No history").should("exist");
       }
