@@ -611,6 +611,47 @@ paths:
         '403':
           description: Forbidden (technical staff only)
 
+  /offices/reports/{reportId}/status:
+    put:
+      summary: (Technical Staff or External Maintainer) Update report status
+      description: >
+        Allows a technical staff member or external maintainer to update the status of a report assigned to them.
+        The allowed statuses are: 'In Progress', 'Resolved', 'Suspended'.
+        The user must be either the technical officer or external maintainer assigned to the report.
+      tags: [Technical Offices]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report to update
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff_or_external_maintainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportStatusUpdate'
+      responses:
+        '200':
+          description: Report status successfully updated. Returns the updated report object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId or invalid status value
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - user is not assigned to this report
+        '404':
+          description: Report not found
+
   /offices/reports/{reportId}/assign-external:
     put:
       summary: (Technical Staff) Assign a report to an external maintainer
@@ -687,6 +728,47 @@ paths:
           description: Forbidden (technical staff only).
         '404':
           description: Report not found.
+
+  /external-maintainer/reports/{reportId}/status:
+    put:
+      summary: (External Maintainer) Update report status
+      description: >
+        Allows an external maintainer to update the status of a report assigned to them.
+        The allowed statuses are: 'In Progress', 'Resolved', 'Suspended'.
+        The external maintainer must be assigned to the report.
+      tags: [External Maintainer]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report to update
+      security:
+        - BearerAuth: []
+      x-security-role: external_maintainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportStatusUpdate'
+      responses:
+        '200':
+          description: Report status successfully updated. Returns the updated report object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId or invalid status value
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - user is not assigned to this report
+        '404':
+          description: Report not found
 
   /messages/reports/{reportId}:
     post:
@@ -1315,6 +1397,15 @@ components:
         name:
           type: string
           description: Name of the Technical Office.
+
+    ReportStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [In Progress, Resolved, Suspended]
+          description: The new status for the report. Only these three statuses are allowed.
 
     ExternalMaintainerAssignment:
       type: object
