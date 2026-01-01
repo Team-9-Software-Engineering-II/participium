@@ -90,34 +90,46 @@ const ReportStatus = ({ currentStatus }) => {
           const isCompleted = index < progressIndex || currentStatus === 'Resolved';
           const isActive = step.id === currentStatus;
 
+          // Determina le classi CSS per l'icona
+          let iconClasses = "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-300 shrink-0";
+          if (isCompleted) {
+            iconClasses = cn(iconClasses, "border-green-500 bg-green-500 text-white");
+          } else if (isActive) {
+            iconClasses = cn(iconClasses, "border-blue-600 bg-card text-blue-600 dark:text-blue-400 ring-4 ring-blue-50 dark:ring-blue-900/30");
+          } else {
+            iconClasses = cn(iconClasses, "border-muted bg-card text-muted-foreground");
+          }
+
+          // Determina l'icona da mostrare
+          let IconComponent;
+          if (isCompleted) {
+            IconComponent = <CheckCircle2 className="h-5 w-5" />;
+          } else if (isActive) {
+            IconComponent = <Clock className="h-5 w-5 animate-pulse" />;
+          } else {
+            IconComponent = <Circle className="h-5 w-5" />;
+          }
+
+          // Determina le classi CSS per il testo
+          let textClasses = "text-xs font-bold uppercase tracking-wide";
+          if (isActive) {
+            textClasses = cn(textClasses, "text-blue-700 dark:text-blue-400");
+          } else if (isCompleted) {
+            textClasses = cn(textClasses, "text-green-700 dark:text-green-400");
+          } else {
+            textClasses = cn(textClasses, "text-muted-foreground");
+          }
+
           return (
             <div key={step.id} className="flex flex-col items-center gap-2 relative bg-card px-2 z-10">
               {/* Icona */}
-              <div 
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-300 shrink-0",
-                  isCompleted 
-                    ? "border-green-500 bg-green-500 text-white" 
-                    : isActive 
-                      ? "border-blue-600 bg-card text-blue-600 dark:text-blue-400 ring-4 ring-blue-50 dark:ring-blue-900/30" 
-                      : "border-muted bg-card text-muted-foreground"
-                )}
-              >
-                {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : 
-                 isActive ? <Clock className="h-5 w-5 animate-pulse" /> : 
-                 <Circle className="h-5 w-5" />}
+              <div className={iconClasses}>
+                {IconComponent}
               </div>
 
               {/* Testo */}
               <div className="flex flex-col items-center text-center">
-                <span className={cn(
-                  "text-xs font-bold uppercase tracking-wide",
-                  isActive 
-                    ? "text-blue-700 dark:text-blue-400" 
-                    : isCompleted 
-                      ? "text-green-700 dark:text-green-400" 
-                      : "text-muted-foreground"
-                )}>
+                <span className={textClasses}>
                   {step.label}
                 </span>
                 <span className="text-[10px] text-muted-foreground max-w-[80px] leading-tight">
