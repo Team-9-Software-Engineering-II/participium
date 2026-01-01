@@ -7,14 +7,9 @@ export class RoleService {
   static async getAssignableRoles() {
     const allRoles = await findAllRoles();
 
-    const assignableRoles = allRoles.filter((role) => {
+    return allRoles.filter((role) => {
       const roleName = role.name.toLowerCase();
-      return (
-        roleName !== "citizen" &&
-        roleName !== "admin"
-      );
+      return roleName !== "citizen" && roleName !== "admin";
     });
-
-    return assignableRoles;
   }
 }

@@ -117,4 +117,28 @@ describe("Map interactions as guest", () => {
 
     cy.get(".custom-user-marker").should("not.exist");
   });
+
+  /**
+   * @description Test case to verify that approved reports are displayed as markers on the map.
+   * This ensures that unregistered users can see existing issues.
+   */
+  it("should display approved reports as markers on the map", () => {
+    // Check that report markers exist and are visible
+    MapViewPage.elements
+      .reportMarkers()
+      .should("exist")
+      .and("have.length.greaterThan", 0);
+  });
+
+  /**
+   * @description Test case to verify that clicking an approved report marker
+   * opens a popup or side panel with the report details.
+   */
+  it("should show report details when clicking on an approved report marker", () => {
+    // Interact with the first available report marker
+    MapViewPage.elements.reportMarkers().first().click({ force: true });
+
+    // Verify the report detail container (popup/modal) is visible
+    MapViewPage.elements.reportPopup().should("be.visible");
+  });
 });

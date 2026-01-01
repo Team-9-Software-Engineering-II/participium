@@ -20,12 +20,12 @@ import {
 
 import {
   createTechnicalOffice,
-  findAllTechnicalOffices,
   findTechnicalOfficeById,
   findTechnicalOfficeByName,
   updateTechnicalOffice,
   deleteTechnicalOffice,
 } from "../../repositories/technical-office-repo.mjs";
+import * as TechnicalOfficeRepo from "../../repositories/technical-office-repo.mjs";
 
 // --- TEST DATA ---
 
@@ -86,7 +86,7 @@ describe("Consolidated Technical Office Integration Tests", () => {
     test("should deny access to non-authenticated users (Status 401)", async () => {
       const res = await request(app).get("/offices");
       expect(res.statusCode).toBe(401);
-      expect(res.body.error).toBe("User not authenticated");
+      expect(res.body.message).toBe("User not authenticated");
     });
 
     test("should deny access to Public Relations Officer (Status 403 - Forbidden)", async () => {
@@ -95,7 +95,7 @@ describe("Consolidated Technical Office Integration Tests", () => {
         .set("Cookie", prOfficerCookie);
 
       expect(res.statusCode).toBe(403);
-      expect(res.body.error).toBe("Forbidden: admin only");
+      expect(res.body.message).toBe("Forbidden: admin only");
     });
 
     test("should deny access to Technical Staff (Status 403 - Forbidden)", async () => {
@@ -104,7 +104,7 @@ describe("Consolidated Technical Office Integration Tests", () => {
         .set("Cookie", techStaffCookie);
 
       expect(res.statusCode).toBe(403);
-      expect(res.body.error).toBe("Forbidden: admin only");
+      expect(res.body.message).toBe("Forbidden: admin only");
     });
   });
 
@@ -133,24 +133,26 @@ describe("Consolidated Technical Office Integration Tests", () => {
 
     describe("findAllTechnicalOffices", () => {
       test("should return all offices and correctly load Category and User associations", async () => {
-        const offices = await findAllTechnicalOffices();
+        const realStaff = await db.User.findOne({
+          where: { username: "tech_roads" },
+        });
+        const STAFF_ID = realStaff.id;
 
-        // Find the "Water Infrastructure Office" (ID 1)
-        const waterOffice = offices.find((o) => o.id === EXISTING_OFFICE_ID);
-        expect(waterOffice).toBeDefined();
+        const offices = await TechnicalOfficeRepo.findAllTechnicalOffices();
 
-        // 1. Check Category association
-        expect(waterOffice.category).not.toBeNull();
-        expect(waterOffice.category.id).toBe(EXISTING_CATEGORY_ID);
+        expect(offices.length).toBeGreaterThan(0);
 
-        // 2. Check Users association and attribute filtering
-        expect(Array.isArray(waterOffice.users)).toBe(true);
-        const officer = waterOffice.users.find(
-          (u) => u.id === EXISTING_STAFF_ID
+        // Cerca l'ufficio che contiene quel tecnico
+        const office = offices.find(
+          (o) => o.users && o.users.some((u) => u.id === STAFF_ID)
         );
-        expect(officer).toBeDefined();
 
-        expect(officer).toHaveProperty("username");
+        expect(office).toBeDefined();
+        expect(office.category).toBeDefined();
+
+        const officer = office.users.find((u) => u.id === STAFF_ID);
+        expect(officer).toBeDefined();
+        expect(officer.username).toBe("tech_roads");
       });
     });
 

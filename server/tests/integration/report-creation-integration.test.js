@@ -123,7 +123,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Title is required.");
+      expect(res.body.message).toContain("Title is required.");
     });
 
     it("should fail with invalid 'categoryId' type (400)", async () => {
@@ -134,7 +134,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Valid categoryId is required.");
+      expect(res.body.message).toContain("Valid categoryId is required.");
     });
 
     it("should fail with invalid 'latitude' value (400)", async () => {
@@ -145,7 +145,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain(
+      expect(res.body.message).toContain(
         "Latitude must be a number between -90 and 90."
       );
     });
@@ -158,7 +158,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain(
+      expect(res.body.message).toContain(
         "Photos array must contain between 1 and 3 items."
       );
     });
@@ -174,7 +174,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain(
+      expect(res.body.message).toContain(
         "Photos array must contain between 1 and 3 items."
       );
     });

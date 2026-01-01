@@ -1,5 +1,5 @@
 import db from "../models/index.mjs";
-
+import logger from "../shared/logging/logger.mjs";
 /**
  * Seeds the N:M relationship table CompanyCategory.
  */
@@ -33,9 +33,9 @@ export const seedCompanyCategories = async () => {
     // Bulk Insert nella tabella di giunzione
     await db.CompanyCategory.bulkCreate(associations);
 
-    console.log("Company-Category associations seeded successfully.");
+    logger.info("Company-Category associations seeded successfully.");
   } catch (err) {
-    console.error("Error seeding company-category associations:", err);
+    logger.error("Error seeding company-category associations:", err);
     throw err;
   }
 };

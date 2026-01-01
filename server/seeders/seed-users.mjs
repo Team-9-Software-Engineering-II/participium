@@ -1,5 +1,6 @@
 import db from "../models/index.mjs";
 import bcrypt from "bcrypt";
+import logger from "../shared/logging/logger.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -288,11 +289,11 @@ export const seedUsers = async () => {
     // 4. Bulk Insert
     await db.User.bulkCreate(allUsers);
 
-    console.log("Users seeded successfully.");
-    console.log("Default password for most users is: password123");
-    console.log("Password for 'test' user is: test");
+    logger.info("Users seeded successfully.");
+    logger.info("Default password for most users is: password123");
+    logger.info("Password for 'test' user is: test");
   } catch (err) {
-    console.error("Error seeding users:", err);
+    logger.error("Error seeding users:", err);
     throw err;
   }
 };

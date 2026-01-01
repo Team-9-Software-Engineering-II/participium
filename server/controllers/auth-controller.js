@@ -1,5 +1,6 @@
 import { AuthService } from "../services/auth-service.mjs";
 import { passport } from "../services/passport-service.mjs";
+import logger from "../shared/logging/logger.mjs";
 import { validateRegistrationInput } from "../shared/validators/user-registration-validator.mjs";
 /**
  * Sends a JSON response containing sanitized user data and session metadata.
@@ -86,6 +87,7 @@ export function currentSession(req, res) {
  * Terminates the current user session and clears related cookies.
  */
 export function logout(req, res, next) {
+  const user = req.user;
   req.logout((logoutError) => {
     if (logoutError) {
       return next(logoutError);
@@ -97,6 +99,9 @@ export function logout(req, res, next) {
           return next(sessionError);
         }
         res.clearCookie("connect.sid");
+        logger.info(
+          `User logged out successfully: ${user.username} (ID: ${user.id})`
+        );
         return res.status(204).send();
       });
     } else {

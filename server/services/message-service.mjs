@@ -1,5 +1,11 @@
-import { createMessage, findMessagesByReportId } from "../repositories/message-repo.mjs";
+import {
+  createMessage,
+  findMessagesByReportId,
+} from "../repositories/message-repo.mjs";
 import { findReportById } from "../repositories/report-repo.mjs";
+import logger from "../shared/logging/logger.mjs";
+import AppError from "../shared/utils/app-error.mjs";
+import { ReportService } from "./report-service.mjs";
 
 /**
  * Encapsulates message business logic and orchestrates repository calls.
@@ -14,18 +20,19 @@ export class MessageService {
    */
   static async createMessage(userId, reportId, content) {
     // Validate that the report exists
-    const report = await findReportById(reportId);
-    if (!report) {
-      const error = new Error("Report not found.");
-      error.statusCode = 404;
-      throw error;
-    }
+    const report = await ReportService.getReportById(reportId);
 
     // Validate content is provided and not empty
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      const error = new Error("Message content is required and cannot be empty.");
-      error.statusCode = 400;
-      throw error;
+    if (
+      !content ||
+      typeof content !== "string" ||
+      content.trim().length === 0
+    ) {
+      logger.warn("Message content is required and cannot be empty.");
+      throw new AppError(
+        "Message content is required and cannot be empty.",
+        400
+      );
     }
 
     // Create the message
@@ -51,36 +58,40 @@ export class MessageService {
    */
   static async getReportMessages(reportId, user) {
     // check if report exixts
+
     const report = await findReportById(reportId);
     if (!report) {
-      const error = new Error("Report not found.");
-      error.statusCode = 404;
-      throw error;
+      logger.warn(`Report with ID ${reportId} not found`);
+      throw new AppError(`Report with ID ${reportId} not found`, 404);
     }
-
     // check user authorization
     // user with role "citizen" cannot access internal messages
     if (user.role && user.role.name === "citizen") {
-      const error = new Error("Unauthorized: Citizens cannot access internal messages.");
-      error.statusCode = 403;
-      throw error;
+      logger.warn("Unauthorized: Citizens cannot access internal messages.");
+      throw new AppError(
+        "Unauthorized: Citizens cannot access internal messages.",
+        403
+      );
     }
 
     const isAdmin = user.role && user.role.name === "admin";
 
     // checking the assigned officer and maintainer
-    const isAssignedOfficer = report.technicalOfficerId && (report.technicalOfficerId == user.id);
-    const isAssignedMaintainer = report.externalMaintainerId && (report.externalMaintainerId == user.id);
+    const isAssignedOfficer =
+      report.technicalOfficerId && report.technicalOfficerId == user.id;
+    const isAssignedMaintainer =
+      report.externalMaintainerId && report.externalMaintainerId == user.id;
 
     // if not admin, not assigned officer and not assigned maintainer -> throw 403
     if (!isAdmin && !isAssignedOfficer && !isAssignedMaintainer) {
-        const error = new Error("Unauthorized: You are not assigned to this report.");
-        error.statusCode = 403;
-        throw error;
+      logger.warn("Unauthorized: You are not assigned to this report.");
+      throw new AppError(
+        "Unauthorized: You are not assigned to this report.",
+        403
+      );
     }
 
     // fetch and return messages
     return await findMessagesByReportId(reportId);
   }
 }
-

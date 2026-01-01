@@ -167,30 +167,31 @@ export default function Home() {
   // Load reports from API
   useEffect(() => {
     const fetchReports = async () => {
-      // PULIZIA: Rimosso controllo if (!isAuthenticated).
-      // Ci affidiamo alla risposta del backend (401 se non autorizzato).
-
       setLoading(true);
       try {
-        // Fetch all reports
-        // Nota: Se non autenticato, questo lancerà un errore (401) che verrà catturato sotto
+        // Fetch all reports - questo endpoint è pubblico
         const response = await reportAPI.getAll();
-        const assignedResponse = await reportAPI.getAssigned();
         const fetchedReports = response.data;
-        const assignedReports = assignedResponse.data;
 
-        setAllReports(assignedReports);
+        // Se l'utente è autenticato, carica anche i report assegnati
+        if (isAuthenticated) {
+          const assignedResponse = await reportAPI.getAssigned();
+          const assignedReports = assignedResponse.data;
+          setAllReports(assignedReports);
 
-        // OTTIMIZZAZIONE: Filtriamo i report dell'utente direttamente dai dati già scaricati
-        // invece di fare una seconda chiamata API ridondante.
-        if (user) {
-          const userReports = fetchedReports.filter(
-            (report) => report.userId === user.id
-          );
-          setMyReports(userReports);
+          // Filtriamo i report dell'utente direttamente dai dati già scaricati
+          if (user) {
+            const userReports = fetchedReports.filter(
+              (report) => report.userId === user.id
+            );
+            setMyReports(userReports);
+          }
+        } else {
+          // Se non autenticato, mostra tutti i report pubblici
+          setAllReports(fetchedReports);
+          setMyReports([]);
         }
       } catch (error) {
-        // Se l'errore è 401 (non autenticato) o altro, svuotiamo le liste
         console.error("Error fetching reports:", error);
         setAllReports([]);
         setMyReports([]);

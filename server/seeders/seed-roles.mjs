@@ -1,8 +1,6 @@
 import db from "../models/index.mjs";
 import logger from "../shared/logging/logger.mjs";
 
-const __logger = logger.child({ module: "SeedRoles" });
-
 /**
  * Populate the 'roles' table.
  */
@@ -21,9 +19,9 @@ export const seedRoles = async () => {
       { id: 5, name: "external_maintainer" },
     ]);
 
-    __logger.info("Roles seeded successfully.");
+    logger.info("Roles seeded successfully.");
   } catch (err) {
-    __logger.error("Error seeding roles:", { error: err.message });
+    logger.error("Error seeding roles:", err);
     throw err;
   }
 };

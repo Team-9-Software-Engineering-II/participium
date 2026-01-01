@@ -1,4 +1,5 @@
 import db from "../models/index.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 /**
  * Seeds the 'problems_categories' table with the default categories
@@ -68,9 +69,9 @@ export const seedCategories = async () => {
       },
     ]);
 
-    console.log("Categories seeded successfully.");
+    logger.info("Categories seeded successfully.");
   } catch (err) {
-    console.error("Error seeding categories:", err);
+    logger.error("Error seeding categories:", err);
     throw err;
   }
 };

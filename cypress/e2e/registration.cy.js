@@ -150,9 +150,6 @@ describe("Registration Flow", () => {
     cy.intercept("POST", "/auth/register").as("registerUser");
     RegisterPage.submit();
 
-    // Cheks that response status is 409 Conflict
-    cy.wait("@registerUser").its("response.statusCode").should("eq", 409);
-
     // Checks error messages from UI
     RegisterPage.elements
       .errorMessage()

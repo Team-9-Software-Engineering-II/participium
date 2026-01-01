@@ -79,6 +79,17 @@ jest.unstable_mockModule("../../../shared/validators/report-validator.mjs", () =
   validateCreateReportInput: mockValidateCreateReportInput,
 }));
 
+// Mocking the Logger
+const mockLogger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
+
+jest.unstable_mockModule("../../../shared/logging/logger.mjs", () => ({
+  default: mockLogger,
+}));
+
 // Dynamic import of the Report Service
 let ReportService;
 
@@ -262,11 +273,13 @@ describe("ReportService (Unit)", () => {
       mockSanitizeReport.mockReturnValue(null);
       mockFindReportById.mockResolvedValue(null);
 
-      const result = await ReportService.getReportById(reportId);
+      await expect(ReportService.getReportById(reportId)).rejects.toHaveProperty(
+        "statusCode",
+        404
+      );
 
       expect(mockFindReportById).toHaveBeenCalledWith(reportId);
-      expect(mockSanitizeReport).toHaveBeenCalledWith(null);
-      expect(result).toBeNull();
+      expect(mockSanitizeReport).not.toHaveBeenCalled();
     });
   });
 
@@ -594,9 +607,8 @@ describe("ReportService (Unit)", () => {
         technicalOffice: null,
       });
 
-      await expect(ReportService.acceptReport(reportId)).rejects.toHaveProperty(
-        "statusCode",
-        500
+      await expect(ReportService.acceptReport(reportId)).rejects.toThrow(
+        "Configuration Error: This report category is not linked to any Technical Office."
       );
     });
 
@@ -618,6 +630,9 @@ describe("ReportService (Unit)", () => {
     const mockPendingReport = { id: reportId, status: "Pending Approval" };
 
     it("should successfully reject report", async () => {
+      // Mock getReportById to return a report with status (since rejectReport calls getReportById)
+      const mockReportWithStatus = { id: reportId, status: "Pending Approval" };
+      mockSanitizeReport.mockReturnValue(mockReportWithStatus);
       mockFindReportById.mockResolvedValue(mockPendingReport);
       mockUpdateReport.mockResolvedValue([1]);
 
@@ -808,8 +823,6 @@ describe("ReportService (Unit)", () => {
 
   describe("createCitizenReport (OSM Logic)", () => {
     const originalFetch = global.fetch;
-    const originalConsoleWarn = console.warn;
-    const originalConsoleError = console.error;
 
     const inputPayload = {
       title: "Pothole",
@@ -824,8 +837,7 @@ describe("ReportService (Unit)", () => {
 
     beforeEach(() => {
       global.fetch = jest.fn();
-      console.warn = jest.fn();
-      console.error = jest.fn();
+      jest.clearAllMocks();
 
       // SETUP CRUCIALE:
       // 1. La categoria DEVE esistere, altrimenti esce prima dell'OSM
@@ -838,11 +850,9 @@ describe("ReportService (Unit)", () => {
 
     afterEach(() => {
       global.fetch = originalFetch;
-      console.warn = originalConsoleWarn;
-      console.error = originalConsoleError;
     });
 
-    // Copre righe 267-268: if (!response.ok) -> console.warn -> return null
+    // Copre righe 267-268: if (!response.ok) -> logger.warn -> return null
     it("should warn and use null address if OSM response is not OK", async () => {
       global.fetch.mockResolvedValue({
         ok: false,
@@ -851,21 +861,26 @@ describe("ReportService (Unit)", () => {
 
       await ReportService.createCitizenReport(userId, inputPayload);
 
-      expect(console.warn).toHaveBeenCalledWith("OSM response not ok:", 500);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("OSM response not ok: 500")
+      );
       expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
         latitude: 45.0,
         address: null 
       }));
     });
 
-    // Copre righe 287-288: catch (error) -> console.error -> return null
+    // Copre righe 287-288: catch (error) -> logger.error -> return null
     it("should error and use null address if fetch throws exception", async () => {
       const networkError = new Error("Network Down");
       global.fetch.mockRejectedValue(networkError);
 
       await ReportService.createCitizenReport(userId, inputPayload);
 
-      expect(console.error).toHaveBeenCalledWith("Error fetching address from OSM:", networkError);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining("Error fetching address from OSM"),
+        networkError
+      );
       expect(mockCreateReport).toHaveBeenCalledWith(expect.objectContaining({
         address: null
       }));

@@ -1,4 +1,5 @@
 import db from "../models/index.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 /**
  * Seeds the 'TechnicalOffices' table.
@@ -63,9 +64,9 @@ export const seedTechnicalOffices = async () => {
       },
     ]);
 
-    console.log("TechnicalOffices seeded successfully.");
+    logger.info("TechnicalOffices seeded successfully.");
   } catch (err) {
-    console.error("Error seeding technical offices:", err);
+    logger.error("Error seeding technical offices:", err);
     throw err;
   }
 };
