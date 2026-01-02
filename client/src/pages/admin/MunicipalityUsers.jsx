@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, UserRound, Eye, EyeOff } from 'lucide-react';
-import { adminAPI } from '@/services/api';
-import { Button } from '@/components/ui/button';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Search, UserRound, Eye, EyeOff } from "lucide-react";
+import { adminAPI } from "@/services/api";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,37 +11,40 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 // --- Helper Functions ---
 
 const extractRoleName = (role) => {
-  if (!role) return '';
-  if (typeof role === 'string') return role;
-  if (typeof role === 'object') {
-    return role.name ?? role.label ?? '';
+  if (!role) return "";
+  if (typeof role === "string") return role;
+  if (typeof role === "object") {
+    return role.name ?? role.name ?? "";
   }
-  return '';
+  return "";
 };
 
 const normalizeRole = (role) => extractRoleName(role).trim().toLowerCase();
 
 const isRestrictedRole = (role) => {
   const normalized = normalizeRole(role);
-  return normalized === 'admin' || normalized === 'citizen';
+  return normalized === "admin" || normalized === "citizen";
 };
 
 const formatDisplayName = (user) => {
-  const composedName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  const composedName = [user.firstName, user.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   if (composedName) return composedName;
   return user.username || user.email || `User ${user.id}`;
 };
@@ -51,44 +54,44 @@ const getOfficeDisplay = (user) => {
   const roleName = extractRoleName(user?.role);
   const normalized = normalizeRole(roleName);
 
-  if (normalized.includes('municipal') || normalized === 'mpro') {
-    return 'MPRO';
+  if (normalized.includes("municipal") || normalized === "mpro") {
+    return "MPRO";
   }
 
-  if (normalized.includes('technical') || normalized === 'technician') {
+  if (normalized.includes("technical") || normalized === "technician") {
     // Mostra il nome dell'ufficio se presente, altrimenti fallback
-    return user.technicalOffice?.name || 'Technical Office';
+    return user.technicalOffice?.name || "Technical Office";
   }
 
-  if (normalized.includes('external') || normalized === 'external_maintainer') {
+  if (normalized.includes("external") || normalized === "external_maintainer") {
     // Mostra il nome della company per gli external maintainer
-    return user.company?.name || 'External Company';
+    return user.company?.name || "External Company";
   }
 
-  return '—';
+  return "—";
 };
 
 export default function MunicipalityUsers() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+
   // Dialog & Form States
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [roleOptions, setRoleOptions] = useState([]);
   const [technicalOffices, setTechnicalOffices] = useState([]); // Stato per gli uffici
   const [isRolesLoading, setIsRolesLoading] = useState(false);
   const [rolesError, setRolesError] = useState(null);
-  
+
   const [formValues, setFormValues] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    username: '',
-    password: '',
-    roleId: '',
-    technicalOfficeId: '', // Nuovo campo per l'ufficio
+    firstName: "",
+    lastName: "",
+    email: "",
+    username: "",
+    password: "",
+    roleId: "",
+    technicalOfficeId: "", // Nuovo campo per l'ufficio
   });
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,11 +105,11 @@ export default function MunicipalityUsers() {
       const { data } = await adminAPI.getUsers();
       const list = Array.isArray(data) ? data : [];
       // Filtra via admin e citizen
-      const filtered = list.filter((user) => !isRestrictedRole(user?.role));
+      const filtered = list.filter((user) => !isRestrictedRole(user?.roles[0]));
       setUsers(filtered);
     } catch (err) {
-      console.error('Failed to fetch municipality users', err);
-      setError('Unable to load municipality users right now.');
+      console.error("Failed to fetch municipality users", err);
+      setError("Unable to load municipality users right now.");
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +126,7 @@ export default function MunicipalityUsers() {
     try {
       const [rolesRes, officesRes] = await Promise.all([
         adminAPI.getRoles(),
-        adminAPI.getTechnicalOffices() // Chiama la nuova route /offices
+        adminAPI.getTechnicalOffices(), // Chiama la nuova route /offices
       ]);
 
       // Processa Ruoli
@@ -137,11 +140,12 @@ export default function MunicipalityUsers() {
       setRoleOptions(formattedRoles);
 
       // Processa Uffici
-      setTechnicalOffices(Array.isArray(officesRes.data) ? officesRes.data : []);
-
+      setTechnicalOffices(
+        Array.isArray(officesRes.data) ? officesRes.data : []
+      );
     } catch (err) {
-      console.error('Failed to load form data', err);
-      setRolesError('Unable to load roles or offices.');
+      console.error("Failed to load form data", err);
+      setRolesError("Unable to load roles or offices.");
     } finally {
       setIsRolesLoading(false);
     }
@@ -149,7 +153,7 @@ export default function MunicipalityUsers() {
 
   useEffect(() => {
     if (!isAddDialogOpen) return;
-    if (roleOptions.length > 0) return; 
+    if (roleOptions.length > 0) return;
     fetchDataForDialog();
   }, [isAddDialogOpen, roleOptions.length, fetchDataForDialog]);
 
@@ -161,13 +165,13 @@ export default function MunicipalityUsers() {
     setIsAddDialogOpen(open);
     if (!open) {
       setFormValues({
-        firstName: '',
-        lastName: '',
-        email: '',
-        username: '',
-        password: '',
-        roleId: '',
-        technicalOfficeId: '',
+        firstName: "",
+        lastName: "",
+        email: "",
+        username: "",
+        password: "",
+        roleId: "",
+        technicalOfficeId: "",
       });
       setFormError(null);
       setRolesError(null);
@@ -185,26 +189,37 @@ export default function MunicipalityUsers() {
   // Logica condizionale: verifica se il ruolo selezionato è Technical Staff
   const isTechnicalStaffSelected = useMemo(() => {
     if (!formValues.roleId) return false;
-    const selectedRole = roleOptions.find(r => String(r.id) === String(formValues.roleId));
+    const selectedRole = roleOptions.find(
+      (r) => String(r.id) === String(formValues.roleId)
+    );
     // Controlla il nome del ruolo (case insensitive e parziale per sicurezza)
-    return selectedRole?.name.toLowerCase().includes('technical_staff');
+    return selectedRole?.name.toLowerCase().includes("technical_staff");
   }, [formValues.roleId, roleOptions]);
 
   const handleCreateUser = async (event) => {
     event.preventDefault();
     setFormError(null);
 
-    const requiredFields = ['firstName', 'lastName', 'email', 'username', 'password', 'roleId'];
-    const missing = requiredFields.filter((field) => !formValues[field]?.trim());
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "email",
+      "username",
+      "password",
+      "roleId",
+    ];
+    const missing = requiredFields.filter(
+      (field) => !formValues[field]?.trim()
+    );
 
     // Controllo specifico: se è Technical Staff, deve avere un ufficio selezionato
     if (isTechnicalStaffSelected && !formValues.technicalOfficeId) {
-      setFormError('Please select a Technical Office for the technical staff.');
+      setFormError("Please select a Technical Office for the technical staff.");
       return;
     }
 
     if (missing.length > 0) {
-      setFormError('Please complete all required fields before submitting.');
+      setFormError("Please complete all required fields before submitting.");
       return;
     }
 
@@ -231,10 +246,10 @@ export default function MunicipalityUsers() {
       await fetchUsers();
       handleDialogChange(false);
     } catch (err) {
-      console.error('Failed to create municipality user', err);
+      console.error("Failed to create municipality user", err);
       setFormError(
         err.response?.data?.message ||
-          'Unable to create the user right now. Please review the data and try again.'
+          "Unable to create the user right now. Please review the data and try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -251,7 +266,9 @@ export default function MunicipalityUsers() {
         user.email,
         user.username,
         extractRoleName(user?.role),
-      ].join(' ').toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
 
       return haystack.includes(term);
     });
@@ -261,20 +278,26 @@ export default function MunicipalityUsers() {
     if (isLoading) {
       return [
         <tr key="loading">
-          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+          <td
+            colSpan={3}
+            className="px-4 py-6 text-center text-sm text-muted-foreground"
+          >
             Loading municipality users...
           </td>
-        </tr>
+        </tr>,
       ];
     }
 
     if (displayedUsers.length === 0) {
       return [
         <tr key="empty">
-          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+          <td
+            colSpan={3}
+            className="px-4 py-6 text-center text-sm text-muted-foreground"
+          >
             No municipality users found matching your criteria.
           </td>
-        </tr>
+        </tr>,
       ];
     }
 
@@ -286,7 +309,9 @@ export default function MunicipalityUsers() {
               <UserRound className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <p className="font-semibold text-foreground">{formatDisplayName(user)}</p>
+              <p className="font-semibold text-foreground">
+                {formatDisplayName(user)}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {user.email || user.username || `ID: ${user.id}`}
               </p>
@@ -311,7 +336,9 @@ export default function MunicipalityUsers() {
           <p className="text-sm font-semibold uppercase tracking-wide text-primary/80">
             Team management
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-foreground">Municipality users</h1>
+          <h1 className="mt-1 text-3xl font-bold text-foreground">
+            Municipality users
+          </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Review, search and update municipal staff accounts.
           </p>
@@ -336,7 +363,11 @@ export default function MunicipalityUsers() {
                   Provide the account details. All fields are mandatory.
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-5" onSubmit={handleCreateUser} data-cy="create-user-modal">
+              <form
+                className="space-y-5"
+                onSubmit={handleCreateUser}
+                data-cy="create-user-modal"
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First name</Label>
@@ -345,7 +376,7 @@ export default function MunicipalityUsers() {
                       id="firstName"
                       autoComplete="given-name"
                       value={formValues.firstName}
-                      onChange={handleFormChange('firstName')}
+                      onChange={handleFormChange("firstName")}
                       placeholder="Alex"
                     />
                   </div>
@@ -356,7 +387,7 @@ export default function MunicipalityUsers() {
                       id="lastName"
                       autoComplete="family-name"
                       value={formValues.lastName}
-                      onChange={handleFormChange('lastName')}
+                      onChange={handleFormChange("lastName")}
                       placeholder="Bianchi"
                     />
                   </div>
@@ -370,7 +401,7 @@ export default function MunicipalityUsers() {
                       type="email"
                       autoComplete="email"
                       value={formValues.email}
-                      onChange={handleFormChange('email')}
+                      onChange={handleFormChange("email")}
                       placeholder="alex.bianchi@participium.gov"
                     />
                   </div>
@@ -381,7 +412,7 @@ export default function MunicipalityUsers() {
                       id="username"
                       autoComplete="username"
                       value={formValues.username}
-                      onChange={handleFormChange('username')}
+                      onChange={handleFormChange("username")}
                       placeholder="alex.bianchi"
                     />
                   </div>
@@ -389,50 +420,54 @@ export default function MunicipalityUsers() {
                 <div className="space-y-2">
                   <Label htmlFor="password">Temporary password</Label>
                   <div className="relative">
-                  <Input
-                    data-cy="password"
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={formValues.password}
-                    onChange={handleFormChange('password')}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    data-cy="toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
+                    <Input
+                      data-cy="password"
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={formValues.password}
+                      onChange={handleFormChange("password")}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      data-cy="toggle-password"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
-                
+
                 {/* Selezione Ruolo */}
                 <div className="space-y-2">
                   <Label htmlFor="roleId">Role</Label>
                   <Select
                     value={formValues.roleId}
-                    onValueChange={handleFormChange('roleId')}
+                    onValueChange={handleFormChange("roleId")}
                     disabled={isRolesLoading || !!rolesError}
                   >
                     <SelectTrigger id="roleId" data-cy="select-role">
                       <SelectValue
                         placeholder={(() => {
-                          if (isRolesLoading) return 'Loading roles…';
-                          if (rolesError) return 'Roles unavailable';
-                          return 'Select a role';
+                          if (isRolesLoading) return "Loading roles…";
+                          if (rolesError) return "Roles unavailable";
+                          return "Select a role";
                         })()}
                       />
                     </SelectTrigger>
                     <SelectContent>
                       {roleOptions.map((role) => (
-                        <SelectItem key={role.id} value={String(role.id)} data-cy="role">
+                        <SelectItem
+                          key={role.id}
+                          value={String(role.id)}
+                          data-cy="role"
+                        >
                           {role.name}
                         </SelectItem>
                       ))}
@@ -446,9 +481,12 @@ export default function MunicipalityUsers() {
                     <Label htmlFor="technicalOfficeId">Technical Office</Label>
                     <Select
                       value={formValues.technicalOfficeId}
-                      onValueChange={handleFormChange('technicalOfficeId')}
+                      onValueChange={handleFormChange("technicalOfficeId")}
                     >
-                      <SelectTrigger id="technicalOfficeId" data-cy="select-office">
+                      <SelectTrigger
+                        id="technicalOfficeId"
+                        data-cy="select-office"
+                      >
                         <SelectValue placeholder="Select an office" />
                       </SelectTrigger>
                       <SelectContent>
@@ -469,12 +507,21 @@ export default function MunicipalityUsers() {
                 )}
                 <DialogFooter className="pt-2">
                   <DialogClose asChild>
-                    <Button data-cy="cancel" type="button" variant="ghost" disabled={isSubmitting}>
+                    <Button
+                      data-cy="cancel"
+                      type="button"
+                      variant="ghost"
+                      disabled={isSubmitting}
+                    >
                       Cancel
                     </Button>
                   </DialogClose>
-                  <Button data-cy="submit" type="submit" disabled={isSubmitting || isRolesLoading}>
-                    {isSubmitting ? 'Creating...' : 'Create user'}
+                  <Button
+                    data-cy="submit"
+                    type="submit"
+                    disabled={isSubmitting || isRolesLoading}
+                  >
+                    {isSubmitting ? "Creating..." : "Create user"}
                   </Button>
                 </DialogFooter>
               </form>

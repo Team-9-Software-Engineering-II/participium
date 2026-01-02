@@ -6,7 +6,7 @@ import initTechnicalOfficeModel from "./technical-office.mjs";
 import initProblemCategoryModel from "./problem-category.mjs";
 import initReportModel from "./report.mjs";
 import initCompany from "./company.mjs";
-import initCompanyCategory from "./company-category.mjs";
+import initCompanyCategory from "./many-to-many/company-category.mjs";
 import initMessage from "./message.mjs";
 import initUserRole from "./many-to-many/user-role.mjs";
 import initUserTechOffice from "./many-to-many/user-technical-office.mjs";
