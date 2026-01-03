@@ -34,7 +34,10 @@ class MapViewPage {
       .clear({ force: true })
       .type(address, { force: true });
 
-    this.elements.searchResults().first().click({ force: true });
+    this.elements.searchResults()
+    .should("be.visible")
+    .contains(address)
+    .click({ force: true });
 
     return this;
   }

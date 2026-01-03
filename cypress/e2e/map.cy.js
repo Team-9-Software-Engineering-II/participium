@@ -141,4 +141,14 @@ describe("Map interactions as guest", () => {
     // Verify the report detail container (popup/modal) is visible
     MapViewPage.elements.reportPopup().should("be.visible");
   });
+
+  it("should move the map to the address when the user clicks the first search result", () => {
+    const addressToSearch = "Via Roma";
+
+    MapViewPage.searchAddress(addressToSearch);
+
+    MapViewPage.assertMarkerExists();
+
+    MapViewPage.elements.searchResults().should("not.exist");
+  });
 });
