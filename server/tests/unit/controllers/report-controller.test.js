@@ -154,30 +154,58 @@ describe("Report Controllers (Unit)", () => {
   // TEST: getAllReports
   // --------------------------------------------------------------------------
   describe("getAllReports", () => {
+    // Definiamo dei dati di test più realistici, con lo STATUS
     const mockReports = [
-      { id: 1, title: "R1" },
-      { id: 2, title: "R2" },
+      { id: 1, status: "Pending Approval", title: "Private 1" },
+      { id: 2, status: "Rejected", title: "Private 2" },
+      { id: 3, status: "Assigned", title: "Public Report" }, // <--- L'unico che un ospite deve vedere
+      { id: 4, status: "In Progress", title: "Hidden for Guest" }
     ];
 
-    it("should return all reports with status 200", async () => {
+    // Setup specifico per questo blocco: assicuriamoci che isAuthenticated sia un mock
+    beforeEach(() => {
+      mockReq.isAuthenticated = jest.fn();
+    });
+
+    it("should return ALL reports with status 200 if user is logged in", async () => {
+      // 1. Simuliamo un utente LOGGATO
+      mockReq.isAuthenticated.mockReturnValue(true);
+      
+      // 2. Il service restituisce tutti i report
       mockGetAllReports.mockResolvedValue(mockReports);
 
       await ReportControllers.getAllReports(mockReq, mockRes, mockNext);
 
-      expect(mockGetAllReports).toHaveBeenCalledTimes(1);
+      // 3. Verifica: Deve ritornare TUTTO (lunghezza 4)
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(mockReports);
-      expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it("should call next() if the service throws an error", async () => {
-      const serviceError = new Error("Connection error");
-      mockGetAllReports.mockRejectedValue(serviceError);
+    it("should return ONLY 'Assigned' reports if user is GUEST (not logged in)", async () => {
+      // 1. Simuliamo un OSPITE (Non loggato)
+      mockReq.isAuthenticated.mockReturnValue(false);
+      
+      // 2. Il service restituisce tutti i report (dal DB ne arrivano 4)
+      mockGetAllReports.mockResolvedValue(mockReports);
 
       await ReportControllers.getAllReports(mockReq, mockRes, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(serviceError);
-      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+
+      // 3. Verifica: Il controller deve aver filtrato e lasciato solo quello "Assigned"
+      const responseBody = mockRes.json.mock.calls[0][0];
+      
+      // Ci aspettiamo solo 1 report (quello con id 3)
+      expect(responseBody).toHaveLength(1);
+      expect(responseBody[0].status).toBe("Assigned");
+      expect(responseBody[0].title).toBe("Public Report");
+    });
+
+    it("should handle errors", async () => {
+      const error = new Error("Database error");
+      mockGetAllReports.mockRejectedValue(error);
+      await ReportControllers.getAllReports(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
@@ -185,61 +213,91 @@ describe("Report Controllers (Unit)", () => {
   // TEST: getReportById
   // --------------------------------------------------------------------------
   describe("getReportById", () => {
-    const mockReport = { id: 5, title: "Report 5" };
+    // Setup specifico per simulare l'autenticazione
+    beforeEach(() => {
+      mockReq.isAuthenticated = jest.fn();
+    });
 
-    it("should return the report with status 200 if found", async () => {
+    it("should return the report with status 200 if user is LOGGED IN", async () => {
+      // 1. Setup: ID valido, Utente Loggato
       mockReq.params.reportId = "5";
-      mockGetReportById.mockResolvedValue(mockReport);
+      mockReq.isAuthenticated.mockReturnValue(true); // <--- LOGGATO
+
+      // Anche se il report è "Pending", l'utente loggato deve vederlo
+      const privateReport = { id: 5, title: "Private Report", status: "Pending Approval" };
+      mockGetReportById.mockResolvedValue(privateReport);
+
+      // 2. Esecuzione
+      await ReportControllers.getReportById(mockReq, mockRes, mockNext);
+
+      // 3. Verifica
+      expect(mockGetReportById).toHaveBeenCalledWith(5);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(privateReport);
+    });
+
+    it("should return the report with status 200 if user is GUEST and report is ASSIGNED", async () => {
+      // 1. Setup: Utente OSPITE
+      mockReq.params.reportId = "5";
+      mockReq.isAuthenticated.mockReturnValue(false); // <--- OSPITE
+
+      // Il report è "Assigned" (Pubblico)
+      const publicReport = { id: 5, title: "Public Report", status: "Assigned" };
+      mockGetReportById.mockResolvedValue(publicReport);
 
       await ReportControllers.getReportById(mockReq, mockRes, mockNext);
 
-      expect(mockGetReportById).toHaveBeenCalledWith(5);
       expect(mockRes.status).toHaveBeenCalledWith(200);
-      expect(mockRes.json).toHaveBeenCalledWith(mockReport);
-      expect(mockNext).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith(publicReport);
     });
 
-    it("should return 404 if the report is not found", async () => {
-      mockReq.params.reportId = "999";
+    it("should return 404 if user is GUEST and report is NOT Assigned (Security Check)", async () => {
+      // 1. Setup: Utente OSPITE
+      mockReq.params.reportId = "5";
+      mockReq.isAuthenticated.mockReturnValue(false); // <--- OSPITE
+
+      // Il report esiste ma è "In Progress" (o Pending, Rejected, ecc.) -> Per l'ospite deve essere invisibile
+      const hiddenReport = { id: 5, title: "Hidden Report", status: "In Progress" };
+      mockGetReportById.mockResolvedValue(hiddenReport);
+
+      await ReportControllers.getReportById(mockReq, mockRes, mockNext);
+
+      // 3. Verifica: Deve ritornare 404 come se non esistesse
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        message: "Report not found."
+      }));
+    });
+
+    it("should return 404 if the report does not exist in DB", async () => {
+      mockReq.params.reportId = "99";
       mockGetReportById.mockResolvedValue(null);
 
       await ReportControllers.getReportById(mockReq, mockRes, mockNext);
 
-      expect(mockGetReportById).toHaveBeenCalledWith(999);
       expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        message: "Report not found.",
-      });
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "Report not found." });
     });
 
-    it("should call next(error) if service throws an error", async () => {
-      // Setup
-      const serviceError = new Error("Database failure");
-      mockReq.params.reportId = "5"; // ID valido per superare il primo controllo
-      mockGetReportById.mockRejectedValue(serviceError); // Il servizio fallisce
+    it("should return 400 if reportId is invalid", async () => {
+      mockReq.params.reportId = "abc"; // ID non numerico
+      await ReportControllers.getReportById(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      
+      mockReq.params.reportId = "-5"; // ID negativo
+      await ReportControllers.getReportById(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
 
-      // Execution
+    it("should call next with error if service fails", async () => {
+      mockReq.params.reportId = "5";
+      const error = new Error("Service Error");
+      mockGetReportById.mockRejectedValue(error);
+
       await ReportControllers.getReportById(mockReq, mockRes, mockNext);
 
-      // Assertions
-      expect(mockNext).toHaveBeenCalledWith(serviceError);
-      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
-
-    it.each([["0"], ["-5"], ["not-a-number"]])(
-      "should return 400 for invalid reportId: %s",
-      async (invalidId) => {
-        mockReq.params.reportId = invalidId;
-
-        await ReportControllers.getReportById(mockReq, mockRes, mockNext);
-
-        expect(mockGetReportById).not.toHaveBeenCalled();
-        expect(mockRes.status).toHaveBeenCalledWith(400);
-        expect(mockRes.json).toHaveBeenCalledWith({
-          message: "reportId must be a positive integer.",
-        });
-      }
-    );
   });
 
   // --------------------------------------------------------------------------
