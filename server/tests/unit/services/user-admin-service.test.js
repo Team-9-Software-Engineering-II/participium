@@ -149,4 +149,84 @@ describe("UserAdminService (Unit)", () => {
       expect(mockTransaction.commit).not.toHaveBeenCalled();
     });
   });
+
+  // --------------------------------------------------------------------------
+  // TEST: deleteUser (NUOVO)
+  // --------------------------------------------------------------------------
+  describe("deleteUser", () => {
+    const userId = 5;
+
+    it("should successfully delete a non-citizen user", async () => {
+      const mockUser = {
+        id: userId,
+        roles: [{ id: 1, name: "technical_staff" }],
+      };
+      mockFindUserById.mockResolvedValue(mockUser);
+      mockDeleteUser.mockResolvedValue(true);
+
+      const result = await UserAdminService.deleteUser(userId);
+
+      expect(mockFindUserById).toHaveBeenCalledWith(userId);
+      expect(mockDeleteUser).toHaveBeenCalledWith(userId);
+      expect(result).toBe(true);
+    });
+
+    it("should throw 404 if user does not exist", async () => {
+      mockFindUserById.mockResolvedValue(null);
+
+      await expect(UserAdminService.deleteUser(userId))
+        .rejects
+        .toThrow(new AppError(`User with ID ${userId} not found.`, 404));
+
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should throw 403 if user is a citizen", async () => {
+      const mockUser = {
+        id: userId,
+        roles: [{ id: 1, name: "citizen" }],
+      };
+      mockFindUserById.mockResolvedValue(mockUser);
+
+      await expect(UserAdminService.deleteUser(userId))
+        .rejects
+        .toThrow(new AppError("Operation not allowed: You cannot delete a Citizen account.", 403));
+
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should throw 403 if user has multiple roles including citizen", async () => {
+      const mockUser = {
+        id: userId,
+        roles: [
+          { id: 1, name: "citizen" },
+          { id: 2, name: "technical_staff" },
+        ],
+      };
+      mockFindUserById.mockResolvedValue(mockUser);
+
+      await expect(UserAdminService.deleteUser(userId))
+        .rejects
+        .toThrow(new AppError("Operation not allowed: You cannot delete a Citizen account.", 403));
+
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should successfully delete user with multiple non-citizen roles", async () => {
+      const mockUser = {
+        id: userId,
+        roles: [
+          { id: 1, name: "technical_staff" },
+          { id: 2, name: "municipal_public_relations_officer" },
+        ],
+      };
+      mockFindUserById.mockResolvedValue(mockUser);
+      mockDeleteUser.mockResolvedValue(true);
+
+      const result = await UserAdminService.deleteUser(userId);
+
+      expect(mockDeleteUser).toHaveBeenCalledWith(userId);
+      expect(result).toBe(true);
+    });
+  });
 });

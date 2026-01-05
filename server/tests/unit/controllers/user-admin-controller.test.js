@@ -18,14 +18,16 @@ jest.unstable_mockModule("../../../services/auth-service.mjs", () => ({
 }));
 
 // Mock per UserAdminService
-// MOCKIAMO SOLO QUELLO CHE CI SERVE: getUsers e updateUserRoles
+// MOCKIAMO SOLO QUELLO CHE CI SERVE: getUsers, updateUserRoles, e deleteUser
 const mockGetUsers = jest.fn();
 const mockUpdateUserRoles = jest.fn();
+const mockDeleteUser = jest.fn();
 
 jest.unstable_mockModule("../../../services/user-admin-service.mjs", () => ({
   UserAdminService: {
     getUsers: mockGetUsers,
     updateUserRoles: mockUpdateUserRoles,
+    deleteUser: mockDeleteUser,
   },
 }));
 
@@ -200,6 +202,94 @@ describe("UserAdminController (Unit)", () => {
       mockUpdateUserRoles.mockRejectedValue(error);
 
       await UserAdminController.updateUserRoles(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: deleteUser (NUOVO)
+  // --------------------------------------------------------------------------
+  describe("deleteUser", () => {
+    it("should delete user and return 204 if userId is valid", async () => {
+      req.params.userId = "5";
+      req.user = { id: 1 }; // Different user (admin deleting another user)
+      mockDeleteUser.mockResolvedValue(true);
+
+      await UserAdminController.deleteUser(req, res, next);
+
+      expect(mockDeleteUser).toHaveBeenCalledWith(5);
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if userId is invalid (non-numeric)", async () => {
+      req.params.userId = "abc";
+      req.user = { id: 1 };
+
+      await UserAdminController.deleteUser(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "userId must be a positive integer.",
+      });
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if userId is negative", async () => {
+      req.params.userId = "-5";
+      req.user = { id: 1 };
+
+      await UserAdminController.deleteUser(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 if userId is zero", async () => {
+      req.params.userId = "0";
+      req.user = { id: 1 };
+
+      await UserAdminController.deleteUser(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should return 403 if user tries to delete their own account", async () => {
+      req.params.userId = "10";
+      req.user = { id: 10 }; // Same user ID
+
+      await UserAdminController.deleteUser(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "You cannot delete your own account.",
+      });
+      expect(mockDeleteUser).not.toHaveBeenCalled();
+    });
+
+    it("should call next(error) if service throws (e.g. User not found)", async () => {
+      req.params.userId = "999";
+      req.user = { id: 1 };
+      const error = new Error("User with ID 999 not found.");
+      error.statusCode = 404;
+      mockDeleteUser.mockRejectedValue(error);
+
+      await UserAdminController.deleteUser(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+
+    it("should call next(error) if service throws (e.g. Cannot delete citizen)", async () => {
+      req.params.userId = "2";
+      req.user = { id: 1 };
+      const error = new Error("Operation not allowed: You cannot delete a Citizen account.");
+      error.statusCode = 403;
+      mockDeleteUser.mockRejectedValue(error);
+
+      await UserAdminController.deleteUser(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
     });
