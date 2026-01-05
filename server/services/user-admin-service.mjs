@@ -1,6 +1,7 @@
 import {
     findAllUsers,
     findUserById,
+    deleteUser
 } from "../repositories/user-repo.mjs";
 import { findRoleById } from "../repositories/role-repo.mjs";
 import { sanitizeUser } from "../shared/utils/userUtils.mjs";
@@ -48,6 +49,27 @@ export class UserAdminService {
             await t.rollback();
             throw error;
         }
+    }
+
+    /**
+     * Removes a user from the system.
+     * @param {number} userId - Identifier of the user to delete.
+     * @returns {Promise<boolean>} True if operation was successful.
+     * @throws {AppError} If the user is not found.
+     */
+    static async deleteUser(userId) {
+        const user = await findUserById(userId);
+        if (!user) {
+            throw new AppError(`User with ID ${userId} not found.`, 404);
+        }
+        const isCitizen = user.roles.some(role => role.name === "citizen"); 
+        
+        if (isCitizen) {
+             throw new AppError("Operation not allowed: You cannot delete a Citizen account.", 403);
+        }
+        await deleteUser(userId);
+
+        return true;
     }
 
     /**

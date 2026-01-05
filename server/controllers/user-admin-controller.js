@@ -61,3 +61,26 @@ export async function updateUserRoles(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Handles HTTP requests for deleting a municipality user.
+ */
+export async function deleteUser(req, res, next) {
+  try {
+    const userId = Number(req.params.userId);
+
+    if (!isIdNumberAndPositive(userId) || userId <= 0) {
+      return res.status(400).json({ message: "userId must be a positive integer." });
+    }
+
+    if (req.user && req.user.id === userId) {
+      return res.status(403).json({ message: "You cannot delete your own account." });
+    }
+
+    await UserAdminService.deleteUser(userId);
+
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+}
