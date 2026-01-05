@@ -12,6 +12,14 @@ export default (sequelize) => {
       content: {
         type: DataTypes.TEXT,
         allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
+      },
+      isRead: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
       },
     },
     {

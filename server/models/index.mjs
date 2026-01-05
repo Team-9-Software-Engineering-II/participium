@@ -10,6 +10,7 @@ import initCompanyCategory from "./many-to-many/company-category.mjs";
 import initMessage from "./message.mjs";
 import initUserRole from "./many-to-many/user-role.mjs";
 import initUserTechOffice from "./many-to-many/user-technical-office.mjs";
+import initNotificationModel from "./notification.mjs";
 
 const db = {};
 
@@ -27,6 +28,7 @@ db.CompanyCategory = initCompanyCategory(sequelize);
 db.Message = initMessage(sequelize);
 db.UserRole = initUserRole(sequelize);
 db.UserTechOffice = initUserTechOffice(sequelize);
+db.Notification = initNotificationModel(sequelize);
 
 /* User - Role relationship (N:M) */
 db.User.belongsToMany(db.Role, {
@@ -172,5 +174,27 @@ db.Message.belongsTo(db.User, { foreignKey: "userId", as: "author" });
 // Report - Message relationship (1:N)
 db.Report.hasMany(db.Message, { foreignKey: "reportId", as: "messages" });
 db.Message.belongsTo(db.Report, { foreignKey: "reportId", as: "report" });
+
+// User - Notification relationship (1:N)
+db.User.hasMany(db.Notification, {
+  foreignKey: "userId",
+  as: "notifications",
+});
+
+db.Notification.belongsTo(db.User, {
+  foreignKey: "userId",
+  as: "recipient",
+});
+
+// Report - Notification relationship (1:N)
+db.Report.hasMany(db.Notification, {
+  foreignKey: "reportId",
+  as: "relatedNotifications",
+});
+
+db.Notification.belongsTo(db.Report, {
+  foreignKey: "reportId",
+  as: "report",
+});
 
 export default db;
