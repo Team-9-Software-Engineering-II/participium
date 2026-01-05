@@ -568,42 +568,60 @@ paths:
 
   /admin/users/{userId}:
     delete:
-      summary: Remove a municipality user
-      description: Deletes a specific municipality user. Requires Admin privileges. Cannot delete Citizens or own account.
-      tags:
-        - Admin
-      security:
-        - bearerAuth: []
+      summary: (Admin) Delete a municipality user
+      description: >
+        Allows an admin to delete a specific municipality or staff user. 
+        Requires Admin privileges. Cannot delete Citizens or own account.
+      tags: [Admin]
       parameters:
         - in: path
           name: userId
+          required: true
           schema:
             type: integer
-          required: true
+            minimum: 1
           description: The ID of the user to delete
+      security:
+        - BearerAuth: []
       responses:
-        204:
+        '204':
           description: User deleted successfully (No Content)
-        400:
+        '400':
           description: Invalid User ID supplied
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        401:
-          description: Unauthorized - Token missing or invalid
-        403:
-          description: Forbidden - Cannot delete self or Citizen accounts
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "userId must be a positive integer."
+        '401':
+          description: User not authenticated
+        '403':
+          description: >
+            Forbidden - Cannot delete self or Citizen accounts.
+            Possible error messages:
+            - "You cannot delete your own account." (when trying to delete self)
+            - "Operation not allowed: You cannot delete a Citizen account." (when trying to delete a citizen)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        404:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "You cannot delete your own account."
+        '404':
           description: User not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User with ID {userId} not found."
 
   /municipal/reports/pending:
     get:
