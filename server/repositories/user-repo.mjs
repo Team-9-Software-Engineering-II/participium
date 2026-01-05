@@ -11,10 +11,10 @@ export async function createUser(userData) {
 export async function findAllUsers() {
   return db.User.findAll({
     include: [
-      { model: db.Role, as: "role" },
+      { model: db.Role, as: "roles" },
       {
         model: db.TechnicalOffice,
-        as: "technicalOffice",
+        as: "technicalOffices",
         required: false,
         include: { model: db.Category, as: "category" },
       },
@@ -34,10 +34,10 @@ export async function findAllUsers() {
 export async function findUserById(id) {
   return db.User.findByPk(id, {
     include: [
-      { model: db.Role, as: "role" },
+      { model: db.Role, as: "roles" },
       {
         model: db.TechnicalOffice,
-        as: "technicalOffice",
+        as: "technicalOffices",
         required: false,
         include: { model: db.Category, as: "category" },
       },
@@ -53,10 +53,10 @@ export async function findUserByEmail(email) {
   return db.User.findOne({
     where: { email },
     include: [
-      { model: db.Role, as: "role" },
+      { model: db.Role, as: "roles" },
       {
         model: db.TechnicalOffice,
-        as: "technicalOffice",
+        as: "technicalOffices",
         required: false,
         include: { model: db.Category, as: "category" },
       },
@@ -72,10 +72,10 @@ export async function findUserByUsername(username) {
   return db.User.findOne({
     where: { username },
     include: [
-      { model: db.Role, as: "role" },
+      { model: db.Role, as: "roles" },
       {
         model: db.TechnicalOffice,
-        as: "technicalOffice",
+        as: "technicalOffices",
         required: false,
         include: { model: db.Category, as: "category" },
       },
@@ -93,7 +93,7 @@ export async function findUserByUsername(username) {
 export async function findUsersByCompanyId(companyId) {
   return db.User.findAll({
     where: { companyId },
-    include: [{ model: db.Role, as: "role" }],
+    include: [{ model: db.Role, as: "roles" }],
   });
 }
 
@@ -204,7 +204,7 @@ export async function findExternalMaintainerWithFewestReports(companyId) {
     include: [
       {
         model: db.Role,
-        as: "role",
+        as: "roles",
         where: {
           name: "external_maintainer",
         },

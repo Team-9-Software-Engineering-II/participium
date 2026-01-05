@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, UserRound, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { adminAPI } from '@/services/api';
-import { Button } from '@/components/ui/button';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Plus,
+  Search,
+  UserRound,
+  Eye,
+  EyeOff,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { adminAPI } from "@/services/api";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,37 +31,40 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 // --- Helper Functions ---
 
 const extractRoleName = (role) => {
-  if (!role) return '';
-  if (typeof role === 'string') return role;
-  if (typeof role === 'object') {
-    return role.name ?? role.label ?? '';
+  if (!role) return "";
+  if (typeof role === "string") return role;
+  if (typeof role === "object") {
+    return role.name ?? role.name ?? "";
   }
-  return '';
+  return "";
 };
 
 const normalizeRole = (role) => extractRoleName(role).trim().toLowerCase();
 
 const isRestrictedRole = (role) => {
   const normalized = normalizeRole(role);
-  return normalized === 'admin' || normalized === 'citizen';
+  return normalized === "admin" || normalized === "citizen";
 };
 
 const formatDisplayName = (user) => {
-  const composedName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  const composedName = [user.firstName, user.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   if (composedName) return composedName;
   return user.username || user.email || `User ${user.id}`;
 };
@@ -62,44 +74,44 @@ const getOfficeDisplay = (user) => {
   const roleName = extractRoleName(user?.role);
   const normalized = normalizeRole(roleName);
 
-  if (normalized.includes('municipal') || normalized === 'mpro') {
-    return 'MPRO';
+  if (normalized.includes("municipal") || normalized === "mpro") {
+    return "MPRO";
   }
 
-  if (normalized.includes('technical') || normalized === 'technician') {
+  if (normalized.includes("technical") || normalized === "technician") {
     // Mostra il nome dell'ufficio se presente, altrimenti fallback
-    return user.technicalOffice?.name || 'Technical Office';
+    return user.technicalOffice?.name || "Technical Office";
   }
 
-  if (normalized.includes('external') || normalized === 'external_maintainer') {
+  if (normalized.includes("external") || normalized === "external_maintainer") {
     // Mostra il nome della company per gli external maintainer
-    return user.company?.name || 'External Company';
+    return user.company?.name || "External Company";
   }
 
-  return '—';
+  return "—";
 };
 
 export default function MunicipalityUsers() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+
   // Dialog & Form States
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [roleOptions, setRoleOptions] = useState([]);
   const [technicalOffices, setTechnicalOffices] = useState([]); // Stato per gli uffici
   const [isRolesLoading, setIsRolesLoading] = useState(false);
   const [rolesError, setRolesError] = useState(null);
-  
+
   const [formValues, setFormValues] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    username: '',
-    password: '',
-    roleId: '',
-    technicalOfficeId: '', // Nuovo campo per l'ufficio
+    firstName: "",
+    lastName: "",
+    email: "",
+    username: "",
+    password: "",
+    roleId: "",
+    technicalOfficeId: "", // Nuovo campo per l'ufficio
   });
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,9 +122,9 @@ export default function MunicipalityUsers() {
   const [editingUser, setEditingUser] = useState(null);
   const [editUserRoles, setEditUserRoles] = useState([]); // Array di ruoli assegnati all'utente
   const [originalUserRoles, setOriginalUserRoles] = useState([]); // Ruoli originali per confronto
-  const [newRoleToAdd, setNewRoleToAdd] = useState('');
-  const [newRoleTechnicalOfficeId, setNewRoleTechnicalOfficeId] = useState('');
-  const [newRoleCompanyId, setNewRoleCompanyId] = useState('');
+  const [newRoleToAdd, setNewRoleToAdd] = useState("");
+  const [newRoleTechnicalOfficeId, setNewRoleTechnicalOfficeId] = useState("");
+  const [newRoleCompanyId, setNewRoleCompanyId] = useState("");
   const [editError, setEditError] = useState(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [companies, setCompanies] = useState([]);
@@ -133,11 +145,11 @@ export default function MunicipalityUsers() {
       const { data } = await adminAPI.getUsers();
       const list = Array.isArray(data) ? data : [];
       // Filtra via admin e citizen
-      const filtered = list.filter((user) => !isRestrictedRole(user?.role));
+      const filtered = list.filter((user) => !isRestrictedRole(user?.roles[0]));
       setUsers(filtered);
     } catch (err) {
-      console.error('Failed to fetch municipality users', err);
-      setError('Unable to load municipality users right now.');
+      console.error("Failed to fetch municipality users", err);
+      setError("Unable to load municipality users right now.");
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +166,7 @@ export default function MunicipalityUsers() {
     try {
       const [rolesRes, officesRes] = await Promise.all([
         adminAPI.getRoles(),
-        adminAPI.getTechnicalOffices()
+        adminAPI.getTechnicalOffices(), // Chiama la nuova route /offices
       ]);
 
       // Processa Ruoli
@@ -168,16 +180,16 @@ export default function MunicipalityUsers() {
       setRoleOptions(formattedRoles);
 
       // Processa Uffici
-      setTechnicalOffices(Array.isArray(officesRes.data) ? officesRes.data : []);
-
+      setTechnicalOffices(
+        Array.isArray(officesRes.data) ? officesRes.data : []
+      );
       // TODO: Companies - L'endpoint /admin/companies non esiste ancora nel backend
       // Quando sarà implementato, aggiungere: adminAPI.getCompanies()
       // Per ora lasciamo vuoto - il campo company non sarà disponibile per External Maintainer
       setCompanies([]);
-
     } catch (err) {
-      console.error('Failed to load form data', err);
-      setRolesError('Unable to load roles or offices.');
+      console.error("Failed to load form data", err);
+      setRolesError("Unable to load roles or offices.");
     } finally {
       setIsRolesLoading(false);
     }
@@ -186,9 +198,14 @@ export default function MunicipalityUsers() {
   useEffect(() => {
     // Carica i dati quando si apre uno dei due dialog (creazione o modifica)
     if (!isAddDialogOpen && !isEditDialogOpen) return;
-    if (roleOptions.length > 0) return; 
+    if (roleOptions.length > 0) return;
     fetchDataForDialog();
-  }, [isAddDialogOpen, isEditDialogOpen, roleOptions.length, fetchDataForDialog]);
+  }, [
+    isAddDialogOpen,
+    isEditDialogOpen,
+    roleOptions.length,
+    fetchDataForDialog,
+  ]);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -198,13 +215,13 @@ export default function MunicipalityUsers() {
     setIsAddDialogOpen(open);
     if (!open) {
       setFormValues({
-        firstName: '',
-        lastName: '',
-        email: '',
-        username: '',
-        password: '',
-        roleId: '',
-        technicalOfficeId: '',
+        firstName: "",
+        lastName: "",
+        email: "",
+        username: "",
+        password: "",
+        roleId: "",
+        technicalOfficeId: "",
       });
       setFormError(null);
       setRolesError(null);
@@ -222,26 +239,37 @@ export default function MunicipalityUsers() {
   // Logica condizionale: verifica se il ruolo selezionato è Technical Staff
   const isTechnicalStaffSelected = useMemo(() => {
     if (!formValues.roleId) return false;
-    const selectedRole = roleOptions.find(r => String(r.id) === String(formValues.roleId));
+    const selectedRole = roleOptions.find(
+      (r) => String(r.id) === String(formValues.roleId)
+    );
     // Controlla il nome del ruolo (case insensitive e parziale per sicurezza)
-    return selectedRole?.name.toLowerCase().includes('technical_staff');
+    return selectedRole?.name.toLowerCase().includes("technical_staff");
   }, [formValues.roleId, roleOptions]);
 
   const handleCreateUser = async (event) => {
     event.preventDefault();
     setFormError(null);
 
-    const requiredFields = ['firstName', 'lastName', 'email', 'username', 'password', 'roleId'];
-    const missing = requiredFields.filter((field) => !formValues[field]?.trim());
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "email",
+      "username",
+      "password",
+      "roleId",
+    ];
+    const missing = requiredFields.filter(
+      (field) => !formValues[field]?.trim()
+    );
 
     // Controllo specifico: se è Technical Staff, deve avere un ufficio selezionato
     if (isTechnicalStaffSelected && !formValues.technicalOfficeId) {
-      setFormError('Please select a Technical Office for the technical staff.');
+      setFormError("Please select a Technical Office for the technical staff.");
       return;
     }
 
     if (missing.length > 0) {
-      setFormError('Please complete all required fields before submitting.');
+      setFormError("Please complete all required fields before submitting.");
       return;
     }
 
@@ -268,10 +296,10 @@ export default function MunicipalityUsers() {
       await fetchUsers();
       handleDialogChange(false);
     } catch (err) {
-      console.error('Failed to create municipality user', err);
+      console.error("Failed to create municipality user", err);
       setFormError(
         err.response?.data?.message ||
-          'Unable to create the user right now. Please review the data and try again.'
+          "Unable to create the user right now. Please review the data and try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -287,9 +315,9 @@ export default function MunicipalityUsers() {
     const normalizedRoles = Array.isArray(userRoles) ? userRoles : [userRoles];
     setEditUserRoles(normalizedRoles);
     setOriginalUserRoles(normalizedRoles); // Salva i ruoli originali
-    setNewRoleToAdd('');
-    setNewRoleTechnicalOfficeId('');
-    setNewRoleCompanyId('');
+    setNewRoleToAdd("");
+    setNewRoleTechnicalOfficeId("");
+    setNewRoleCompanyId("");
     setEditError(null);
     setIsEditDialogOpen(true);
   };
@@ -299,51 +327,55 @@ export default function MunicipalityUsers() {
     setEditingUser(null);
     setEditUserRoles([]);
     setOriginalUserRoles([]);
-    setNewRoleToAdd('');
-    setNewRoleTechnicalOfficeId('');
-    setNewRoleCompanyId('');
+    setNewRoleToAdd("");
+    setNewRoleTechnicalOfficeId("");
+    setNewRoleCompanyId("");
     setEditError(null);
   };
 
   const handleAddRoleToUser = () => {
     if (!newRoleToAdd) {
-      setEditError('Please select a role to add.');
+      setEditError("Please select a role to add.");
       return;
     }
 
-    const roleToAdd = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
+    const roleToAdd = roleOptions.find(
+      (r) => String(r.id) === String(newRoleToAdd)
+    );
     if (!roleToAdd) return;
 
     const roleName = roleToAdd.name.toLowerCase();
-    const isTechnicalRole = roleName.includes('technical_staff') || roleName.includes('technician');
-    const isExternalRole = roleName.includes('external_maintainer') || roleName.includes('external');
+    const isTechnicalRole =
+      roleName.includes("technical_staff") || roleName.includes("technician");
+    const isExternalRole =
+      roleName.includes("external_maintainer") || roleName.includes("external");
 
     // Validazione ufficio tecnico
     if (isTechnicalRole && !newRoleTechnicalOfficeId) {
-      setEditError('Please select a Technical Office for this role.');
+      setEditError("Please select a Technical Office for this role.");
       return;
     }
 
     // Validazione company
     if (isExternalRole && !newRoleCompanyId) {
-      setEditError('Please select a Company for this role.');
+      setEditError("Please select a Company for this role.");
       return;
     }
 
     // Controlla se il ruolo è già assegnato
-    const alreadyHasRole = editUserRoles.some(r => 
-      normalizeRole(r) === normalizeRole(roleToAdd.name)
+    const alreadyHasRole = editUserRoles.some(
+      (r) => normalizeRole(r) === normalizeRole(roleToAdd.name)
     );
 
     if (alreadyHasRole) {
-      setEditError('This role is already assigned to the user.');
+      setEditError("This role is already assigned to the user.");
       return;
     }
 
     // Aggiungi il ruolo alla lista con le informazioni aggiuntive
-    const newRole = { 
-      id: roleToAdd.id, 
-      name: roleToAdd.name 
+    const newRole = {
+      id: roleToAdd.id,
+      name: roleToAdd.name,
     };
 
     if (isTechnicalRole) {
@@ -353,27 +385,31 @@ export default function MunicipalityUsers() {
       newRole.companyId = Number(newRoleCompanyId);
     }
 
-    setEditUserRoles(prev => [...prev, newRole]);
-    setNewRoleToAdd('');
-    setNewRoleTechnicalOfficeId('');
-    setNewRoleCompanyId('');
+    setEditUserRoles((prev) => [...prev, newRole]);
+    setNewRoleToAdd("");
+    setNewRoleTechnicalOfficeId("");
+    setNewRoleCompanyId("");
     setEditError(null);
   };
 
   // Verifica se ci sono modifiche ai ruoli
   const hasRoleChanges = useMemo(() => {
     if (editUserRoles.length !== originalUserRoles.length) return true;
-    
+
     // Confronta i ruoli normalizzati
-    const currentRoleNames = editUserRoles.map(r => normalizeRole(r)).sort();
-    const originalRoleNames = originalUserRoles.map(r => normalizeRole(r)).sort();
-    
-    return !currentRoleNames.every((role, index) => role === originalRoleNames[index]);
+    const currentRoleNames = editUserRoles.map((r) => normalizeRole(r)).sort();
+    const originalRoleNames = originalUserRoles
+      .map((r) => normalizeRole(r))
+      .sort();
+
+    return !currentRoleNames.every(
+      (role, index) => role === originalRoleNames[index]
+    );
   }, [editUserRoles, originalUserRoles]);
 
   const handleRemoveRoleFromUser = (roleToRemove) => {
     if (editUserRoles.length === 1) {
-      setEditError('A user must have at least one role.');
+      setEditError("A user must have at least one role.");
       return;
     }
     // Apri dialog di conferma
@@ -393,30 +429,30 @@ export default function MunicipalityUsers() {
       // await adminAPI.removeUserRole(editingUser.id, roleToDelete.id);
 
       // Per ora simula il successo
-      console.log('Removing role from user:', {
+      console.log("Removing role from user:", {
         userId: editingUser.id,
-        role: roleToDelete
+        role: roleToDelete,
       });
 
       // Simula un delay di rete
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Rimuovi il ruolo dalla lista locale
-      setEditUserRoles(prev => 
-        prev.filter(r => normalizeRole(r) !== normalizeRole(roleToDelete))
+      setEditUserRoles((prev) =>
+        prev.filter((r) => normalizeRole(r) !== normalizeRole(roleToDelete))
       );
       setEditError(null);
 
       // Mostra toast di successo
-      toast.success('Role removed successfully', {
-        description: `The role has been removed. The user remains active with other roles.`
+      toast.success("Role removed successfully", {
+        description: `The role has been removed. The user remains active with other roles.`,
       });
 
       handleCloseDeleteRoleDialog();
     } catch (err) {
-      console.error('Failed to remove role', err);
-      toast.error('Failed to remove role', {
-        description: err.response?.data?.message || 'Please try again.'
+      console.error("Failed to remove role", err);
+      toast.error("Failed to remove role", {
+        description: err.response?.data?.message || "Please try again.",
       });
     } finally {
       setIsDeletingRole(false);
@@ -425,7 +461,7 @@ export default function MunicipalityUsers() {
 
   const handleSaveUserRoles = async () => {
     if (editUserRoles.length === 0) {
-      setEditError('A user must have at least one role.');
+      setEditError("A user must have at least one role.");
       return;
     }
 
@@ -438,27 +474,29 @@ export default function MunicipalityUsers() {
       // await adminAPI.updateUserRoles(editingUser.id, { roleIds });
 
       // Per ora simula il successo
-      console.log('Updating user roles:', {
+      console.log("Updating user roles:", {
         userId: editingUser.id,
-        roles: editUserRoles
+        roles: editUserRoles,
       });
 
       // Simula un delay di rete
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Mostra toast di successo
-      toast.success('User roles updated successfully', {
-        description: `Roles for ${formatDisplayName(editingUser)} have been updated.`
+      toast.success("User roles updated successfully", {
+        description: `Roles for ${formatDisplayName(
+          editingUser
+        )} have been updated.`,
       });
 
       // Aggiorna la lista utenti
       await fetchUsers();
       handleCloseEditDialog();
     } catch (err) {
-      console.error('Failed to update user roles', err);
+      console.error("Failed to update user roles", err);
       setEditError(
         err.response?.data?.message ||
-          'Unable to update user roles. Please try again.'
+          "Unable to update user roles. Please try again."
       );
     } finally {
       setIsEditSubmitting(false);
@@ -483,26 +521,28 @@ export default function MunicipalityUsers() {
       // await adminAPI.deleteUser(userToDelete.id);
 
       // Per ora simula il successo
-      console.log('Deleting user:', userToDelete.id);
+      console.log("Deleting user:", userToDelete.id);
 
       // Simula un delay di rete
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const deletedUserName = formatDisplayName(userToDelete);
 
       // Aggiorna la lista utenti rimuovendo l'utente localmente
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+
       // Mostra toast di successo
-      toast.success('User deleted successfully', {
-        description: `${deletedUserName} and all associated roles have been permanently removed.`
+      toast.success("User deleted successfully", {
+        description: `${deletedUserName} and all associated roles have been permanently removed.`,
       });
 
       handleCloseDeleteDialog();
     } catch (err) {
-      console.error('Failed to delete user', err);
-      toast.error('Failed to delete user', {
-        description: err.response?.data?.message || 'Unable to delete user. Please try again.'
+      console.error("Failed to delete user", err);
+      toast.error("Failed to delete user", {
+        description:
+          err.response?.data?.message ||
+          "Unable to delete user. Please try again.",
       });
     } finally {
       setIsDeleting(false);
@@ -519,7 +559,9 @@ export default function MunicipalityUsers() {
         user.email,
         user.username,
         extractRoleName(user?.role),
-      ].join(' ').toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
 
       return haystack.includes(term);
     });
@@ -529,20 +571,26 @@ export default function MunicipalityUsers() {
     if (isLoading) {
       return [
         <tr key="loading">
-          <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
+          <td
+            colSpan={3}
+            className="px-4 py-6 text-center text-sm text-muted-foreground"
+          >
             Loading municipality users...
           </td>
-        </tr>
+        </tr>,
       ];
     }
 
     if (displayedUsers.length === 0) {
       return [
         <tr key="empty">
-          <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
+          <td
+            colSpan={3}
+            className="px-4 py-6 text-center text-sm text-muted-foreground"
+          >
             No municipality users found matching your criteria.
           </td>
-        </tr>
+        </tr>,
       ];
     }
 
@@ -554,7 +602,9 @@ export default function MunicipalityUsers() {
               <UserRound className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <p className="font-semibold text-foreground">{formatDisplayName(user)}</p>
+              <p className="font-semibold text-foreground">
+                {formatDisplayName(user)}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {user.email || user.username || `ID: ${user.id}`}
               </p>
@@ -604,7 +654,9 @@ export default function MunicipalityUsers() {
           <p className="text-sm font-semibold uppercase tracking-wide text-primary/80">
             Team management
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-foreground">Municipality users</h1>
+          <h1 className="mt-1 text-3xl font-bold text-foreground">
+            Municipality users
+          </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Review, search and update municipal staff accounts.
           </p>
@@ -629,7 +681,11 @@ export default function MunicipalityUsers() {
                   Provide the account details. All fields are mandatory.
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-5" onSubmit={handleCreateUser} data-cy="create-user-modal">
+              <form
+                className="space-y-5"
+                onSubmit={handleCreateUser}
+                data-cy="create-user-modal"
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First name</Label>
@@ -638,7 +694,7 @@ export default function MunicipalityUsers() {
                       id="firstName"
                       autoComplete="given-name"
                       value={formValues.firstName}
-                      onChange={handleFormChange('firstName')}
+                      onChange={handleFormChange("firstName")}
                       placeholder="Alex"
                     />
                   </div>
@@ -649,7 +705,7 @@ export default function MunicipalityUsers() {
                       id="lastName"
                       autoComplete="family-name"
                       value={formValues.lastName}
-                      onChange={handleFormChange('lastName')}
+                      onChange={handleFormChange("lastName")}
                       placeholder="Bianchi"
                     />
                   </div>
@@ -663,7 +719,7 @@ export default function MunicipalityUsers() {
                       type="email"
                       autoComplete="email"
                       value={formValues.email}
-                      onChange={handleFormChange('email')}
+                      onChange={handleFormChange("email")}
                       placeholder="alex.bianchi@participium.gov"
                     />
                   </div>
@@ -674,7 +730,7 @@ export default function MunicipalityUsers() {
                       id="username"
                       autoComplete="username"
                       value={formValues.username}
-                      onChange={handleFormChange('username')}
+                      onChange={handleFormChange("username")}
                       placeholder="alex.bianchi"
                     />
                   </div>
@@ -682,50 +738,54 @@ export default function MunicipalityUsers() {
                 <div className="space-y-2">
                   <Label htmlFor="password">Temporary password</Label>
                   <div className="relative">
-                  <Input
-                    data-cy="password"
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={formValues.password}
-                    onChange={handleFormChange('password')}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    data-cy="toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
+                    <Input
+                      data-cy="password"
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={formValues.password}
+                      onChange={handleFormChange("password")}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      data-cy="toggle-password"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
-                
+
                 {/* Selezione Ruolo */}
                 <div className="space-y-2">
                   <Label htmlFor="roleId">Role</Label>
                   <Select
                     value={formValues.roleId}
-                    onValueChange={handleFormChange('roleId')}
+                    onValueChange={handleFormChange("roleId")}
                     disabled={isRolesLoading || !!rolesError}
                   >
                     <SelectTrigger id="roleId" data-cy="select-role">
                       <SelectValue
                         placeholder={(() => {
-                          if (isRolesLoading) return 'Loading roles…';
-                          if (rolesError) return 'Roles unavailable';
-                          return 'Select a role';
+                          if (isRolesLoading) return "Loading roles…";
+                          if (rolesError) return "Roles unavailable";
+                          return "Select a role";
                         })()}
                       />
                     </SelectTrigger>
                     <SelectContent>
                       {roleOptions.map((role) => (
-                        <SelectItem key={role.id} value={String(role.id)} data-cy="role">
+                        <SelectItem
+                          key={role.id}
+                          value={String(role.id)}
+                          data-cy="role"
+                        >
                           {role.name}
                         </SelectItem>
                       ))}
@@ -739,9 +799,12 @@ export default function MunicipalityUsers() {
                     <Label htmlFor="technicalOfficeId">Technical Office</Label>
                     <Select
                       value={formValues.technicalOfficeId}
-                      onValueChange={handleFormChange('technicalOfficeId')}
+                      onValueChange={handleFormChange("technicalOfficeId")}
                     >
-                      <SelectTrigger id="technicalOfficeId" data-cy="select-office">
+                      <SelectTrigger
+                        id="technicalOfficeId"
+                        data-cy="select-office"
+                      >
                         <SelectValue placeholder="Select an office" />
                       </SelectTrigger>
                       <SelectContent>
@@ -762,12 +825,21 @@ export default function MunicipalityUsers() {
                 )}
                 <DialogFooter className="pt-2">
                   <DialogClose asChild>
-                    <Button data-cy="cancel" type="button" variant="ghost" disabled={isSubmitting}>
+                    <Button
+                      data-cy="cancel"
+                      type="button"
+                      variant="ghost"
+                      disabled={isSubmitting}
+                    >
                       Cancel
                     </Button>
                   </DialogClose>
-                  <Button data-cy="submit" type="submit" disabled={isSubmitting || isRolesLoading}>
-                    {isSubmitting ? 'Creating...' : 'Create user'}
+                  <Button
+                    data-cy="submit"
+                    type="submit"
+                    disabled={isSubmitting || isRolesLoading}
+                  >
+                    {isSubmitting ? "Creating..." : "Create user"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -823,14 +895,18 @@ export default function MunicipalityUsers() {
       </section>
 
       {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-        if (!open) handleCloseEditDialog();
-      }}>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) handleCloseEditDialog();
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit user roles</DialogTitle>
             <DialogDescription>
-              Manage roles for {editingUser ? formatDisplayName(editingUser) : ''}
+              Manage roles for{" "}
+              {editingUser ? formatDisplayName(editingUser) : ""}
             </DialogDescription>
           </DialogHeader>
 
@@ -838,9 +914,15 @@ export default function MunicipalityUsers() {
             {/* Mostra info utente */}
             {editingUser && (
               <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-                <p className="text-sm font-medium">{formatDisplayName(editingUser)}</p>
-                <p className="text-xs text-muted-foreground">{editingUser.email}</p>
-                <p className="text-xs text-muted-foreground">@{editingUser.username}</p>
+                <p className="text-sm font-medium">
+                  {formatDisplayName(editingUser)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {editingUser.email}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  @{editingUser.username}
+                </p>
               </div>
             )}
 
@@ -849,24 +931,34 @@ export default function MunicipalityUsers() {
               <Label className="text-sm font-semibold">Current roles</Label>
               <div className="space-y-2">
                 {editUserRoles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No roles assigned</p>
+                  <p className="text-sm text-muted-foreground italic">
+                    No roles assigned
+                  </p>
                 ) : (
                   editUserRoles.map((role) => {
                     const roleName = extractRoleName(role);
-                    const roleId = typeof role === 'object' ? role.id : role;
-                    
+                    const roleId = typeof role === "object" ? role.id : role;
+
                     // Determina informazioni aggiuntive (ufficio/company)
                     let additionalInfo = null;
-                    if (typeof role === 'object') {
+                    if (typeof role === "object") {
                       if (role.technicalOfficeId) {
-                        const office = technicalOffices.find(o => o.id === role.technicalOfficeId);
-                        additionalInfo = office ? ` • ${office.name}` : ' • Office';
+                        const office = technicalOffices.find(
+                          (o) => o.id === role.technicalOfficeId
+                        );
+                        additionalInfo = office
+                          ? ` • ${office.name}`
+                          : " • Office";
                       } else if (role.companyId) {
-                        const company = companies.find(c => c.id === role.companyId);
-                        additionalInfo = company ? ` • ${company.name}` : ' • Company';
+                        const company = companies.find(
+                          (c) => c.id === role.companyId
+                        );
+                        additionalInfo = company
+                          ? ` • ${company.name}`
+                          : " • Company";
                       }
                     }
-                    
+
                     return (
                       <div
                         key={roleId || roleName}
@@ -874,9 +966,13 @@ export default function MunicipalityUsers() {
                         data-cy="assigned-role-item"
                       >
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">{roleName}</span>
+                          <span className="text-sm font-medium">
+                            {roleName}
+                          </span>
                           {additionalInfo && (
-                            <span className="text-xs text-muted-foreground">{additionalInfo}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {additionalInfo}
+                            </span>
                           )}
                         </div>
                         <Button
@@ -885,7 +981,9 @@ export default function MunicipalityUsers() {
                           size="sm"
                           className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                           onClick={() => handleRemoveRoleFromUser(role)}
-                          disabled={editUserRoles.length === 1 || isEditSubmitting}
+                          disabled={
+                            editUserRoles.length === 1 || isEditSubmitting
+                          }
                           data-cy="remove-role-button"
                           title="Remove role"
                         >
@@ -900,30 +998,40 @@ export default function MunicipalityUsers() {
 
             {/* Aggiungi nuovo ruolo */}
             <div className="space-y-2">
-              <Label htmlFor="newRole" className="text-sm font-semibold">Add new role</Label>
+              <Label htmlFor="newRole" className="text-sm font-semibold">
+                Add new role
+              </Label>
               <div className="flex gap-2">
                 <Select
                   value={newRoleToAdd}
                   onValueChange={(value) => {
                     setNewRoleToAdd(value);
-                    setNewRoleTechnicalOfficeId('');
-                    setNewRoleCompanyId('');
+                    setNewRoleTechnicalOfficeId("");
+                    setNewRoleCompanyId("");
                     setEditError(null);
                   }}
                   disabled={isRolesLoading || !!rolesError}
                 >
-                  <SelectTrigger id="newRole" data-cy="select-new-role" className="flex-1">
+                  <SelectTrigger
+                    id="newRole"
+                    data-cy="select-new-role"
+                    className="flex-1"
+                  >
                     <SelectValue
                       placeholder={(() => {
-                        if (isRolesLoading) return 'Loading roles…';
-                        if (rolesError) return 'Roles unavailable';
-                        return 'Select a role to add';
+                        if (isRolesLoading) return "Loading roles…";
+                        if (rolesError) return "Roles unavailable";
+                        return "Select a role to add";
                       })()}
                     />
                   </SelectTrigger>
                   <SelectContent>
                     {roleOptions.map((role) => (
-                      <SelectItem key={role.id} value={String(role.id)} data-cy="new-role-option">
+                      <SelectItem
+                        key={role.id}
+                        value={String(role.id)}
+                        data-cy="new-role-option"
+                      >
                         {role.name}
                       </SelectItem>
                     ))}
@@ -943,20 +1051,29 @@ export default function MunicipalityUsers() {
               {/* Campo condizionale per Technical Office */}
               {(() => {
                 if (!newRoleToAdd) return null;
-                const selectedRole = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
-                const roleName = selectedRole?.name.toLowerCase() || '';
-                const isTechnicalRole = roleName.includes('technical_staff') || roleName.includes('technician');
-                
+                const selectedRole = roleOptions.find(
+                  (r) => String(r.id) === String(newRoleToAdd)
+                );
+                const roleName = selectedRole?.name.toLowerCase() || "";
+                const isTechnicalRole =
+                  roleName.includes("technical_staff") ||
+                  roleName.includes("technician");
+
                 if (!isTechnicalRole) return null;
 
                 return (
                   <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
-                    <Label htmlFor="newRoleTechnicalOffice">Technical Office</Label>
+                    <Label htmlFor="newRoleTechnicalOffice">
+                      Technical Office
+                    </Label>
                     <Select
                       value={newRoleTechnicalOfficeId}
                       onValueChange={setNewRoleTechnicalOfficeId}
                     >
-                      <SelectTrigger id="newRoleTechnicalOffice" data-cy="select-new-role-office">
+                      <SelectTrigger
+                        id="newRoleTechnicalOffice"
+                        data-cy="select-new-role-office"
+                      >
                         <SelectValue placeholder="Select an office" />
                       </SelectTrigger>
                       <SelectContent>
@@ -974,10 +1091,14 @@ export default function MunicipalityUsers() {
               {/* Campo condizionale per Company */}
               {(() => {
                 if (!newRoleToAdd) return null;
-                const selectedRole = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
-                const roleName = selectedRole?.name.toLowerCase() || '';
-                const isExternalRole = roleName.includes('external_maintainer') || roleName.includes('external');
-                
+                const selectedRole = roleOptions.find(
+                  (r) => String(r.id) === String(newRoleToAdd)
+                );
+                const roleName = selectedRole?.name.toLowerCase() || "";
+                const isExternalRole =
+                  roleName.includes("external_maintainer") ||
+                  roleName.includes("external");
+
                 if (!isExternalRole) return null;
 
                 return (
@@ -987,12 +1108,18 @@ export default function MunicipalityUsers() {
                       value={newRoleCompanyId}
                       onValueChange={setNewRoleCompanyId}
                     >
-                      <SelectTrigger id="newRoleCompany" data-cy="select-new-role-company">
+                      <SelectTrigger
+                        id="newRoleCompany"
+                        data-cy="select-new-role-company"
+                      >
                         <SelectValue placeholder="Select a company" />
                       </SelectTrigger>
                       <SelectContent>
                         {companies.map((company) => (
-                          <SelectItem key={company.id} value={String(company.id)}>
+                          <SelectItem
+                            key={company.id}
+                            value={String(company.id)}
+                          >
                             {company.name}
                           </SelectItem>
                         ))}
@@ -1012,37 +1139,58 @@ export default function MunicipalityUsers() {
 
           <DialogFooter className="pt-2">
             <DialogClose asChild>
-              <Button type="button" variant="ghost" disabled={isEditSubmitting} data-cy="cancel-edit">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isEditSubmitting}
+                data-cy="cancel-edit"
+              >
                 Cancel
               </Button>
             </DialogClose>
             <Button
               type="button"
               onClick={handleSaveUserRoles}
-              disabled={isEditSubmitting || editUserRoles.length === 0 || !hasRoleChanges}
+              disabled={
+                isEditSubmitting ||
+                editUserRoles.length === 0 ||
+                !hasRoleChanges
+              }
               data-cy="save-roles"
             >
-              {isEditSubmitting ? 'Saving...' : 'Save changes'}
+              {isEditSubmitting ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Role Confirmation Dialog */}
-      <AlertDialog open={!!roleToDelete} onOpenChange={(open) => {
-        if (!open) handleCloseDeleteRoleDialog();
-      }}>
+      <AlertDialog
+        open={!!roleToDelete}
+        onOpenChange={(open) => {
+          if (!open) handleCloseDeleteRoleDialog();
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove role from user</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove the role <strong>{roleToDelete ? extractRoleName(roleToDelete) : ''}</strong> from this user?
-              <br/><br/>
-              The user will remain active and functional with their other assigned roles. Only this specific role will be removed.
+              Are you sure you want to remove the role{" "}
+              <strong>
+                {roleToDelete ? extractRoleName(roleToDelete) : ""}
+              </strong>{" "}
+              from this user?
+              <br />
+              <br />
+              The user will remain active and functional with their other
+              assigned roles. Only this specific role will be removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingRole} data-cy="cancel-delete-role">
+            <AlertDialogCancel
+              disabled={isDeletingRole}
+              data-cy="cancel-delete-role"
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -1051,26 +1199,35 @@ export default function MunicipalityUsers() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-cy="confirm-delete-role"
             >
-              {isDeletingRole ? 'Removing...' : 'Remove role'}
+              {isDeletingRole ? "Removing..." : "Remove role"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Delete User Confirmation Dialog */}
-      <AlertDialog open={!!userToDelete} onOpenChange={(open) => {
-        if (!open) handleCloseDeleteDialog();
-      }}>
+      <AlertDialog
+        open={!!userToDelete}
+        onOpenChange={(open) => {
+          if (!open) handleCloseDeleteDialog();
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete user</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to permanently delete <strong>{userToDelete ? formatDisplayName(userToDelete) : ''}</strong>?
-              <br/><br/>
+              Are you sure you want to permanently delete{" "}
+              <strong>
+                {userToDelete ? formatDisplayName(userToDelete) : ""}
+              </strong>
+              ?
+              <br />
+              <br />
               <span className="text-destructive font-medium">
-                This action will remove the user account and all their associated roles permanently.
+                This action will remove the user account and all their
+                associated roles permanently.
               </span>
-              <br/>
+              <br />
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1084,7 +1241,7 @@ export default function MunicipalityUsers() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-cy="confirm-delete"
             >
-              {isDeleting ? 'Deleting...' : 'Delete user'}
+              {isDeleting ? "Deleting..." : "Delete user"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -6,8 +6,10 @@ import initTechnicalOfficeModel from "./technical-office.mjs";
 import initProblemCategoryModel from "./problem-category.mjs";
 import initReportModel from "./report.mjs";
 import initCompany from "./company.mjs";
-import initCompanyCategory from "./company-category.mjs";
+import initCompanyCategory from "./many-to-many/company-category.mjs";
 import initMessage from "./message.mjs";
+import initUserRole from "./many-to-many/user-role.mjs";
+import initUserTechOffice from "./many-to-many/user-technical-office.mjs";
 
 const db = {};
 
@@ -23,15 +25,21 @@ db.Report = initReportModel(sequelize);
 db.Company = initCompany(sequelize);
 db.CompanyCategory = initCompanyCategory(sequelize);
 db.Message = initMessage(sequelize);
+db.UserRole = initUserRole(sequelize);
+db.UserTechOffice = initUserTechOffice(sequelize);
 
-/* User - Role relationship (1:N) */
-db.User.belongsTo(db.Role, {
-  foreignKey: "roleId",
-  as: "role",
+/* User - Role relationship (N:M) */
+db.User.belongsToMany(db.Role, {
+  through: db.UserRole,
+  foreignKey: "user_id",
+  otherKey: "role_id",
+  as: "roles",
 });
 
-db.Role.hasMany(db.User, {
-  foreignKey: "roleId",
+db.Role.belongsToMany(db.User, {
+  through: db.UserRole,
+  foreignKey: "role_id",
+  otherKey: "user_id",
   as: "users",
 });
 
@@ -46,16 +54,20 @@ db.Company.hasMany(db.User, {
   as: "users",
 });
 
-/* Technical_Office - User realationship (1:N) */
+/* Technical_Office - User realationship (N:M) */
 
-db.TechnicalOffice.hasMany(db.User, {
-  foreignKey: "technicalOfficeId",
+db.TechnicalOffice.belongsToMany(db.User, {
+  through: db.UserTechOffice,
+  foreignKey: "tech_office_id",
+  otherKey: "user_id",
   as: "users",
 });
 
-db.User.belongsTo(db.TechnicalOffice, {
-  foreignKey: "technicalOfficeId",
-  as: "technicalOffice",
+db.User.belongsToMany(db.TechnicalOffice, {
+  through: db.UserTechOffice,
+  foreignKey: "user_id",
+  otherKey: "tech_office_id",
+  as: "technicalOffices",
 });
 
 /* Technical_Office - Problem_Category realationship (1:1) */

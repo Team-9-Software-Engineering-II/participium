@@ -1,4 +1,6 @@
 import bcrypt from "bcrypt";
+import db from "../models/index.mjs";
+import { sequelize } from "../config/db/db-config.mjs";
 import {
   createUser,
   findUserByEmail,
@@ -78,18 +80,34 @@ export class AuthService {
     }
 
     const hashedPassword = await this.#hashPassword(password);
-    const createdUser = await createUser({
-      email,
-      username,
-      firstName,
-      lastName,
-      hashedPassword,
-      roleId,
-      technicalOfficeId,
-    });
 
-    const hydratedUser = await findUserByIdRepo(createdUser.id);
-    return this.#sanitizeUser(hydratedUser ?? createdUser);
+    const t = await db.sequelize.transaction();
+
+    try {
+      const newUser = await createUser({
+        email,
+        username,
+        firstName,
+        lastName,
+        hashedPassword,
+      });
+
+      if (roleId) {
+        await newUser.addRole(roleId, { transaction: t });
+      }
+
+      if (technicalOfficeId) {
+        await newUser.addTechnicalOffice(technicalOfficeId, { transaction: t });
+      }
+
+      await t.commit();
+
+      const hydratedUser = await findUserByIdRepo(newUser.id);
+      return this.#sanitizeUser(hydratedUser ?? newUser);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
   }
 
   /** Validates the provided email format using a basic regex
@@ -213,11 +231,22 @@ export class AuthService {
     delete plainUser.hashedPassword;
 
     // Ensure role is properly converted to a plain object with name property
-    if (plainUser.role && typeof plainUser.role === "object") {
+    if (
+      plainUser.roles &&
+      Array.isArray(plainUser.roles) &&
+      plainUser.roles.length > 0
+    ) {
       plainUser.role = {
-        id: plainUser.role.id,
-        name: plainUser.role.name,
+        id: plainUser.roles[0].id,
+        name: plainUser.roles[0].name,
       };
+      plainUser.roles = plainUser.roles.map((r) => ({
+        id: r.id,
+        name: r.name,
+      }));
+    } else {
+      plainUser.role = null;
+      plainUser.roles = [];
     }
 
     return plainUser;
