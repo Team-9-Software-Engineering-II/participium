@@ -41,6 +41,11 @@ export async function findUserById(id) {
         required: false,
         include: { model: db.Category, as: "category" },
       },
+      {
+        model: db.Company,
+        as: "company",
+        required: false,
+      },
       { model: db.Report, as: "reports", required: false },
     ],
   });

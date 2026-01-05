@@ -471,19 +471,20 @@ paths:
 
   /admin/users:
     get:
-      summary: (Admin) Ottiene la lista di tutti gli utenti municipali e cittadini
+      summary: (Admin) Retrieves all users in the system and their details.
+      description: Retrieves a comprehensive list of users including their N:M roles, technical offices, company details, and reports.
       tags: [Admin]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Lista di tutti gli utenti nel sistema
+          description: List of all users in the system
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserProfile'
+                  $ref: '#/components/schemas/UserProfileRefactorized'
     post:
       summary: (Admin) Create a new municipal/staff member user
       description: This api allow an admin to register a new municipal or staff member user. It is necessary to pass a valid roleId and technicalOfficeId.
@@ -1597,6 +1598,175 @@ components:
         roleId:
           type: integer
           
+
+    
+    # Main User Schema
+    UserProfileRefactorized:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: "citizen@example.com"
+        username:
+          type: string
+          example: "mario.rossi"
+        firstName:
+          type: string
+          example: "Mario"
+        lastName:
+          type: string
+          example: "Rossi"
+        telegramUsername:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        companyId:
+          type: integer
+          nullable: true
+        photoUrl:
+          type: string
+          nullable: true
+        emailNotificationsEnabled:
+          type: boolean
+        
+        # --- N:M Relationships ---
+        roles:
+          type: array
+          description: Array of roles assigned to the user
+          items:
+            $ref: '#/components/schemas/RoleWithJunction'
+        
+        technicalOffices:
+          type: array
+          description: Array of technical offices the user belongs to
+          items:
+            $ref: '#/components/schemas/TechnicalOffice'
+            
+        company:
+          $ref: '#/components/schemas/Company'
+          nullable: true
+          
+        reports:
+          type: array
+          description: List of reports created by the user
+          items:
+            $ref: '#/components/schemas/ReportDetail'
+
+    # Sub-Schema for Roles (including junction table info)
+    RoleWithJunction:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: "citizen"
+        UserRole:
+          type: object
+          description: Metadata from the many-to-many junction table
+          properties:
+            user_id:
+              type: integer
+            role_id:
+              type: integer
+
+    # Sub-Schema for Reports inside User profile
+    ReportDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          example: "Pending Approval"
+        rejection_reason:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        address:
+          type: string
+        anonymous:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        userId:
+          type: integer
+        technicalOfficerId:
+          type: integer
+          nullable: true
+        externalMaintainerId:
+          type: integer
+          nullable: true
+        categoryId:
+          type: integer
+        companyId:
+          type: integer
+          nullable: true
+        photosLinks:
+          type: array
+          items:
+            type: string
+            example: "/uploads/reports/image.jpg"
+
+    # Generic Schema for Technical Office (inferred)
+    TechnicalOffice:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        categoryId:
+          type: integer
+        UserTechnicalOffice:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            tech_office_id:
+              type: integer
+
+    # Generic Schema for Company (inferred)
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        region:
+          type: string
+        country:
+          type: string
+        
+
           
 
     
