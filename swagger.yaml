@@ -526,6 +526,45 @@ paths:
         '403':
           description: Accesso non autorizzato
 
+  /admin/users/{userId}:
+    delete:
+      summary: Remove a municipality user
+      description: Deletes a specific municipality user. Requires Admin privileges. Cannot delete Citizens or own account.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: integer
+          required: true
+          description: The ID of the user to delete
+      responses:
+        204:
+          description: User deleted successfully (No Content)
+        400:
+          description: Invalid User ID supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized - Token missing or invalid
+        403:
+          description: Forbidden - Cannot delete self or Citizen accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /municipal/reports/pending:
     get:
       summary: (Municipal Public Relations Officer) Retrieve all reports in 'Pending Approval' status
