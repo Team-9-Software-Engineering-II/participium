@@ -84,6 +84,31 @@ describe("Preamble: Authentication", () => {
 
 describe("POST /reports (Integration Test)", () => {
   describe("Happy Path (User Story Success)", () => {
+    it("should create an anonymous report successfully (201)", async () => {
+      // 1. Prepare payload with anonymous flag set to true
+      const anonymousPayload = {
+        ...validReportPayload,
+        title: "Anonymous Hazard",
+        anonymous: true,
+      };
+
+      // 2. Send request
+      const res = await request(app)
+        .post("/reports")
+        .set("Cookie", cookie)
+        .send(anonymousPayload);
+
+      // 3. Assertions
+      expect(res.statusCode).toBe(201);
+      expect(res.body.title).toBe(anonymousPayload.title);
+
+      // Verify the anonymous flag is persisted and returned
+      expect(res.body.anonymous).toBe(true);
+
+      // Even if anonymous, the system tracks the creator internally (checked via response body here)
+      expect(res.body.user.id).toBe(loggedInUserId);
+    });
+    
     it("should create a new report successfully (201)", async () => {
       const res = await request(app)
         .post("/reports")
