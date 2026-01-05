@@ -508,6 +508,46 @@ paths:
         '409':
           description: Conflitto (es. email o username duplicati)
 
+  /admin/users/{userId}/roles:
+    put:
+      summary: (Admin) Update user roles
+      description: >
+        Allows an admin to update the roles assigned to a user. This endpoint replaces all existing roles
+        with the provided roleIds array. The relationship between User and Role is many-to-many, so a user
+        can have multiple roles assigned simultaneously.
+      tags: [Admin]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique identifier of the user whose roles are to be updated
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleUpdate'
+      responses:
+        '200':
+          description: User roles updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid input data (e.g., invalid roleIds format, empty array, duplicate values)
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - admin only
+        '404':
+          description: User not found or one or more role IDs not found
+
   /admin/roles:
     get:
       summary: (Admin) Ottiene la lista di tutti i ruoli disponibili
@@ -927,6 +967,19 @@ components:
           type: string
         emailNotificationsEnabled:
           type: boolean
+
+    UserRoleUpdate:
+      type: object
+      required: [roleIds]
+      properties:
+        roleIds:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: Array of role IDs to assign to the user. All existing roles will be replaced with these roles.
+          minItems: 1
+          example: [1, 2, 3]
     
     ReportStatus:
       type: string
