@@ -9,6 +9,7 @@ import municipalRouter from "./municipal-router.mjs";
 import techOfficeRouter from "./technical-office-router.mjs";
 import externalMaintainerRouter from "./external-maintainer-router.mjs";
 import messageRouter from "./message-router.js";
+import notificationRouter from "./notification-router.js";
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use("/municipal", municipalRouter);
 router.use("/offices", techOfficeRouter);
 router.use("/external-maintainer", externalMaintainerRouter);
 router.use("/messages", messageRouter);
+router.use("/notifications", notificationRouter);
 
 export default router;
