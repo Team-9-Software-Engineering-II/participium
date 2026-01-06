@@ -4,6 +4,8 @@ import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 const mockFindMessagesByReportId = jest.fn();
 const mockCreateMessage = jest.fn();
 const mockFindReportById = jest.fn();
+const mockCreateReport = jest.fn(); 
+const mockUpdateReport = jest.fn();
 
 // Mock del Message Repository
 jest.unstable_mockModule("../../../repositories/message-repo.mjs", () => ({
@@ -14,6 +16,13 @@ jest.unstable_mockModule("../../../repositories/message-repo.mjs", () => ({
 // Mock del Report Repository
 jest.unstable_mockModule("../../../repositories/report-repo.mjs", () => ({
   findReportById: mockFindReportById,
+  createReport: mockCreateReport, 
+  updateReport: mockUpdateReport,
+  findAllReports: jest.fn(),
+  findAllReportsFilteredByStatus: jest.fn(),
+  findReportsByExternalMaintainerId: jest.fn(),
+  findReportsByTechnicalOfficerId: jest.fn(),
+  findReportsByUserId: jest.fn(),
 }));
 
 // --- 2. TEST SUITE ---

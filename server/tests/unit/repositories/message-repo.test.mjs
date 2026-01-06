@@ -11,6 +11,7 @@ const mockUserModel = {}; // Serve solo come riferimento per l'include
 const mockDb = {
   Message: mockMessageModel,
   User: mockUserModel,
+  Role: {},
 };
 
 // --- 2. MOCK MODULE IMPORT ---
@@ -32,7 +33,8 @@ describe("Message Repository (Unit)", () => {
     const reportId = 1;
 
     it("should return messages with author details ordered by creation time", async () => {
-      // Dati simulati di ritorno
+      // Dati simulati
+      const reportId = 1;
       const mockMessages = [
         { id: 1, content: "Hello", createdAt: "2023-01-01", author: { username: "Mario" } },
         { id: 2, content: "World", createdAt: "2023-01-02", author: { username: "Luigi" } }
@@ -42,7 +44,6 @@ describe("Message Repository (Unit)", () => {
 
       const result = await MessageRepo.findMessagesByReportId(reportId);
 
-      // Verifiche
       expect(mockMessageModel.findAll).toHaveBeenCalledWith({
         where: { reportId },
         include: [
@@ -54,9 +55,16 @@ describe("Message Repository (Unit)", () => {
               "username",
               "firstName",
               "lastName",
-              "photoURL",
-              "roleId",
+              "photoURL" 
             ],
+            include: [
+              {
+                model: mockDb.Role,
+                as: "roles",
+                attributes: ["id", "name"],
+                through: { attributes: [] }
+              }
+            ]
           },
         ],
         order: [["createdAt", "ASC"]],

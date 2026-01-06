@@ -93,9 +93,9 @@ describe("AuthService (Unit)", () => {
     technicalOfficeId: 1
   };
 
-  const mockPlainUser = { id: 1, ...mockUserInput, hashedPassword: "hashed", roleId: 1 };
-  const mockSequelizeUser = { ...mockPlainUser, get: jest.fn().mockReturnValue(mockPlainUser) };
-  const expectedSanitizedUser = { id: 1, ...mockUserInput, roleId: 1 }; // password rimossa
+  const mockPlainUser = { id: 1, ...mockUserInput, hashedPassword: "hashed", roleId: 1, role: null, roles: []};
+  const mockSequelizeUser = { ...mockPlainUser, get: jest.fn().mockReturnValue(mockPlainUser), addRole: jest.fn().mockResolvedValue(true), addTechnicalOffice: jest.fn().mockResolvedValue(true)};
+  const expectedSanitizedUser = { id: 1, ...mockUserInput, roleId: 1, role: null, roles: [] }; // password rimossa
 
   // --------------------------------------------------------------------------
   // registerUser
@@ -175,18 +175,18 @@ describe("AuthService (Unit)", () => {
   // --------------------------------------------------------------------------
   describe("registerMunicipalOrStaffUser", () => {
     it("should register staff user successfully", async () => {
-      // Setup
+      // 1. Setup
       mockFindUserByEmail.mockResolvedValue(null);
       mockFindUserByUsername.mockResolvedValue(null);
       mockFindTechnicalOfficeById.mockResolvedValue({ id: 1, name: "Office" });
-      mockFindRoleById.mockResolvedValue({ id: 4, name: "staff" }); // Role exists
+      mockFindRoleById.mockResolvedValue({ id: 4, name: "staff" });
       mockHash.mockResolvedValue("hashed");
       
-      // FIX: Aggiorniamo anche il valore restituito da .get()!
       const staffPlain = { ...mockPlainUser, roleId: 4, technicalOfficeId: 1 };
       const createdStaff = { 
           ...mockSequelizeUser, 
-          ...staffPlain,
+          addRole: jest.fn().mockResolvedValue(true),
+          addTechnicalOffice: jest.fn().mockResolvedValue(true),
           get: jest.fn().mockReturnValue(staffPlain) 
       };
 
@@ -197,8 +197,15 @@ describe("AuthService (Unit)", () => {
 
       expect(mockFindTechnicalOfficeById).toHaveBeenCalledWith(1);
       expect(mockFindRoleById).toHaveBeenCalledWith(4);
-      expect(mockCreateUser).toHaveBeenCalledWith(expect.objectContaining({ roleId: 4, technicalOfficeId: 1 }));
-      expect(result.roleId).toBe(4);
+
+      expect(mockCreateUser).toHaveBeenCalledWith(expect.objectContaining({ 
+          username: mockStaffInput.username,
+          email: mockStaffInput.email
+      }));
+
+      expect(createdStaff.addRole).toHaveBeenCalledWith(4, expect.anything());
+      expect(createdStaff.addTechnicalOffice).toHaveBeenCalledWith(1, expect.anything());
+      
     });
 
     it("should throw 404 if technical office does not exist", async () => {
@@ -324,15 +331,16 @@ describe("AuthService (Unit)", () => {
       expect(result).toBeNull();
     });
 
-    it("should sanitize user including nested role object", async () => {
-      const userWithRole = {
+    it("should sanitize user including nested roles array", async () => {
+      const userWithRoles = {
         ...mockPlainUser,
-        role: { id: 1, name: "citizen", description: "ignore me" }
+        role: null,
+        roles: [{ id: 1, name: "citizen", description: "ignore me" }]
       };
       
       const mockUserInstance = {
-        ...userWithRole,
-        get: jest.fn().mockReturnValue(userWithRole)
+        ...userWithRoles,
+        get: jest.fn().mockReturnValue(userWithRoles)
       };
 
       mockFindUserById.mockResolvedValue(mockUserInstance);
@@ -340,7 +348,11 @@ describe("AuthService (Unit)", () => {
       const result = await AuthService.findUserById(1);
 
       expect(result.hashedPassword).toBeUndefined();
-      expect(result.role).toEqual({ id: 1, name: "citizen" });
+
+      expect(result.roles).toBeDefined();
+      expect(result.roles.length).toBeGreaterThan(0);
+      
+      expect(result.roles[0]).toMatchObject({ id: 1, name: "citizen" });
     });
   });
 

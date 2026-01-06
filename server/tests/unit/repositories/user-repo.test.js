@@ -23,6 +23,7 @@ const mockDb = {
   TechnicalOffice: mockTechnicalOfficeModel,
   Category: mockCategoryModel,
   Report: mockReportModel,
+  Company: {},
 };
 
 // Mock del modulo models
@@ -32,16 +33,31 @@ jest.unstable_mockModule("../../../models/index.mjs", () => ({
 
 let UserRepo;
 
-// Definizione delle opzioni 'include' attese (copiate dalla logica del repo)
 const expectedIncludeOptions = [
-  { model: mockDb.Role, as: "role" },
+  { 
+    model: mockDb.Role, 
+    as: "roles"
+  },
   {
     model: mockDb.TechnicalOffice,
-    as: "technicalOffice",
+    as: "technicalOffices",
     required: false,
-    include: { model: mockDb.Category, as: "category" },
+    include: { 
+      model: mockDb.Category, 
+      as: "category" 
+    },
   },
-  { model: mockDb.Report, as: "reports", required: false },
+  { 
+
+    model: mockDb.Company, 
+    as: "company",
+    required: false,
+  },
+  { 
+    model: mockDb.Report, 
+    as: "reports", 
+    required: false
+  },
 ];
 
 describe("User Repository (Unit)", () => {
@@ -110,11 +126,32 @@ describe("User Repository (Unit)", () => {
       const user = { id: 1, email };
       mockUserModel.findOne.mockResolvedValue(user);
 
+      const expectedOptionsForEmail = [
+        { 
+          model: mockDb.Role, 
+          as: "roles"
+        },
+        {
+          model: mockDb.TechnicalOffice,
+          as: "technicalOffices",
+          required: false,
+          include: { 
+            model: mockDb.Category, 
+            as: "category" 
+          },
+        },
+        { 
+          model: mockDb.Report, 
+          as: "reports", 
+          required: false 
+        },
+      ];
+
       const result = await UserRepo.findUserByEmail(email);
 
       expect(mockUserModel.findOne).toHaveBeenCalledWith({
         where: { email },
-        include: expectedIncludeOptions,
+        include: expectedOptionsForEmail, // Usiamo l'array specifico
       });
       expect(result).toEqual(user);
     });
@@ -129,11 +166,32 @@ describe("User Repository (Unit)", () => {
       const user = { id: 1, username };
       mockUserModel.findOne.mockResolvedValue(user);
 
+      const expectedOptionsForUsername = [
+        { 
+          model: mockDb.Role, 
+          as: "roles" 
+        },
+        {
+          model: mockDb.TechnicalOffice,
+          as: "technicalOffices",
+          required: false,
+          include: { 
+            model: mockDb.Category, 
+            as: "category" 
+          },
+        },
+        { 
+          model: mockDb.Report, 
+          as: "reports",
+          required: false 
+        },
+      ];
+
       const result = await UserRepo.findUserByUsername(username);
 
       expect(mockUserModel.findOne).toHaveBeenCalledWith({
         where: { username },
-        include: expectedIncludeOptions,
+        include: expectedOptionsForUsername,
       });
       expect(result).toEqual(user);
     });
@@ -329,7 +387,7 @@ describe("User Repository (Unit)", () => {
 
       expect(mockUserModel.findAll).toHaveBeenCalledWith({
         where: { companyId },
-        include: [{ model: mockDb.Role, as: "role" }]
+        include: [{ model: mockDb.Role, as: "roles" }]
       });
       
       expect(result).toEqual(mockUsers);

@@ -20,6 +20,7 @@ const mockFormat = {
   colorize: jest.fn(() => "colorize-format"),
   simple: jest.fn(() => "simple-format"),
   printf: jest.fn((templateFn) => ({ type: "printf", templateFn })), // Salviamo la funzione per testarla dopo
+  errors: jest.fn(() => "errors-format"),
 };
 
 // Mock dei Transports
