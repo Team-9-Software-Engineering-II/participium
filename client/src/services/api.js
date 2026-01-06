@@ -173,12 +173,12 @@ export const uploadAPI = {
 export const adminAPI = {
   getUsers: () => api.get('/admin/users'),
   getRoles: () => api.get('/admin/roles'),
-  
-  // Rotta corretta per gli uffici tecnici
   getTechnicalOffices: () => api.get('/offices'),
+  getCompanies: () => api.get('/admin/companies'),
   
   createUser: (userData) => api.post('/admin/users', userData),
-  assignRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
+  updateUserRoles: (userId, roles) => api.put(`/admin/users/${userId}/roles`, { roles }),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
 };
 
 export default api;
