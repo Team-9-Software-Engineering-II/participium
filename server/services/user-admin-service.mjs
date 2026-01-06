@@ -18,20 +18,21 @@ export class UserAdminService {
     }
 
     /**
-     * Updates the roles assigned to a user.
-     * Replaces all existing roles with the provided roleIds.
+     * Updates the roles assigned to a user with their associations.
+     * Replaces all existing roles and associations with the provided data.
      * @param {number} userId - Identifier of the user to update.
-     * @param {number[]} roleIds - Array of role IDs to assign to the user.
+     * @param {Array<{roleId: number, technicalOfficeIds?: number[], companyId?: number}>} roles - Array of role objects with associations.
      * @returns {Promise<object>} A sanitized user representation with updated roles.
      */
-    static async updateUserRoles(userId, roleIds) {
+    static async updateUserRoles(userId, roles) {
         // Validate user exists
         const user = await findUserById(userId);
         if (!user) {
             throw new AppError(`User with ID ${userId} not found.`, 404);
         }
 
-        // Validate all roles exist
+        // Extract roleIds for validation
+        const roleIds = roles.map(r => r.roleId);
         await this.#ensureAllRolesExist(roleIds);
 
         // Use transaction to ensure atomicity
@@ -40,9 +41,36 @@ export class UserAdminService {
         try {
             // Replace all existing roles with the new ones
             await user.setRoles(roleIds, { transaction: t });
+
+            // Clear all technical office associations
+            await user.setTechnicalOffices([], { transaction: t });
+
+            // Set new technical office associations
+            const allOfficeIds = [];
+            roles.forEach(role => {
+                if (role.technicalOfficeIds && role.technicalOfficeIds.length > 0) {
+                    allOfficeIds.push(...role.technicalOfficeIds);
+                }
+            });
+            
+            if (allOfficeIds.length > 0) {
+                // Remove duplicates
+                const uniqueOfficeIds = [...new Set(allOfficeIds)];
+                await user.setTechnicalOffices(uniqueOfficeIds, { transaction: t });
+            }
+
+            // Handle company association (only one company per user)
+            const companyRole = roles.find(r => r.companyId);
+            if (companyRole) {
+                await user.update({ companyId: companyRole.companyId }, { transaction: t });
+            } else {
+                // Clear company if no role requires it
+                await user.update({ companyId: null }, { transaction: t });
+            }
+
             await t.commit();
 
-            // Fetch updated user with roles
+            // Fetch updated user with roles and associations
             const updatedUser = await findUserById(userId);
             return sanitizeUser(updatedUser);
         } catch (error) {

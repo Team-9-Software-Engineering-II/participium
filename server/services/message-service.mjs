@@ -66,7 +66,9 @@ export class MessageService {
     }
     // check user authorization
     // user with role "citizen" cannot access internal messages
-    if (user.role && user.role.name === "citizen") {
+    const roles = user.roles || [];
+    const isCitizen = roles.some(role => role.name === "citizen");
+    if (isCitizen) {
       logger.warn("Unauthorized: Citizens cannot access internal messages.");
       throw new AppError(
         "Unauthorized: Citizens cannot access internal messages.",
@@ -74,7 +76,7 @@ export class MessageService {
       );
     }
 
-    const isAdmin = user.role && user.role.name === "admin";
+    const isAdmin = roles.some(role => role.name === "admin");
 
     // checking the assigned officer and maintainer
     const isAssignedOfficer =

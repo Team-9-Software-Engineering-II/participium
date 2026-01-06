@@ -54,7 +54,7 @@ export async function updateUserRoles(req, res, next) {
     const validatedInput = validateUserRoleUpdateInput(req);
     const updatedUser = await UserAdminService.updateUserRoles(
       userId,
-      validatedInput.roleIds
+      validatedInput.roles
     );
     return res.status(200).json(updatedUser);
   } catch (error) {
