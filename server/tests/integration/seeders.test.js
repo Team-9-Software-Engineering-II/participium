@@ -65,10 +65,12 @@ describe("Database Seeders Integrity", () => {
     it("should correctly link technical staff to the 'technical_staff' role", async () => {
       const techUser = await db.User.findOne({
         where: { username: "tech_water" },
-        include: [{ model: db.Role, as: "role" }],
+        include: [{ model: db.Role, as: "roles" }],
       });
-      const roleName = techUser.role ? techUser.role.name : techUser.Role.name;
-      expect(roleName).toBe("technical_staff");
+      const hasTechnicalRole = techUser.roles.some(
+        (role) => role.name === "technical_staff"
+      );
+      expect(hasTechnicalRole).toBe(true);
     });
   });
 
