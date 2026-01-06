@@ -954,7 +954,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        200:
+        '200':
           description: List of notifications retrieved successfully
           content:
             application/json:
@@ -987,18 +987,11 @@ paths:
                           type: string
                         status:
                           type: string
-        401:
+        '401':
           description: Unauthorized - User not logged in
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        500:
+
+        '500':
           description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
 components:
   securitySchemes:
