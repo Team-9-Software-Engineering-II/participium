@@ -165,9 +165,15 @@ export async function loginAndGetCookie(userCredentials) {
 export async function findAnotherTechnicalOfficer(excludeUsername) {
   return db.User.findOne({
     where: {
-      // Assuming Role ID 4 is the Technical Officer role based on File 7
-      roleId: 4,
       username: { [db.Sequelize.Op.ne]: excludeUsername },
     },
+    include: [
+      {
+        model: db.Role,
+        as: "roles",
+        where: { name: "technical_staff" },
+        required: true,
+      },
+    ],
   });
 }
