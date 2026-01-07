@@ -128,7 +128,10 @@ export const urpAPI = {
 // ==================== STAFF (Technical) ====================
 export const staffAPI = {
   // Segnalazioni assegnate (per staff tecnico)
-  getAssignedReports: () => api.get('/offices/reports/assigned'),  
+  getAssignedReports: (asRole) => {
+    const params = asRole ? { asRole } : {};
+    return api.get('/offices/reports/assigned', { params });
+  },  
   // Aggiorna lo stato di una segnalazione
   updateReportStatus: (reportId, statusData) => 
     api.put(`/offices/reports/${reportId}/status`, statusData),
@@ -173,12 +176,13 @@ export const uploadAPI = {
 export const adminAPI = {
   getUsers: () => api.get('/admin/users'),
   getRoles: () => api.get('/admin/roles'),
-  
-  // Rotta corretta per gli uffici tecnici
   getTechnicalOffices: () => api.get('/offices'),
+  getCompanies: () => api.get('/admin/companies'),
   
   createUser: (userData) => api.post('/admin/users', userData),
-  assignRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
+  updateUserRoles: (userId, roles) => api.put(`/admin/users/${userId}/roles`, { roles }),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  checkUserDeletion: (userId) => api.get(`/admin/users/${userId}/deletion-check`),
 };
 
 // ==================== NOTIFICATIONS ====================

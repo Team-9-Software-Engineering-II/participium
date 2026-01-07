@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { User, HelpCircle, Bell, Sun, Moon, Settings, LogOut, FileText, MessageSquare, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import RoleSwitcher from './RoleSwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,14 +37,14 @@ const getNotificationIcon = (type) => {
 };
 
 export default function Navbar() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, activeRole, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
 
-  // Logica per determinare se l'utente è un Officer
-  const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name;
+  // Logica per determinare il ruolo attivo
+  const roleName = activeRole?.name || user?.role?.name || user?.role;
   const isOfficer = roleName && (
     roleName.toLowerCase().includes('municipal') || 
     roleName.toLowerCase().includes('officer')
@@ -147,6 +148,9 @@ export default function Navbar() {
         <div className="flex items-center gap-1 sm:gap-2">
           {isAuthenticated ? (
             <>
+              {/* Role Switcher - Shows for users with multiple roles */}
+              <RoleSwitcher />
+
               {/* Notifications dropdown - NASCOSTO per Officer e Admin */}
               {isCitizen && (
                 <DropdownMenu>

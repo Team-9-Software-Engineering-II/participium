@@ -207,16 +207,20 @@ export async function changeProblemCategory(req, res, next) {
 
 /**
  * Returns reports assigned to the currently logged-in technical staff member or external maintainer.
+ * Accepts optional query parameter 'asRole' to specify which role to use (technical_staff or external_maintainer)
  */
 export async function getMyAssignedReports(req, res, next) {
   try {
     const userId = req.user.id;
-    const userRole = req.user.role?.name;
+    const asRole = req.query.asRole; // Query parameter per specificare il ruolo
 
     let reports;
 
+    // Se è specificato asRole, usa quello, altrimenti usa il primo ruolo dell'utente
+    const roleToUse = asRole || req.user.role?.name;
+
     // Se è external maintainer, cerca per externalMaintainerId
-    if (userRole === "external_maintainer") {
+    if (roleToUse === "external_maintainer") {
       reports = await ReportService.getReportsByExternalMaintainer(userId);
     } else {
       // Altrimenti è technical staff, cerca per technicalOfficerId

@@ -249,6 +249,27 @@ export class AuthService {
       plainUser.roles = [];
     }
 
+    // Include technicalOffices for TechnicalOfficeStaff
+    if (plainUser.technicalOffices && Array.isArray(plainUser.technicalOffices)) {
+      plainUser.technicalOffices = plainUser.technicalOffices.map((office) => ({
+        id: office.id,
+        name: office.name,
+        categoryId: office.categoryId,
+        category: office.category ? {
+          id: office.category.id,
+          name: office.category.name,
+        } : null,
+      }));
+    }
+
+    // Include company for ExternalMaintainer
+    if (plainUser.company) {
+      plainUser.company = {
+        id: plainUser.company.id,
+        name: plainUser.company.name,
+      };
+    }
+
     return plainUser;
   }
 
