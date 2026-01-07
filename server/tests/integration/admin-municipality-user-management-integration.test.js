@@ -59,7 +59,10 @@ beforeAll(async () => {
   const admin = await User.findOne({ where: { username: adminUser.username } });
 
   if (admin) {
-    await admin.update({ roleId: adminRole.id }); // Assign admin role
+    if (admin.addRole) {
+      await admin.addRole(adminRole);
+    }
+    try { await admin.update({ roleId: adminRole.id }); } catch(e) {}
   }
 
   // 4. Log in as admin to get the cookie
