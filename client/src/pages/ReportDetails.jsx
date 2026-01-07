@@ -40,7 +40,7 @@ const getImageUrl = (path) => {
 export default function ReportDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const { theme } = useTheme();
   
   const [report, setReport] = useState(null);
@@ -59,8 +59,11 @@ export default function ReportDetails() {
   
   // STATO PER LA CHAT
   const [chatOpen, setChatOpen] = useState(false);
+  const [extMaintChatOpen, setExtMaintChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastMessageId, setLastMessageId] = useState(null);
+  const [extMaintUnreadCount, setExtMaintUnreadCount] = useState(0);
+  const [lastExtMaintMessageId, setLastExtMaintMessageId] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -109,10 +112,9 @@ export default function ReportDetails() {
   }, [report]);
 
   const isOfficer = () => {
-    if (!user?.role) return false;
-    const roleName = typeof user.role === 'string' ? user.role : user.role.name;
-    return roleName?.toLowerCase().includes('municipal') || 
-           roleName?.toLowerCase().includes('officer');
+    if (!activeRole?.name) return false;
+    const roleName = activeRole.name.toLowerCase();
+    return roleName.includes('municipal') || roleName.includes('officer');
   };
 
   const isPending = () => {
@@ -198,35 +200,222 @@ export default function ReportDetails() {
     }
   };
 
-  // Determina se mostrare il pulsante chat
+  // Determina se mostrare le chat INLINE (solo per tech staff con delegazione)
   const canAccessChat = () => {
-    // Il backend restituisce assignee (technical officer) e externalMaintainer come oggetti
-    // Dobbiamo verificare che entrambi esistano e che l'utente corrente sia uno dei due
-    console.log('canAccessChat check:', {
-      hasAssignee: !!report?.assignee?.id,
-      hasExternalMaintainer: !!report?.externalMaintainer?.id,
-      userId: user?.id,
-      assigneeId: report?.assignee?.id,
-      externalMaintainerId: report?.externalMaintainer?.id,
-      report: report
+    console.log('=== canAccessChat CHECK START ===');
+    console.log('User:', user?.id, user?.username);
+    console.log('Active Role:', activeRole?.name);
+    console.log('Report assignee:', report?.assignee?.id, report?.assignee?.username);
+    console.log('Report external maintainer:', report?.externalMaintainer?.id, report?.externalMaintainer?.username);
+    
+    const userIsAssignee = user?.id === report?.assignee?.id;
+    const reportHasDelegation = !!report?.externalMaintainer?.id;
+    const userIsExternalMaintainer = user?.id === report?.externalMaintainer?.id;
+    const activeRoleIsExtMaint = activeRole?.name?.toLowerCase().includes('external_maintainer');
+    const activeRoleIsTechStaff = activeRole?.name?.toLowerCase().includes('technical_staff');
+    
+    console.log('Conditions:', {
+      userIsAssignee,
+      reportHasDelegation,
+      userIsExternalMaintainer,
+      activeRoleIsExtMaint,
+      activeRoleIsTechStaff
     });
     
-    if (!report?.assignee?.id || !report?.externalMaintainer?.id) return false;
+    // EDGE CASE: Se l'utente è CONTEMPORANEAMENTE assignee E external maintainer,
+    // controlla il ruolo ATTIVO per decidere quale UI mostrare
+    if (userIsAssignee && userIsExternalMaintainer) {
+      // Se l'utente sta usando il ruolo di external maintainer, usa floating button
+      if (activeRoleIsExtMaint) {
+        console.log('✗ canAccessChat: FALSE - user is BOTH but activeRole is external_maintainer (use floating button)');
+        console.log('=== canAccessChat CHECK END ===');
+        return false;
+      }
+      // Se l'utente sta usando il ruolo di tech staff, mostra inline buttons
+      if (activeRoleIsTechStaff && reportHasDelegation) {
+        console.log('✓ canAccessChat: TRUE - user is BOTH but activeRole is technical_staff WITH delegation');
+        console.log('=== canAccessChat CHECK END ===');
+        return true;
+      }
+    }
     
-    const isTechOfficer = user?.id === report.assignee.id;
-    const isExternalMaintainer = user?.id === report.externalMaintainer.id;
+    // Caso normale: utente è solo external maintainer sul report
+    if (userIsExternalMaintainer && activeRoleIsExtMaint) {
+      console.log('✗ canAccessChat: FALSE - user is external maintainer (use floating button instead)');
+      console.log('=== canAccessChat CHECK END ===');
+      return false;
+    }
     
-    console.log('Access check result:', { isTechOfficer, isExternalMaintainer });
+    // Caso normale: utente è solo assignee con delegation
+    if (userIsAssignee && reportHasDelegation && activeRoleIsTechStaff) {
+      console.log('✓ canAccessChat: TRUE - user is assignee WITH delegation');
+      console.log('=== canAccessChat CHECK END ===');
+      return true;
+    }
     
-    return isTechOfficer || isExternalMaintainer;
+    console.log('✗ canAccessChat: FALSE - conditions not met');
+    console.log('=== canAccessChat CHECK END ===');
+    return false;
   };
 
-  // Controlla periodicamente se ci sono nuovi messaggi (solo quando chat è chiusa)
+  // Determina se mostrare il floating button per cittadini
+  const showCitizenFloatingChat = () => {
+    // Cittadino può vedere floating button SOLO se il report è assegnato
+    const isCitizen = user?.id === report?.user?.id;
+    const isAssigned = report?.status && 
+      (report.status.toLowerCase() === 'assigned' || 
+       report.status.toLowerCase() === 'in progress' ||
+       report.status.toLowerCase() === 'resolved');
+    const hasAssignee = !!report?.assignee?.id;
+    
+    console.log('Citizen floating check:', { isCitizen, isAssigned, hasAssignee, isAnonymous: report?.anonymous });
+    return isCitizen && isAssigned && hasAssignee && !report?.anonymous;
+  };
+
+  // Determina se mostrare il floating button per external maintainer e tech staff senza delegazione
+  const showExtMaintFloatingChat = () => {
+    console.log('=== showExtMaintFloatingChat CHECK START ===');
+    console.log('User:', user?.id, user?.username);
+    console.log('Active Role:', activeRole?.name);
+    console.log('Report:', {
+      id: report?.id,
+      assigneeId: report?.assignee?.id,
+      assigneeUsername: report?.assignee?.username,
+      extMaintId: report?.externalMaintainer?.id,
+      extMaintUsername: report?.externalMaintainer?.username
+    });
+    
+    const isAssignedExtMaint = user?.id === report?.externalMaintainer?.id;
+    const isAssignee = user?.id === report?.assignee?.id;
+    const activeRoleIsExtMaint = activeRole?.name?.toLowerCase().includes('external_maintainer');
+    const activeRoleIsTechStaff = activeRole?.name?.toLowerCase().includes('technical_staff');
+    const isMunicipalOfficer = isOfficer();
+    
+    console.log('Conditions:', {
+      isAssignedExtMaint,
+      isAssignee,
+      activeRoleIsExtMaint,
+      activeRoleIsTechStaff,
+      isMunicipalOfficer
+    });
+    
+    // Se è MPRO, non può chattare con nessuno
+    if (isMunicipalOfficer) {
+      console.log('✗ showExtMaintFloatingChat: FALSE - MPRO cannot chat with anyone');
+      console.log('=== showExtMaintFloatingChat CHECK END ===');
+      return false;
+    }
+    
+    // EDGE CASE: utente è sia assignee che external maintainer
+    if (isAssignee && isAssignedExtMaint) {
+      // Se sta usando il ruolo di external maintainer, mostra floating button
+      if (activeRoleIsExtMaint) {
+        console.log('✓ showExtMaintFloatingChat: TRUE - user is BOTH, activeRole is external_maintainer');
+        console.log('=== showExtMaintFloatingChat CHECK END ===');
+        return true;
+      }
+      // Se sta usando il ruolo di tech staff, NON mostrare floating (usa inline)
+      if (activeRoleIsTechStaff) {
+        console.log('✗ showExtMaintFloatingChat: FALSE - user is BOTH, activeRole is technical_staff (uses inline)');
+        console.log('=== showExtMaintFloatingChat CHECK END ===');
+        return false;
+      }
+    }
+    
+    // Caso normale: utente è solo external maintainer E sta usando quel ruolo
+    if (isAssignedExtMaint && activeRoleIsExtMaint) {
+      console.log('✓ showExtMaintFloatingChat: TRUE - user IS the assigned external maintainer with active role');
+      console.log('=== showExtMaintFloatingChat CHECK END ===');
+      return true;
+    }
+    
+    // Caso normale: tech staff senza delegazione E sta usando ruolo tech staff
+    if (isAssignee && !report?.externalMaintainer && activeRoleIsTechStaff) {
+      console.log('✓ showExtMaintFloatingChat: TRUE - tech staff without delegation with active role');
+      console.log('=== showExtMaintFloatingChat CHECK END ===');
+      return true;
+    }
+    
+    console.log('✗ showExtMaintFloatingChat: FALSE - no valid role/context for floating chat');
+    console.log('=== showExtMaintFloatingChat CHECK END ===');
+    return false;
+  };
+
+  // Controlla periodicamente se ci sono nuovi messaggi nella chat INTERNA (solo quando chat è chiusa)
   useEffect(() => {
-    if (!chatOpen && canAccessChat() && report?.id && user) {
+    if (!extMaintChatOpen && canAccessChat() && report?.id && user && report?.externalMaintainer) {
       const checkNewMessages = async () => {
         try {
-          const response = await messageAPI.getMessages(report.id);
+          const response = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-external
+          const messages = response.data || [];
+          
+          console.log('Checking INTERNAL messages:', { 
+            totalMessages: messages.length, 
+            lastExtMaintMessageId, 
+            extMaintChatOpen,
+            userId: user?.id 
+          });
+          
+          if (messages.length > 0) {
+            const latestMessage = messages[messages.length - 1];
+            
+            // Se è il primo caricamento della pagina
+            if (lastExtMaintMessageId === null) {
+              // Controlla localStorage per vedere se abbiamo già letto questi messaggi
+              const storageKey = `lastReadMessage_${report.id}_${user?.id}_internal`;
+              const lastReadId = localStorage.getItem(storageKey);
+              
+              if (lastReadId) {
+                // Abbiamo già letto fino a lastReadId, conta solo i nuovi
+                const lastReadIdNum = Number.parseInt(lastReadId, 10);
+                const newMessages = messages.filter(m => 
+                  m.id > lastReadIdNum && m.author?.id !== user?.id
+                );
+                console.log('First load INTERNAL, lastReadId from storage:', lastReadIdNum, 'new messages:', newMessages.length);
+                setLastExtMaintMessageId(latestMessage.id);
+                setExtMaintUnreadCount(newMessages.length);
+              } else {
+                // Mai aperta la chat prima, conta tutti i messaggi degli altri
+                const unreadMessages = messages.filter(m => m.author?.id !== user?.id);
+                console.log('First load INTERNAL, no history, unread messages from others:', unreadMessages.length);
+                setLastExtMaintMessageId(latestMessage.id);
+                setExtMaintUnreadCount(unreadMessages.length);
+              }
+            } else if (latestMessage.id !== lastExtMaintMessageId) {
+              // Ci sono nuovi messaggi rispetto all'ultimo check
+              const newMessages = messages.filter(m => 
+                m.id > lastExtMaintMessageId && m.author?.id !== user?.id
+              );
+              console.log('New INTERNAL messages detected:', { 
+                newMessagesCount: newMessages.length,
+                latestMessageId: latestMessage.id,
+                oldLastExtMaintMessageId: lastExtMaintMessageId
+              });
+              // Incrementa il contatore esistente
+              setExtMaintUnreadCount(prev => prev + newMessages.length);
+              // Aggiorna lastExtMaintMessageId per non contare di nuovo gli stessi messaggi
+              setLastExtMaintMessageId(latestMessage.id);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking INTERNAL messages:', error);
+        }
+      };
+
+      // Controlla solo al mount, nessun polling automatico
+      checkNewMessages();
+    }
+  }, [extMaintChatOpen, report?.id, user, lastExtMaintMessageId, report?.externalMaintainer]);
+
+  // Controlla periodicamente se ci sono nuovi messaggi nella chat ESTERNA (solo quando chat è chiusa)
+  useEffect(() => {
+    // Controlla se l'utente può vedere questa chat (tech staff o cittadino)
+    const canCheckExternalChat = canAccessChat() || showCitizenFloatingChat();
+    
+    if (!chatOpen && canCheckExternalChat && report?.id && user) {
+      const checkNewMessages = async () => {
+        try {
+          const response = await messageAPI.getMessages(report.id, false); // internal=false per chat cittadino
           const messages = response.data || [];
           
           console.log('Checking messages:', { 
@@ -242,7 +431,7 @@ export default function ReportDetails() {
             // Se è il primo caricamento della pagina
             if (lastMessageId === null) {
               // Controlla localStorage per vedere se abbiamo già letto questi messaggi
-              const storageKey = `lastReadMessage_${report.id}_${user?.id}`;
+              const storageKey = `lastReadMessage_${report.id}_${user?.id}_external`;
               const lastReadId = localStorage.getItem(storageKey);
               
               if (lastReadId) {
@@ -282,27 +471,25 @@ export default function ReportDetails() {
         }
       };
 
-      // Controlla IMMEDIATAMENTE al mount e poi ogni 3 secondi
+      // Controlla solo al mount, nessun polling automatico
       checkNewMessages();
-      const interval = setInterval(checkNewMessages, 3000);
-      return () => clearInterval(interval);
     }
   }, [chatOpen, report?.id, user, lastMessageId]);
 
-  // Reset contatore quando la chat viene aperta/chiusa
+  // Reset contatore quando la chat ESTERNA viene aperta/chiusa
   useEffect(() => {
     const handleChatState = async () => {
       if (chatOpen) {
         // Chat APERTA - resetta tutto
         try {
-          const response = await messageAPI.getMessages(report.id);
+          const response = await messageAPI.getMessages(report.id, false); // internal=false per chat cittadino
           const messages = response.data || [];
           if (messages.length > 0) {
             const latestMessage = messages[messages.length - 1];
             setLastMessageId(latestMessage.id);
             
             // Salva in localStorage per sincronizzare con i badge delle card
-            const storageKey = `lastReadMessage_${report.id}_${user?.id}`;
+            const storageKey = `lastReadMessage_${report.id}_${user?.id}_external`;
             localStorage.setItem(storageKey, latestMessage.id.toString());
             
             console.log('[ReportDetails] Chat opened - saved to localStorage:', latestMessage.id);
@@ -319,12 +506,43 @@ export default function ReportDetails() {
     
     handleChatState();
   }, [chatOpen, report?.id, user?.id]);
+
+  // Reset contatore quando la chat INTERNA viene aperta/chiusa
+  useEffect(() => {
+    const handleExtMaintChatState = async () => {
+      if (extMaintChatOpen) {
+        // Chat INTERNA APERTA - resetta tutto
+        try {
+          const response = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-external
+          const messages = response.data || [];
+          if (messages.length > 0) {
+            const latestMessage = messages[messages.length - 1];
+            setLastExtMaintMessageId(latestMessage.id);
+            
+            // Salva in localStorage per sincronizzare con i badge delle card
+            const storageKey = `lastReadMessage_${report.id}_${user?.id}_internal`;
+            localStorage.setItem(storageKey, latestMessage.id.toString());
+            
+            console.log('[ReportDetails] Internal chat opened - saved to localStorage:', latestMessage.id);
+            
+            // Emetti evento per aggiornare i badge nelle liste
+            globalThis.dispatchEvent(new Event('chatMessageRead'));
+          }
+          setExtMaintUnreadCount(0);
+        } catch (error) {
+          console.error('Error resetting internal unread:', error);
+        }
+      }
+    };
+    
+    handleExtMaintChatState();
+  }, [extMaintChatOpen, report?.id, user?.id]);
   
-  // Quando la chat si chiude, aggiorna SUBITO da localStorage
+  // Quando la chat ESTERNA si chiude, aggiorna SUBITO da localStorage
   useEffect(() => {
     if (!chatOpen && report?.id && user?.id) {
       console.log('[ReportDetails] Chat closed - rechecking messages IMMEDIATELY');
-      const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+      const storageKey = `lastReadMessage_${report.id}_${user.id}_external`;
       const lastReadId = localStorage.getItem(storageKey);
       
       if (lastReadId) {
@@ -337,12 +555,29 @@ export default function ReportDetails() {
     }
   }, [chatOpen, report?.id, user?.id]);
 
+  // Quando la chat INTERNA si chiude, aggiorna SUBITO da localStorage
+  useEffect(() => {
+    if (!extMaintChatOpen && report?.id && user?.id) {
+      console.log('[ReportDetails] Internal chat closed - rechecking messages IMMEDIATELY');
+      const storageKey = `lastReadMessage_${report.id}_${user.id}_internal`;
+      const lastReadId = localStorage.getItem(storageKey);
+      
+      if (lastReadId) {
+        console.log('[ReportDetails] Found internal lastReadId in localStorage:', lastReadId);
+        const lastReadIdNum = Number.parseInt(lastReadId, 10);
+        // Aggiorna IMMEDIATAMENTE e SINCRONAMENTE
+        setLastExtMaintMessageId(lastReadIdNum);
+        setExtMaintUnreadCount(0);
+      }
+    }
+  }, [extMaintChatOpen, report?.id, user?.id]);
+
   // Ascolta l'evento chatMessageRead per aggiornare il badge quando la chat viene chiusa
   useEffect(() => {
     const handleChatRead = () => {
       // Rileggi da localStorage e aggiorna il badge
       if (report?.id && user?.id) {
-        const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+        const storageKey = `lastReadMessage_${report.id}_${user.id}_external`;
         const lastReadId = localStorage.getItem(storageKey);
         
         if (lastReadId && lastMessageId) {
@@ -482,12 +717,57 @@ export default function ReportDetails() {
             </div>
             <div className="bg-card border rounded-lg p-6 space-y-2">
               <Label className="text-sm text-muted-foreground">Submitted By</Label>
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="h-4 w-4 text-primary" /></div>
-                <div><p data-cy="reporter-name" className="font-medium text-sm">{report.anonymous ? 'Anonymous Citizen' : (report.user?.username || report.reporterName || 'User')}</p></div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="h-4 w-4 text-primary" /></div>
+                  <div><p data-cy="reporter-name" className="font-medium text-sm">{report.anonymous ? 'Anonymous Citizen' : (report.user?.username || report.reporterName || 'User')}</p></div>
+                </div>
+                {/* Pulsante Chat con cittadino per Tech Staff */}
+                {user?.id === report?.assignee?.id && !report.anonymous && canAccessChat() && (
+                  <Button
+                    onClick={() => setChatOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 flex-shrink-0 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-400"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Chat with {report.user?.firstName || 'Citizen'}
+                    {unreadCount > 0 && (
+                      <span className="ml-1 bg-red-500 rounded-full h-2.5 w-2.5"></span>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Sezione Chat con External Maintainer - Solo per Tech Staff quando c'è delegazione */}
+          {user?.id === report?.assignee?.id && report?.externalMaintainer && canAccessChat() && (
+            <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                    <Building2 className="h-5 w-5" />
+                    Delegated to External Maintainer
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {report.externalMaintainer.firstName} {report.externalMaintainer.lastName} - {report.company?.name}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setExtMaintChatOpen(true)}
+                  className="gap-2 bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 text-white flex-shrink-0 relative"
+                  size="default"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat with External Maintainer
+                  {extMaintUnreadCount > 0 && (
+                    <span className="ml-1 bg-red-500 rounded-full h-2.5 w-2.5"></span>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="bg-card border rounded-lg p-6 space-y-4">
             <h2 className="text-xl font-semibold">Photos</h2>
@@ -573,33 +853,93 @@ export default function ReportDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* CHAT BUTTON (Floating) - Solo se tech officer e external maintainer esistono */}
+      {/* CHAT SHEETS - Tech staff con delegazione (pulsanti inline) */}
       {canAccessChat() && (
         <>
-          <Button
-            onClick={() => {
-              console.log('Chat button clicked, unreadCount:', unreadCount);
-              setChatOpen(true);
-            }}
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
-            size="icon"
-          >
-            <MessageSquare className="h-6 w-6" />
-            {console.log('Rendering badge check:', { unreadCount, shouldShow: unreadCount > 0 })}
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 flex items-center justify-center border-2 border-background">
-              </span>
-            )}
-          </Button>
-          
+          {/* ChatSheet per cittadino */}
           <ChatSheet
             open={chatOpen}
             onOpenChange={setChatOpen}
             reportId={report.id}
             technicalOfficer={report.assignee}
+            externalMaintainer={null}
+            citizen={report.user}
+          />
+          
+          {/* ChatSheet per external maintainer */}
+          <ChatSheet
+            open={extMaintChatOpen}
+            onOpenChange={setExtMaintChatOpen}
+            reportId={report.id}
+            technicalOfficer={report.assignee}
             externalMaintainer={report.externalMaintainer}
+            citizen={null}
           />
         </>
+      )}
+
+      {/* CHAT SHEET - Cittadino (floating button) */}
+      {showCitizenFloatingChat() && (
+        <ChatSheet
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          reportId={report.id}
+          technicalOfficer={report.assignee}
+          externalMaintainer={null}
+          citizen={report.user}
+        />
+      )}
+
+      {/* CHAT SHEET - Tech staff senza delegazione (floating button) */}
+      {showExtMaintFloatingChat() && user?.id === report?.assignee?.id && (
+        <ChatSheet
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          reportId={report.id}
+          technicalOfficer={report.assignee}
+          externalMaintainer={null}
+          citizen={report.user}
+        />
+      )}
+
+      {/* CHAT SHEET - External Maintainer (floating button) */}
+      {user?.id === report?.externalMaintainer?.id && showExtMaintFloatingChat() && (
+        <ChatSheet
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          reportId={report.id}
+          technicalOfficer={report.assignee}
+          externalMaintainer={report.externalMaintainer}
+          citizen={null}
+        />
+      )}
+
+      {/* FLOATING CHAT BUTTON - Cittadino */}
+      {showCitizenFloatingChat() && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-black hover:bg-gray-900 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 z-50 flex items-center gap-2"
+          aria-label="Chat with Technical Officer"
+        >
+          <MessageSquare className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full h-3 w-3 border-2 border-white"></span>
+          )}
+        </button>
+      )}
+
+      {/* FLOATING CHAT BUTTON - External Maintainer / Tech Staff without delegation */}
+      {showExtMaintFloatingChat() && (user?.id === report?.externalMaintainer?.id || (user?.id === report?.assignee?.id && !report?.externalMaintainer)) && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-black hover:bg-gray-900 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 z-50 flex items-center gap-2"
+          aria-label="Chat with Technical Officer"
+        >
+          <MessageSquare className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full h-3 w-3 border-2 border-white"></span>
+          )}
+        </button>
       )}
 
     </div>

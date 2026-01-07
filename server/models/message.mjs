@@ -21,6 +21,11 @@ export default (sequelize) => {
         defaultValue: false,
         allowNull: false,
       },
+      isInternal: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false,
+      },
     },
     {
       tableName: "messages",

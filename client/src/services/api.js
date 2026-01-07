@@ -104,8 +104,12 @@ export const reportAPI = {
 
 // ==================== MESSAGES ====================
 export const messageAPI = {
-  getMessages: (reportId) => api.get(`/messages/reports/${reportId}`),
-  sendMessage: (reportId, content) => api.post(`/messages/reports/${reportId}`, { content }),
+  getMessages: (reportId, internal = false) => {
+    const params = internal ? { internal: 'true' } : { internal: 'false' };
+    return api.get(`/messages/reports/${reportId}`, { params });
+  },
+  sendMessage: (reportId, content, internal = false) => 
+    api.post(`/messages/reports/${reportId}`, { content, internal }),
 };
 
 // ==================== MUNICIPAL (Officer) ====================
@@ -128,7 +132,10 @@ export const urpAPI = {
 // ==================== STAFF (Technical) ====================
 export const staffAPI = {
   // Segnalazioni assegnate (per staff tecnico)
-  getAssignedReports: () => api.get('/offices/reports/assigned'),  
+  getAssignedReports: (asRole) => {
+    const params = asRole ? { asRole } : {};
+    return api.get('/offices/reports/assigned', { params });
+  },  
   // Aggiorna lo stato di una segnalazione
   updateReportStatus: (reportId, statusData) => 
     api.put(`/offices/reports/${reportId}/status`, statusData),
@@ -173,12 +180,21 @@ export const uploadAPI = {
 export const adminAPI = {
   getUsers: () => api.get('/admin/users'),
   getRoles: () => api.get('/admin/roles'),
-  
-  // Rotta corretta per gli uffici tecnici
   getTechnicalOffices: () => api.get('/offices'),
+  getCompanies: () => api.get('/admin/companies'),
   
   createUser: (userData) => api.post('/admin/users', userData),
-  assignRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
+  updateUserRoles: (userId, roles) => api.put(`/admin/users/${userId}/roles`, { roles }),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  checkUserDeletion: (userId) => api.get(`/admin/users/${userId}/deletion-check`),
+};
+
+// ==================== NOTIFICATIONS ====================
+export const notificationAPI = {
+  getMyNotifications: () => api.get('/notifications'),
+  markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`),
 };
 
 export default api;

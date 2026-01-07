@@ -511,11 +511,14 @@ paths:
 
   /admin/users/{userId}/roles:
     put:
-      summary: (Admin) Update user roles
+      summary: (Admin) Update user roles with associations
       description: >
-        Allows an admin to update the roles assigned to a user. This endpoint replaces all existing roles
-        with the provided roleIds array. The relationship between User and Role is many-to-many, so a user
-        can have multiple roles assigned simultaneously.
+        Allows an admin to update the roles assigned to a user with their associated offices and companies.
+        This endpoint replaces all existing roles and their associations with the provided data.
+        The relationship between User and Role is many-to-many, and roles can have associations
+        with technical offices (for technical_staff) or companies (for external_maintainer).
+        The same roleId can be assigned multiple times if it has different associations
+        (e.g., technical_staff for different offices).
       tags: [Admin]
       parameters:
         - in: path
@@ -541,7 +544,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserProfile'
         '400':
-          description: Invalid input data (e.g., invalid roleIds format, empty array, duplicate values)
+          description: Invalid input data (e.g., invalid roles format, empty array, duplicate role combinations)
         '401':
           description: User not authenticated
         '403':
@@ -566,6 +569,29 @@ paths:
                   $ref: '#/components/schemas/RoleSummary'
         '403':
           description: Accesso non autorizzato
+
+  /admin/companies:
+    get:
+      summary: (Admin) Get all companies
+      description: >
+        Allows an admin to retrieve a list of all external companies in the system.
+        This is used for assigning external_maintainer roles to users.
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Company'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - admin only
 
   /admin/users/{userId}:
     delete:
@@ -1119,16 +1145,54 @@ components:
 
     UserRoleUpdate:
       type: object
-      required: [roleIds]
+      required: [roles]
       properties:
+        roles:
+          type: array
+          items:
+            type: object
+            required: [roleId]
+            properties:
+              roleId:
+                type: integer
+                minimum: 1
+                description: The ID of the role to assign
+              technicalOfficeIds:
+                type: array
+                items:
+                  type: integer
+                  minimum: 1
+                description: Array of technical office IDs (required for technical_staff role)
+                example: [1, 3]
+              companyId:
+                type: integer
+                minimum: 1
+                description: Company ID (required for external_maintainer role)
+                example: 5
+          description: >
+            Array of role objects with their associations. Each role can have optional
+            technicalOfficeIds (for technical_staff) or companyId (for external_maintainer).
+            The same roleId can appear multiple times if it has different associations.
+          minItems: 1
+          example:
+            - roleId: 2
+            - roleId: 4
+              technicalOfficeIds: [1]
+            - roleId: 4
+              technicalOfficeIds: [3]
+            - roleId: 5
+              companyId: 2
         roleIds:
           type: array
           items:
             type: integer
             minimum: 1
-          description: Array of role IDs to assign to the user. All existing roles will be replaced with these roles.
+          description: >
+            (Legacy format) Array of role IDs without associations. Still supported for backward compatibility.
+            If provided without 'roles', will be converted internally to the new format.
           minItems: 1
           example: [1, 2, 3]
+          deprecated: true
     
     ReportStatus:
       type: string
@@ -1575,6 +1639,18 @@ components:
           minimum: 1
           description: The ID of the company from which to select an external maintainer. The system will automatically assign the report to the maintainer with the fewest active reports.
 
+    Company:
+      type: object
+      description: Simplified representation of a Company for admin operations
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the company.
+        name:
+          type: string
+          description: Name of the company (e.g., Enel X).
+      required: [id, name]
+
     CompanyDetails:
       type: object
       properties:
@@ -1798,22 +1874,7 @@ components:
               type: integer
 
     # Generic Schema for Company (inferred)
-    Company:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        address:
-          type: string
-        city:
-          type: string
-        region:
-          type: string
-        country:
-          type: string
-        
+   
 
           
 

@@ -9,6 +9,7 @@ process.env.NODE_ENV = "test";
 import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
+import db from "../../models/index.mjs";
 
 // --- Import Test Utilities ---
 import {
@@ -58,6 +59,22 @@ describe("Preamble: Authentication", () => {
   it("should register a new citizen user (201)", async () => {
     const res = await request(app).post("/auth/register").send(citizenUser);
     expect(res.statusCode).toBe(201);
+    const userNode = await db.User.findOne({ where: { email: citizenUser.email } });
+    const roleNode = await db.Role.findOne({ where: { name: "citizen" } });
+
+    if (userNode && roleNode) {
+      if (typeof userNode.addRole === "function") {
+        await userNode.addRole(roleNode);
+      } else if (typeof userNode.addRoles === "function") {
+        await userNode.addRoles([roleNode]);
+      } else if (typeof userNode.setRole === "function") {
+        await userNode.setRole(roleNode);
+      } else {
+        if (userNode.dataValues.hasOwnProperty('roleId') || userNode.rawAttributes?.hasOwnProperty('roleId')) {
+           await userNode.update({ roleId: roleNode.id });
+        }
+      }
+    }
   });
 
   it("should login as the new citizen and store the cookie and user ID (200)", async () => {
@@ -108,7 +125,7 @@ describe("POST /reports (Integration Test)", () => {
       // Even if anonymous, the system tracks the creator internally (checked via response body here)
       expect(res.body.user.id).toBe(loggedInUserId);
     });
-    
+
     it("should create a new report successfully (201)", async () => {
       const res = await request(app)
         .post("/reports")

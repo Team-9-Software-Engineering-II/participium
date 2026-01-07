@@ -65,6 +65,7 @@ export async function findUserByEmail(email) {
         required: false,
         include: { model: db.Category, as: "category" },
       },
+      { model: db.Company, as: "company", required: false },
       { model: db.Report, as: "reports", required: false },
     ],
   });
@@ -84,6 +85,7 @@ export async function findUserByUsername(username) {
         required: false,
         include: { model: db.Category, as: "category" },
       },
+      { model: db.Company, as: "company", required: false },
       { model: db.Report, as: "reports", required: false },
     ],
   });
@@ -136,12 +138,19 @@ export async function deleteUser(id) {
  * @returns {Promise<object|null>} The user with the lowest workload, or null if office is empty.
  */
 export async function findStaffWithFewestReports(technicalOfficeId) {
-  // Retrieve all users of the specified technical office
+  // Retrieve all users that belong to the specified technical office
+  // Use the many-to-many relationship through user_technical_office table
   const staffMembers = await db.User.findAll({
-    where: {
-      technicalOfficeId,
-    },
     include: [
+      {
+        model: db.TechnicalOffice,
+        as: "technicalOffices",
+        where: {
+          id: technicalOfficeId,
+        },
+        through: { attributes: [] }, // Exclude join table attributes
+        required: true, // INNER JOIN: only users with this office
+      },
       {
         model: db.Report,
         as: "assignedReports", // Use the alias defined in the model

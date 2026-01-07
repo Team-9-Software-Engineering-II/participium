@@ -18,7 +18,7 @@ export default function ExternalMaintainerLayout() {
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const response = await staffAPI.getAssignedReports();
+        const response = await staffAPI.getAssignedReports('external_maintainer');
         const allReports = response.data;
 
         const activeCount = allReports.filter(

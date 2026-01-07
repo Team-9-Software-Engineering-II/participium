@@ -32,9 +32,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, HardHat, Building2, MessageCircle } from "lucide-react";
+import { MapPin, Calendar, ArrowRight, CheckCircle2, Clock, HardHat, Building2, MessageCircle, Save } from "lucide-react";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { getStatusColor } from "@/lib/reportColors";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -48,7 +48,6 @@ const ALLOWED_TRANSITIONS = [
 const FINISHED_STATUSES = new Set(["Resolved", "Rejected"]);
 
 export default function TechnicianReports({ type = "active" }) {
-  const { toast } = useToast();
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,23 +64,16 @@ export default function TechnicianReports({ type = "active" }) {
     
     globalThis.addEventListener('chatMessageRead', handleRefresh);
     
-    // Polling automatico ogni 10 secondi per aggiornare l'ordinamento
-    const interval = setInterval(() => {
-      console.log('[TechnicianReports] Auto-refresh triggered');
-      fetchReports();
-    }, 10000);
-    
     return () => {
       globalThis.removeEventListener('chatMessageRead', handleRefresh);
-      clearInterval(interval);
     };
   }, [type]);
 
   const fetchReports = async () => {
     setLoading(true);
     try {
-      // 1. Scarica TUTTI i report assegnati
-      const response = await staffAPI.getAssignedReports();
+      // 1. Scarica TUTTI i report assegnati (passando il ruolo technical_staff)
+      const response = await staffAPI.getAssignedReports('technical_staff');
       const allData = response.data;
       console.log('All assigned reports:', allData);
 
@@ -112,11 +104,11 @@ export default function TechnicianReports({ type = "active" }) {
         await Promise.all(
           filteredData.map(async (report) => {
             try {
-              const messagesResponse = await messageAPI.getMessages(report.id);
+              const messagesResponse = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-extmaint
               const messages = messagesResponse.data || [];
               
               if (messages.length > 0) {
-                const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+                const storageKey = `lastReadMessage_${report.id}_${user.id}_internal`;
                 const lastReadId = localStorage.getItem(storageKey);
                 
                 if (lastReadId) {
@@ -182,19 +174,16 @@ export default function TechnicianReports({ type = "active" }) {
     try {
       await staffAPI.updateReportStatus(reportId, { status: newStatus });
       
-      toast({
-        title: "Status Updated",
-        description: `Report marked as ${newStatus}`,
+      toast.success("Status Updated Successfully", {
+        description: `Report status changed to "${newStatus}". The citizen has been notified.`,
       });
 
       // Ricarica la lista per riflettere i cambiamenti
       fetchReports();
     } catch (error) {
       console.error("Failed to update status", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update report status.",
+      toast.error("Update Failed", {
+        description: error.response?.data?.message || "Failed to update report status. Please try again.",
       });
     }
   };
@@ -286,7 +275,6 @@ function AssignMaintainerDialog({ report, onRefresh }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const { toast } = useToast();
 
   useEffect(() => {
     if (open && !showSuccess) {
@@ -297,9 +285,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
           setCompanies(res.data);
         } catch (error) {
           console.error("Failed to fetch companies", error);
-          toast({
-            variant: "destructive",
-            title: "Error",
+          toast.error("Error", {
             description: "Failed to load companies.",
           });
         } finally {
@@ -308,7 +294,7 @@ function AssignMaintainerDialog({ report, onRefresh }) {
       };
       fetchCompanies();
     }
-  }, [open, showSuccess,report.id, toast]);
+  }, [open, showSuccess, report.id]);
 
   const handleAssign = async () => {
     if (!selectedCompany) return;
@@ -443,6 +429,9 @@ function AssignMaintainerDialog({ report, onRefresh }) {
 function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedStatus, setSelectedStatus] = useState(report.status);
+  
+  const hasChanged = selectedStatus !== report.status;
 
   // Controlla se ci sono messaggi non letti
   useEffect(() => {
@@ -453,7 +442,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
       if (!report.externalMaintainerId) return;
 
       try {
-        const response = await messageAPI.getMessages(report.id);
+        const response = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-extmaint
         const messages = response.data || [];
         
         if (messages.length === 0) {
@@ -462,7 +451,7 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
         }
 
         // Recupera l'ultimo messaggio visto da localStorage
-        const storageKey = `lastReadMessage_${report.id}_${userId}`;
+        const storageKey = `lastReadMessage_${report.id}_${userId}_internal`;
         const lastReadId = localStorage.getItem(storageKey);
         
         console.log(`[Badge Tech] Report ${report.id}:`, {
@@ -567,16 +556,18 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
             </Badge>
           </div>
 
-          {/* Status Updater (SOLO se siamo nella vista Active) */}
-          {/* COMMENTATO PER RICHIESTA: Rimuoviamo temporaneamente il cambio stato
-          {type === "active" && (
+          {/* Status Updater (SOLO se siamo nella vista Active e NON assegnato esternamente) */}
+          {type === "active" && !report.externalMaintainerId && (
             <div className="w-full space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Update Status:
+              </label>
               <Select
                 value={selectedStatus}
                 onValueChange={setSelectedStatus}
               >
                 <SelectTrigger className="w-full md:w-[240px] bg-background" data-cy="status-select">
-                  <SelectValue placeholder="Change status..." />
+                  <SelectValue placeholder="Select new status..." />
                 </SelectTrigger>
                 <SelectContent>
                   {ALLOWED_TRANSITIONS.map((status) => (
@@ -598,16 +589,27 @@ function ReportCard({ report, type, onUpdateStatus, onRefresh, userId }) {
                   onClick={() => onUpdateStatus(report.id, selectedStatus)}
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  Update Status
+                  Confirm Status Change
                 </Button>
               )}
             </div>
           )}
-          */}
+          
+          {/* Messaggio se assegnato esternamente */}
+          {type === "active" && report.externalMaintainerId && (
+            <div className="w-full md:w-[240px] px-3 py-2 bg-muted/50 rounded-md border border-border">
+              <p className="text-xs text-muted-foreground text-center">
+                Status managed by external maintainer
+              </p>
+            </div>
+          )}
 
           {/* Pulsante per assegnazione esterna (Solo Active) */}
           {type === "active" && (
-            <div className="w-full md:w-[240px]">
+            <div className="w-full md:w-[240px] space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Or delegate to external company:
+              </label>
               <AssignMaintainerDialog report={report} onRefresh={onRefresh} />
             </div>
           )}

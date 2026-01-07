@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { User, HelpCircle, Bell, Sun, Moon, Settings, LogOut } from 'lucide-react';
+import { User, HelpCircle, Bell, Sun, Moon, Settings, LogOut, FileText, MessageSquare, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import RoleSwitcher from './RoleSwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { notificationAPI } from '@/services/api';
+import { formatDistanceToNow } from 'date-fns';
 
 const getImageUrl = (path) => {
   if (!path) return '';
@@ -19,17 +23,28 @@ const getImageUrl = (path) => {
   return `http://localhost:3000${path}`;
 };
 
+const getNotificationIcon = (type) => {
+  switch (type) {
+    case 'REPORT_STATUS_CHANGE':
+      return <FileText className="h-4 w-4" />;
+    case 'NEW_MESSAGE':
+      return <MessageSquare className="h-4 w-4" />;
+    case 'ASSIGNMENT':
+      return <AlertCircle className="h-4 w-4" />;
+    default:
+      return <Bell className="h-4 w-4" />;
+  }
+};
+
 export default function Navbar() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, activeRole, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
 
-  // Mock notifications - will be loaded from API
-  const notifications = [];
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  // Logica per determinare se l'utente è un Officer
-  const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name;
+  // Logica per determinare il ruolo attivo
+  const roleName = activeRole?.name || user?.role?.name || user?.role;
   const isOfficer = roleName && (
     roleName.toLowerCase().includes('municipal') || 
     roleName.toLowerCase().includes('officer')
@@ -38,6 +53,47 @@ export default function Navbar() {
   const isTechnician = roleName?.toLowerCase().includes('technical');
   const isExternalMaintainer = roleName?.toLowerCase().includes('external');
   const isCitizen = roleName?.toLowerCase().includes('citizen');
+
+  // Fetch unread notifications count for citizens
+  useEffect(() => {
+    if (isCitizen && isAuthenticated) {
+      fetchNotifications();
+      
+      // Refresh notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isCitizen, isAuthenticated]);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await notificationAPI.getMyNotifications();
+      const allNotifications = response.data;
+      const count = allNotifications.filter(n => !n.isRead).length;
+      setUnreadCount(count);
+      setNotifications(allNotifications.slice(0, 10)); // Store latest 10 for dropdown
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    // Mark as read if unread
+    if (!notification.isRead) {
+      try {
+        await notificationAPI.markAsRead(notification.id);
+        fetchNotifications(); // Refresh
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+      }
+    }
+    
+    // Navigate to report if available
+    if (notification.reportId) {
+      navigate(`/reports/${notification.reportId}`);
+    }
+  };
 
   // Funzione per determinare il link della Home/Logo
   const getHomeLink = () => {
@@ -66,9 +122,9 @@ export default function Navbar() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   const toggleDarkMode = () => {
@@ -92,6 +148,9 @@ export default function Navbar() {
         <div className="flex items-center gap-1 sm:gap-2">
           {isAuthenticated ? (
             <>
+              {/* Role Switcher - Shows for users with multiple roles */}
+              <RoleSwitcher />
+
               {/* Notifications dropdown - NASCOSTO per Officer e Admin */}
               {isCitizen && (
                 <DropdownMenu>
@@ -100,7 +159,9 @@ export default function Navbar() {
                       <Bell className="h-5 w-5" />
                       {/* Badge for unread notifications */}
                       {unreadCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
+                        <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
                       )}
                     </Button>
                   </DropdownMenuTrigger>
@@ -126,16 +187,16 @@ export default function Navbar() {
                       </div>
                     ) : (
                       <div className="max-h-[400px] overflow-y-auto">
-                        {notifications.slice(0, 10).map((notification) => (
+                        {notifications.map((notification) => (
                           <div
                             key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
                             className="flex gap-3 px-4 py-3 hover:bg-accent cursor-pointer border-b last:border-b-0 relative"
                           >
-                            {/* Avatar/Icon */}
+                            {/* Icon */}
                             <Avatar className="h-10 w-10 flex-shrink-0">
-                              <AvatarImage src={notification.avatar} />
-                              <AvatarFallback className="bg-primary/10">
-                                <Bell className="h-5 w-5" />
+                              <AvatarFallback className={notification.isRead ? "bg-muted" : "bg-primary/10"}>
+                                {getNotificationIcon(notification.type)}
                               </AvatarFallback>
                             </Avatar>
 
@@ -148,13 +209,13 @@ export default function Navbar() {
                                 {notification.message}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {notification.time}
+                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                               </p>
                             </div>
 
                             {/* Unread indicator */}
-                            {!notification.read && (
-                              <div className="absolute top-4 right-4 h-2 w-2 bg-red-500 rounded-full"></div>
+                            {!notification.isRead && (
+                              <div className="absolute top-4 right-4 h-2 w-2 bg-blue-500 rounded-full"></div>
                             )}
                           </div>
                         ))}

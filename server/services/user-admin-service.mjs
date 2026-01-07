@@ -18,20 +18,21 @@ export class UserAdminService {
     }
 
     /**
-     * Updates the roles assigned to a user.
-     * Replaces all existing roles with the provided roleIds.
+     * Updates the roles assigned to a user with their associations.
+     * Replaces all existing roles and associations with the provided data.
      * @param {number} userId - Identifier of the user to update.
-     * @param {number[]} roleIds - Array of role IDs to assign to the user.
+     * @param {Array<{roleId: number, technicalOfficeIds?: number[], companyId?: number}>} roles - Array of role objects with associations.
      * @returns {Promise<object>} A sanitized user representation with updated roles.
      */
-    static async updateUserRoles(userId, roleIds) {
+    static async updateUserRoles(userId, roles) {
         // Validate user exists
         const user = await findUserById(userId);
         if (!user) {
             throw new AppError(`User with ID ${userId} not found.`, 404);
         }
 
-        // Validate all roles exist
+        // Extract roleIds for validation
+        const roleIds = roles.map(r => r.roleId);
         await this.#ensureAllRolesExist(roleIds);
 
         // Use transaction to ensure atomicity
@@ -40,9 +41,36 @@ export class UserAdminService {
         try {
             // Replace all existing roles with the new ones
             await user.setRoles(roleIds, { transaction: t });
+
+            // Clear all technical office associations
+            await user.setTechnicalOffices([], { transaction: t });
+
+            // Set new technical office associations
+            const allOfficeIds = [];
+            roles.forEach(role => {
+                if (role.technicalOfficeIds && role.technicalOfficeIds.length > 0) {
+                    allOfficeIds.push(...role.technicalOfficeIds);
+                }
+            });
+            
+            if (allOfficeIds.length > 0) {
+                // Remove duplicates
+                const uniqueOfficeIds = [...new Set(allOfficeIds)];
+                await user.setTechnicalOffices(uniqueOfficeIds, { transaction: t });
+            }
+
+            // Handle company association (only one company per user)
+            const companyRole = roles.find(r => r.companyId);
+            if (companyRole) {
+                await user.update({ companyId: companyRole.companyId }, { transaction: t });
+            } else {
+                // Clear company if no role requires it
+                await user.update({ companyId: null }, { transaction: t });
+            }
+
             await t.commit();
 
-            // Fetch updated user with roles
+            // Fetch updated user with roles and associations
             const updatedUser = await findUserById(userId);
             return sanitizeUser(updatedUser);
         } catch (error) {
@@ -67,9 +95,79 @@ export class UserAdminService {
         if (isCitizen) {
              throw new AppError("Operation not allowed: You cannot delete a Citizen account.", 403);
         }
+
+        // Check if user has active reports
+        const activeReportsCount = await db.Report.count({
+            where: {
+                [db.Sequelize.Op.or]: [
+                    { technicalOfficerId: userId },
+                    { externalMaintainerId: userId }
+                ],
+                status: {
+                    [db.Sequelize.Op.in]: ["Assigned", "In Progress", "Suspended"]
+                }
+            }
+        });
+
+        if (activeReportsCount > 0) {
+            throw new AppError(
+                `Cannot delete user. They have ${activeReportsCount} active report${activeReportsCount > 1 ? 's' : ''} that must be resolved first.`,
+                400
+            );
+        }
+
         await deleteUser(userId);
 
         return true;
+    }
+
+    /**
+     * Checks if a user can be deleted by verifying they have no active reports.
+     * @param {number} userId - The ID of the user to check.
+     * @returns {Promise<{canDelete: boolean, activeReportsCount: number, message?: string}>}
+     * @throws {AppError} If the user is not found.
+     */
+    static async checkUserDeletion(userId) {
+        const user = await findUserById(userId);
+        if (!user) {
+            throw new AppError(`User with ID ${userId} not found.`, 404);
+        }
+
+        const isCitizen = user.roles.some(role => role.name === "citizen"); 
+        
+        if (isCitizen) {
+            return {
+                canDelete: false,
+                activeReportsCount: 0,
+                message: "Operation not allowed: You cannot delete a Citizen account."
+            };
+        }
+
+        // Check if user has active reports
+        const activeReportsCount = await db.Report.count({
+            where: {
+                [db.Sequelize.Op.or]: [
+                    { technicalOfficerId: userId },
+                    { externalMaintainerId: userId }
+                ],
+                status: {
+                    [db.Sequelize.Op.in]: ["Assigned", "In Progress", "Suspended"]
+                }
+            }
+        });
+
+        if (activeReportsCount > 0) {
+            return {
+                canDelete: false,
+                activeReportsCount,
+                message: `Cannot delete user. They have ${activeReportsCount} active report${activeReportsCount > 1 ? 's' : ''} that must be resolved first.`
+            };
+        }
+
+        return {
+            canDelete: true,
+            activeReportsCount: 0
+        };
     }
 
     /**

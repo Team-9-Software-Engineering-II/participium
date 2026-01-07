@@ -6,11 +6,13 @@ import { MessageService } from "../services/message-service.mjs";
 export async function createMessage(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
-    const userId = req.user.id; // From passport session
-    const { content } = req.body;
+    const userId = req.user.id;
+    const { content, internal } = req.body;
 
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res.status(400).json({ message: "reportId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "reportId must be a positive integer." });
     }
 
     if (!content) {
@@ -21,7 +23,12 @@ export async function createMessage(req, res, next) {
       return res.status(400).json({ message: "content cannot be empty." });
     }
 
-    const message = await MessageService.createMessage(userId, reportId, content);
+    const message = await MessageService.createMessage(
+      userId,
+      reportId,
+      content,
+      internal
+    );
 
     return res.status(201).json(message);
   } catch (error) {
@@ -36,12 +43,19 @@ export async function createMessage(req, res, next) {
 export async function getMessagesByReportId(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
+    const internal = req.query.internal !== "false";
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      return res.status(400).json({ message: "reportId must be a positive integer." });
+      return res
+        .status(400)
+        .json({ message: "reportId must be a positive integer." });
     }
 
     // call service
-    const messages = await MessageService.getReportMessages(reportId, req.user);
+    const messages = await MessageService.getReportMessages(
+      reportId,
+      req.user,
+      internal
+    );
 
     // response
     res.status(200).json(messages);
@@ -49,4 +63,3 @@ export async function getMessagesByReportId(req, res, next) {
     next(error);
   }
 }
-

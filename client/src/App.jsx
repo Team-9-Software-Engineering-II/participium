@@ -23,7 +23,7 @@ import ExternalMaintainerLayout from './pages/external-maintainer/ExternalMainta
 import ExternalMaintainerReports from './pages/external-maintainer/ExternalMaintainerReports';
 import { Toaster } from "@/components/ui/sonner"
 
-// Componente spostato fuori da App per risolvere S6478
+// Componente che deve essere dentro AuthProvider
 const HomeRoute = () => {
   const { user } = useAuth();
   const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name;
@@ -42,8 +42,8 @@ const HomeRoute = () => {
 
 function App() {
   return (
-    <Router>
-      <ThemeProvider>
+    <ThemeProvider>
+      <Router>
         <AuthProvider>
           <Routes>
           <Route path="/" element={<HomeRoute />} />
@@ -140,8 +140,8 @@ function App() {
         <Toaster />
 
         </AuthProvider>
-      </ThemeProvider>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 }
 
