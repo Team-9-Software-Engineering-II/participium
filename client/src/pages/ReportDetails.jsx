@@ -62,6 +62,8 @@ export default function ReportDetails() {
   const [extMaintChatOpen, setExtMaintChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastMessageId, setLastMessageId] = useState(null);
+  const [extMaintUnreadCount, setExtMaintUnreadCount] = useState(0);
+  const [lastExtMaintMessageId, setLastExtMaintMessageId] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -339,7 +341,73 @@ export default function ReportDetails() {
     return false;
   };
 
-  // Controlla periodicamente se ci sono nuovi messaggi (solo quando chat è chiusa)
+  // Controlla periodicamente se ci sono nuovi messaggi nella chat INTERNA (solo quando chat è chiusa)
+  useEffect(() => {
+    if (!extMaintChatOpen && canAccessChat() && report?.id && user && report?.externalMaintainer) {
+      const checkNewMessages = async () => {
+        try {
+          const response = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-external
+          const messages = response.data || [];
+          
+          console.log('Checking INTERNAL messages:', { 
+            totalMessages: messages.length, 
+            lastExtMaintMessageId, 
+            extMaintChatOpen,
+            userId: user?.id 
+          });
+          
+          if (messages.length > 0) {
+            const latestMessage = messages[messages.length - 1];
+            
+            // Se è il primo caricamento della pagina
+            if (lastExtMaintMessageId === null) {
+              // Controlla localStorage per vedere se abbiamo già letto questi messaggi
+              const storageKey = `lastReadMessage_${report.id}_${user?.id}_internal`;
+              const lastReadId = localStorage.getItem(storageKey);
+              
+              if (lastReadId) {
+                // Abbiamo già letto fino a lastReadId, conta solo i nuovi
+                const lastReadIdNum = Number.parseInt(lastReadId, 10);
+                const newMessages = messages.filter(m => 
+                  m.id > lastReadIdNum && m.author?.id !== user?.id
+                );
+                console.log('First load INTERNAL, lastReadId from storage:', lastReadIdNum, 'new messages:', newMessages.length);
+                setLastExtMaintMessageId(latestMessage.id);
+                setExtMaintUnreadCount(newMessages.length);
+              } else {
+                // Mai aperta la chat prima, conta tutti i messaggi degli altri
+                const unreadMessages = messages.filter(m => m.author?.id !== user?.id);
+                console.log('First load INTERNAL, no history, unread messages from others:', unreadMessages.length);
+                setLastExtMaintMessageId(latestMessage.id);
+                setExtMaintUnreadCount(unreadMessages.length);
+              }
+            } else if (latestMessage.id !== lastExtMaintMessageId) {
+              // Ci sono nuovi messaggi rispetto all'ultimo check
+              const newMessages = messages.filter(m => 
+                m.id > lastExtMaintMessageId && m.author?.id !== user?.id
+              );
+              console.log('New INTERNAL messages detected:', { 
+                newMessagesCount: newMessages.length,
+                latestMessageId: latestMessage.id,
+                oldLastExtMaintMessageId: lastExtMaintMessageId
+              });
+              // Incrementa il contatore esistente
+              setExtMaintUnreadCount(prev => prev + newMessages.length);
+              // Aggiorna lastExtMaintMessageId per non contare di nuovo gli stessi messaggi
+              setLastExtMaintMessageId(latestMessage.id);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking INTERNAL messages:', error);
+        }
+      };
+
+      // Controlla solo al mount, nessun polling automatico
+      checkNewMessages();
+    }
+  }, [extMaintChatOpen, report?.id, user, lastExtMaintMessageId, report?.externalMaintainer]);
+
+  // Controlla periodicamente se ci sono nuovi messaggi nella chat ESTERNA (solo quando chat è chiusa)
   useEffect(() => {
     if (!chatOpen && canAccessChat() && report?.id && user) {
       const checkNewMessages = async () => {
@@ -405,7 +473,7 @@ export default function ReportDetails() {
     }
   }, [chatOpen, report?.id, user, lastMessageId]);
 
-  // Reset contatore quando la chat viene aperta/chiusa
+  // Reset contatore quando la chat ESTERNA viene aperta/chiusa
   useEffect(() => {
     const handleChatState = async () => {
       if (chatOpen) {
@@ -435,8 +503,39 @@ export default function ReportDetails() {
     
     handleChatState();
   }, [chatOpen, report?.id, user?.id]);
+
+  // Reset contatore quando la chat INTERNA viene aperta/chiusa
+  useEffect(() => {
+    const handleExtMaintChatState = async () => {
+      if (extMaintChatOpen) {
+        // Chat INTERNA APERTA - resetta tutto
+        try {
+          const response = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-external
+          const messages = response.data || [];
+          if (messages.length > 0) {
+            const latestMessage = messages[messages.length - 1];
+            setLastExtMaintMessageId(latestMessage.id);
+            
+            // Salva in localStorage per sincronizzare con i badge delle card
+            const storageKey = `lastReadMessage_${report.id}_${user?.id}_internal`;
+            localStorage.setItem(storageKey, latestMessage.id.toString());
+            
+            console.log('[ReportDetails] Internal chat opened - saved to localStorage:', latestMessage.id);
+            
+            // Emetti evento per aggiornare i badge nelle liste
+            globalThis.dispatchEvent(new Event('chatMessageRead'));
+          }
+          setExtMaintUnreadCount(0);
+        } catch (error) {
+          console.error('Error resetting internal unread:', error);
+        }
+      }
+    };
+    
+    handleExtMaintChatState();
+  }, [extMaintChatOpen, report?.id, user?.id]);
   
-  // Quando la chat si chiude, aggiorna SUBITO da localStorage
+  // Quando la chat ESTERNA si chiude, aggiorna SUBITO da localStorage
   useEffect(() => {
     if (!chatOpen && report?.id && user?.id) {
       console.log('[ReportDetails] Chat closed - rechecking messages IMMEDIATELY');
@@ -452,6 +551,23 @@ export default function ReportDetails() {
       }
     }
   }, [chatOpen, report?.id, user?.id]);
+
+  // Quando la chat INTERNA si chiude, aggiorna SUBITO da localStorage
+  useEffect(() => {
+    if (!extMaintChatOpen && report?.id && user?.id) {
+      console.log('[ReportDetails] Internal chat closed - rechecking messages IMMEDIATELY');
+      const storageKey = `lastReadMessage_${report.id}_${user.id}_internal`;
+      const lastReadId = localStorage.getItem(storageKey);
+      
+      if (lastReadId) {
+        console.log('[ReportDetails] Found internal lastReadId in localStorage:', lastReadId);
+        const lastReadIdNum = Number.parseInt(lastReadId, 10);
+        // Aggiorna IMMEDIATAMENTE e SINCRONAMENTE
+        setLastExtMaintMessageId(lastReadIdNum);
+        setExtMaintUnreadCount(0);
+      }
+    }
+  }, [extMaintChatOpen, report?.id, user?.id]);
 
   // Ascolta l'evento chatMessageRead per aggiornare il badge quando la chat viene chiusa
   useEffect(() => {
@@ -639,11 +755,16 @@ export default function ReportDetails() {
                 </div>
                 <Button
                   onClick={() => setExtMaintChatOpen(true)}
-                  className="gap-2 bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 text-white flex-shrink-0"
+                  className="gap-2 bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 text-white flex-shrink-0 relative"
                   size="default"
                 >
                   <MessageSquare className="h-4 w-4" />
                   Chat with External Maintainer
+                  {extMaintUnreadCount > 0 && (
+                    <span className="ml-1 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                      {extMaintUnreadCount}
+                    </span>
+                  )}
                 </Button>
               </div>
             </div>
