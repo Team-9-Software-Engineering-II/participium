@@ -101,6 +101,7 @@ export async function isReportParticipant(req, res, next) {
   try {
     const reportId = Number(req.params.reportId);
     const userId = req.user?.id;
+    const { internal } = req.body;
 
     if (!userId) {
       throw new AppError("User not authenticated", 401);
@@ -115,20 +116,34 @@ export async function isReportParticipant(req, res, next) {
       throw new AppError("Report not found", 404);
     }
 
-    // Check both the foreign key fields and the related objects (in case includes are used)
+    if (internal === undefined || internal) {
+      // Check both the foreign key fields and the related objects (in case includes are used)
+      const isTechnicalOfficer =
+        report.technicalOfficerId === userId ||
+        report.technicalOfficer?.id === userId;
+      const isExternalMaintainer =
+        report.externalMaintainerId === userId ||
+        report.externalMaintainer?.id === userId;
+
+      if (isTechnicalOfficer || isExternalMaintainer) {
+        return next();
+      }
+      throw new AppError(
+        "Forbidden: You must be the technical officer or external maintainer assigned to this report",
+        403
+      );
+    }
     const isTechnicalOfficer =
       report.technicalOfficerId === userId ||
       report.technicalOfficer?.id === userId;
-    const isExternalMaintainer =
-      report.externalMaintainerId === userId ||
-      report.externalMaintainer?.id === userId;
 
-    if (isTechnicalOfficer || isExternalMaintainer) {
+    const isCitizen = report.userId === userId || report.user?.id === userId;
+
+    if (isCitizen || isTechnicalOfficer) {
       return next();
     }
-
     throw new AppError(
-      "Forbidden: You must be the technical officer or external maintainer assigned to this report",
+      "Forbidden: You must be the technical officer or citizen associated to this report",
       403
     );
   } catch (error) {
