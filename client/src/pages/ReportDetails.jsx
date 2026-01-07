@@ -409,7 +409,10 @@ export default function ReportDetails() {
 
   // Controlla periodicamente se ci sono nuovi messaggi nella chat ESTERNA (solo quando chat è chiusa)
   useEffect(() => {
-    if (!chatOpen && canAccessChat() && report?.id && user) {
+    // Controlla se l'utente può vedere questa chat (tech staff o cittadino)
+    const canCheckExternalChat = canAccessChat() || showCitizenFloatingChat();
+    
+    if (!chatOpen && canCheckExternalChat && report?.id && user) {
       const checkNewMessages = async () => {
         try {
           const response = await messageAPI.getMessages(report.id, false); // internal=false per chat cittadino
@@ -730,9 +733,7 @@ export default function ReportDetails() {
                     <MessageSquare className="h-4 w-4" />
                     Chat with {report.user?.firstName || 'Citizen'}
                     {unreadCount > 0 && (
-                      <span className="ml-1 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
-                        {unreadCount}
-                      </span>
+                      <span className="ml-1 bg-red-500 rounded-full h-2.5 w-2.5"></span>
                     )}
                   </Button>
                 )}
@@ -761,9 +762,7 @@ export default function ReportDetails() {
                   <MessageSquare className="h-4 w-4" />
                   Chat with External Maintainer
                   {extMaintUnreadCount > 0 && (
-                    <span className="ml-1 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
-                      {extMaintUnreadCount}
-                    </span>
+                    <span className="ml-1 bg-red-500 rounded-full h-2.5 w-2.5"></span>
                   )}
                 </Button>
               </div>
@@ -924,9 +923,7 @@ export default function ReportDetails() {
         >
           <MessageSquare className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold border-2 border-white">
-              {unreadCount}
-            </span>
+            <span className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full h-3 w-3 border-2 border-white"></span>
           )}
         </button>
       )}
@@ -940,9 +937,7 @@ export default function ReportDetails() {
         >
           <MessageSquare className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold border-2 border-white">
-              {unreadCount}
-            </span>
+            <span className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full h-3 w-3 border-2 border-white"></span>
           )}
         </button>
       )}
