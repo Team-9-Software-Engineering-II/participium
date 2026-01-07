@@ -26,8 +26,9 @@ export default function ChatSheet({ open, onOpenChange, reportId, technicalOffic
   const previousOpenRef = useRef(open);
 
   // Determina chi è l'altro utente nella chat
-  // Se c'è externalMaintainer: chat Tech-ExtMaint
-  // Altrimenti: chat Cittadino-Tech
+  // Se c'è externalMaintainer: chat Tech-ExtMaint (internal=true)
+  // Altrimenti: chat Cittadino-Tech (internal=false)
+  const isInternalChat = !!externalMaintainer;
   const otherUser = externalMaintainer 
     ? (user?.id === technicalOfficer?.id ? externalMaintainer : technicalOfficer)
     : (user?.id === technicalOfficer?.id ? citizen : technicalOfficer);
@@ -94,7 +95,7 @@ export default function ChatSheet({ open, onOpenChange, reportId, technicalOffic
         setTimeout(() => {
           if (open && messages.length > 0 && reportId && user?.id) {
             const latestMessage = messages.at(-1);
-            const storageKey = `lastReadMessage_${reportId}_${user.id}`;
+            const storageKey = `lastReadMessage_${reportId}_${user.id}_${isInternalChat ? 'internal' : 'external'}`;
             localStorage.setItem(storageKey, latestMessage.id.toString());
             console.log('[ChatSheet] Updated localStorage after scroll:', latestMessage.id);
           }
@@ -146,7 +147,7 @@ export default function ChatSheet({ open, onOpenChange, reportId, technicalOffic
   const loadMessages = async () => {
     try {
       setLoading(true);
-      const response = await messageAPI.getMessages(reportId);
+      const response = await messageAPI.getMessages(reportId, isInternalChat);
       const newMessages = response.data || [];
       setMessages(newMessages);
       
@@ -154,7 +155,7 @@ export default function ChatSheet({ open, onOpenChange, reportId, technicalOffic
       // Salva IMMEDIATAMENTE l'ultimo messaggio letto
       if (open && newMessages.length > 0 && isUserAtBottom()) {
         const latestMessage = newMessages.at(-1);
-        const storageKey = `lastReadMessage_${reportId}_${user?.id}`;
+        const storageKey = `lastReadMessage_${reportId}_${user?.id}_${isInternalChat ? 'internal' : 'external'}`;
         localStorage.setItem(storageKey, latestMessage.id.toString());
         console.log('[ChatSheet] Saved in loadMessages:', latestMessage.id);
       }
@@ -174,7 +175,7 @@ export default function ChatSheet({ open, onOpenChange, reportId, technicalOffic
     
     try {
       setSending(true);
-      await messageAPI.sendMessage(reportId, messageToSend);
+      await messageAPI.sendMessage(reportId, messageToSend, isInternalChat);
       // Forza scroll dopo invio
       setShouldScrollToBottom(true);
       await loadMessages();

@@ -104,8 +104,12 @@ export const reportAPI = {
 
 // ==================== MESSAGES ====================
 export const messageAPI = {
-  getMessages: (reportId) => api.get(`/messages/reports/${reportId}`),
-  sendMessage: (reportId, content) => api.post(`/messages/reports/${reportId}`, { content }),
+  getMessages: (reportId, internal = false) => {
+    const params = internal ? { internal: 'true' } : { internal: 'false' };
+    return api.get(`/messages/reports/${reportId}`, { params });
+  },
+  sendMessage: (reportId, content, internal = false) => 
+    api.post(`/messages/reports/${reportId}`, { content, internal }),
 };
 
 // ==================== MUNICIPAL (Officer) ====================

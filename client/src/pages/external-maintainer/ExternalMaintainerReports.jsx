@@ -88,11 +88,11 @@ export default function ExternalMaintainerReports({ type = "active" }) {
         await Promise.all(
           filteredData.map(async (report) => {
             try {
-              const messagesResponse = await messageAPI.getMessages(report.id);
+              const messagesResponse = await messageAPI.getMessages(report.id, true); // internal=true per chat tech-extmaint
               const messages = messagesResponse.data || [];
               
               if (messages.length > 0) {
-                const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+                const storageKey = `lastReadMessage_${report.id}_${user.id}_internal`;
                 const lastReadId = localStorage.getItem(storageKey);
                 
                 if (lastReadId) {
@@ -348,7 +348,7 @@ function UnreadMessageBadge({ reportId, userId }) {
       if (!userId || !reportId) return;
 
       try {
-        const response = await messageAPI.getMessages(reportId);
+        const response = await messageAPI.getMessages(reportId, true); // internal=true per chat tech-extmaint
         const messages = response.data || [];
         
         if (messages.length === 0) {
@@ -357,7 +357,7 @@ function UnreadMessageBadge({ reportId, userId }) {
         }
 
         // Recupera l'ultimo messaggio visto da localStorage
-        const storageKey = `lastReadMessage_${reportId}_${userId}`;
+        const storageKey = `lastReadMessage_${reportId}_${userId}_internal`;
         const lastReadId = localStorage.getItem(storageKey);
         
         console.log(`[Badge Maintainer] Report ${reportId}:`, {

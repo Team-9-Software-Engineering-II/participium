@@ -101,12 +101,12 @@ export default function Dashboard() {
   // Funzione per calcolare i messaggi non letti per un report
   const calculateUnreadMessages = async (reportId) => {
     try {
-      const response = await messageAPI.getMessages(reportId);
+      const response = await messageAPI.getMessages(reportId, false); // internal=false per chat cittadino
       const messages = response.data || [];
       
       if (messages.length === 0) return 0;
 
-      const storageKey = `lastReadMessage_${reportId}_${user?.id}`;
+      const storageKey = `lastReadMessage_${reportId}_${user?.id}_external`;
       const lastReadId = localStorage.getItem(storageKey);
 
       if (lastReadId) {

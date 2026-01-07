@@ -199,28 +199,99 @@ export default function ReportDetails() {
     }
   };
 
-  // Determina se mostrare il pulsante chat
+  // Determina se mostrare le chat INLINE (solo per tech staff con delegazione)
   const canAccessChat = () => {
-    console.log('canAccessChat check:', {
-      hasAssignee: !!report?.assignee?.id,
-      hasExternalMaintainer: !!report?.externalMaintainer?.id,
+    console.log('=== canAccessChat CHECK START ===');
+    console.log('User info:', {
       userId: user?.id,
+      userRoles: user?.roles?.map(r => r.name),
+      isOfficer: isOfficer()
+    });
+    console.log('Report info:', {
+      reportId: report?.id,
       assigneeId: report?.assignee?.id,
+      assigneeName: report?.assignee?.username,
       externalMaintainerId: report?.externalMaintainer?.id,
-      reportUserId: report?.user?.id,
-      report: report
+      externalMaintainerName: report?.externalMaintainer?.username,
+      reportStatus: report?.status
     });
     
-    // Chat sempre disponibile se c'è un assignee
-    if (report?.assignee?.id) {
-      const isTechOfficer = user?.id === report.assignee.id;
-      const isExternalMaintainer = report?.externalMaintainer?.id && user?.id === report.externalMaintainer.id;
-      const isCitizen = user?.id === report.user?.id;
-      
-      console.log('Chat access check:', { isTechOfficer, isExternalMaintainer, isCitizen });
-      return isTechOfficer || isExternalMaintainer || isCitizen;
+    // REGOLA: Chat inline disponibile SOLO per tech staff che ha delegato
+    // Cioè: user è assignee E report ha externalMaintainer
+    
+    const userIsAssignee = user?.id === report?.assignee?.id;
+    const reportHasDelegation = !!report?.externalMaintainer?.id;
+    
+    console.log('Conditions:', {
+      userIsAssignee,
+      reportHasDelegation,
+      result: userIsAssignee && reportHasDelegation
+    });
+    
+    if (userIsAssignee && reportHasDelegation) {
+      console.log('✓ canAccessChat: TRUE - user is assignee WITH delegation');
+      return true;
     }
     
+    console.log('✗ canAccessChat: FALSE - conditions not met');
+    console.log('=== canAccessChat CHECK END ===');
+    return false;
+  };
+
+  // Determina se mostrare il floating button per cittadini
+  const showCitizenFloatingChat = () => {
+    // Cittadino può vedere floating button SOLO se il report è assegnato
+    const isCitizen = user?.id === report?.user?.id;
+    const isAssigned = report?.status && 
+      (report.status.toLowerCase() === 'assigned' || 
+       report.status.toLowerCase() === 'in progress' ||
+       report.status.toLowerCase() === 'resolved');
+    const hasAssignee = !!report?.assignee?.id;
+    
+    console.log('Citizen floating check:', { isCitizen, isAssigned, hasAssignee, isAnonymous: report?.anonymous });
+    return isCitizen && isAssigned && hasAssignee && !report?.anonymous;
+  };
+
+  // Determina se mostrare il floating button per external maintainer e tech staff senza delegazione
+  const showExtMaintFloatingChat = () => {
+    console.log('showExtMaintFloatingChat: Checking conditions...');
+    
+    // Prima, controlliamo il CONTESTO: l'utente sta agendo come assignee o externalMaintainer su QUESTO report?
+    const isAssignee = user?.id === report?.assignee?.id;
+    const isExtMaint = user?.id === report?.externalMaintainer?.id;
+    
+    // Se l'utente è assignee o externalMaintainer, NON sta agendo come MPRO in questo contesto
+    // Anche se ha il ruolo MPRO, qui sta agendo nel suo altro ruolo
+    if (isAssignee || isExtMaint) {
+      console.log('showExtMaintFloatingChat: User is assignee/extMaint, NOT MPRO in this context');
+      
+      // Tech staff CON delegazione → NON floating button (usa pulsanti inline)
+      if (isAssignee && report?.externalMaintainer) {
+        console.log('showExtMaintFloatingChat: Tech staff WITH delegation, returning FALSE (uses inline buttons)');
+        return false;
+      }
+      
+      // Tech staff senza delegazione → floating button
+      if (isAssignee && !report?.externalMaintainer) {
+        console.log('showExtMaintFloatingChat: Tech staff without delegation, returning TRUE');
+        return true;
+      }
+      
+      // External maintainer con assignee presente → floating button
+      if (isExtMaint && report?.assignee?.id) {
+        console.log('showExtMaintFloatingChat: Ext maint with assignee, returning TRUE');
+        return true;
+      }
+    }
+    
+    // Se l'utente NON è assignee o externalMaintainer, controlliamo se è MPRO
+    // MPRO non deve avere accesso alla chat
+    if (isOfficer()) {
+      console.log('showExtMaintFloatingChat: User is MPRO (not assignee/extMaint), returning false');
+      return false;
+    }
+
+    console.log('showExtMaintFloatingChat: No match, returning false');
     return false;
   };
 
@@ -229,7 +300,7 @@ export default function ReportDetails() {
     if (!chatOpen && canAccessChat() && report?.id && user) {
       const checkNewMessages = async () => {
         try {
-          const response = await messageAPI.getMessages(report.id);
+          const response = await messageAPI.getMessages(report.id, false); // internal=false per chat cittadino
           const messages = response.data || [];
           
           console.log('Checking messages:', { 
@@ -245,7 +316,7 @@ export default function ReportDetails() {
             // Se è il primo caricamento della pagina
             if (lastMessageId === null) {
               // Controlla localStorage per vedere se abbiamo già letto questi messaggi
-              const storageKey = `lastReadMessage_${report.id}_${user?.id}`;
+              const storageKey = `lastReadMessage_${report.id}_${user?.id}_external`;
               const lastReadId = localStorage.getItem(storageKey);
               
               if (lastReadId) {
@@ -296,14 +367,14 @@ export default function ReportDetails() {
       if (chatOpen) {
         // Chat APERTA - resetta tutto
         try {
-          const response = await messageAPI.getMessages(report.id);
+          const response = await messageAPI.getMessages(report.id, false); // internal=false per chat cittadino
           const messages = response.data || [];
           if (messages.length > 0) {
             const latestMessage = messages[messages.length - 1];
             setLastMessageId(latestMessage.id);
             
             // Salva in localStorage per sincronizzare con i badge delle card
-            const storageKey = `lastReadMessage_${report.id}_${user?.id}`;
+            const storageKey = `lastReadMessage_${report.id}_${user?.id}_external`;
             localStorage.setItem(storageKey, latestMessage.id.toString());
             
             console.log('[ReportDetails] Chat opened - saved to localStorage:', latestMessage.id);
@@ -325,7 +396,7 @@ export default function ReportDetails() {
   useEffect(() => {
     if (!chatOpen && report?.id && user?.id) {
       console.log('[ReportDetails] Chat closed - rechecking messages IMMEDIATELY');
-      const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+      const storageKey = `lastReadMessage_${report.id}_${user.id}_external`;
       const lastReadId = localStorage.getItem(storageKey);
       
       if (lastReadId) {
@@ -343,7 +414,7 @@ export default function ReportDetails() {
     const handleChatRead = () => {
       // Rileggi da localStorage e aggiorna il badge
       if (report?.id && user?.id) {
-        const storageKey = `lastReadMessage_${report.id}_${user.id}`;
+        const storageKey = `lastReadMessage_${report.id}_${user.id}_external`;
         const lastReadId = localStorage.getItem(storageKey);
         
         if (lastReadId && lastMessageId) {
@@ -618,44 +689,97 @@ export default function ReportDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* CHAT SHEETS - Aperti dai pulsanti contestuali nelle card */}
+      {/* CHAT SHEETS - Tech staff con delegazione (pulsanti inline) */}
       {canAccessChat() && (
         <>
-          {/* Tech Staff: due chat separate quando c'è delegazione */}
-          {user?.id === report?.assignee?.id && report?.externalMaintainer?.id ? (
-            <>
-              {/* ChatSheet Cittadino */}
-              <ChatSheet
-                open={chatOpen}
-                onOpenChange={setChatOpen}
-                reportId={report.id}
-                technicalOfficer={report.assignee}
-                externalMaintainer={null}
-                citizen={report.user}
-              />
-              
-              {/* ChatSheet External Maintainer */}
-              <ChatSheet
-                open={extMaintChatOpen}
-                onOpenChange={setExtMaintChatOpen}
-                reportId={report.id}
-                technicalOfficer={report.assignee}
-                externalMaintainer={report.externalMaintainer}
-                citizen={null}
-              />
-            </>
-          ) : (
-            /* Tutti gli altri: una sola chat */
-            <ChatSheet
-              open={chatOpen}
-              onOpenChange={setChatOpen}
-              reportId={report.id}
-              technicalOfficer={report.assignee}
-              externalMaintainer={report.externalMaintainer}
-              citizen={report.user}
-            />
-          )}
+          {/* ChatSheet per cittadino */}
+          <ChatSheet
+            open={chatOpen}
+            onOpenChange={setChatOpen}
+            reportId={report.id}
+            technicalOfficer={report.assignee}
+            externalMaintainer={null}
+            citizen={report.user}
+          />
+          
+          {/* ChatSheet per external maintainer */}
+          <ChatSheet
+            open={extMaintChatOpen}
+            onOpenChange={setExtMaintChatOpen}
+            reportId={report.id}
+            technicalOfficer={report.assignee}
+            externalMaintainer={report.externalMaintainer}
+            citizen={null}
+          />
         </>
+      )}
+
+      {/* CHAT SHEET - Cittadino (floating button) */}
+      {showCitizenFloatingChat() && (
+        <ChatSheet
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          reportId={report.id}
+          technicalOfficer={report.assignee}
+          externalMaintainer={null}
+          citizen={report.user}
+        />
+      )}
+
+      {/* CHAT SHEET - Tech staff senza delegazione (floating button) */}
+      {showExtMaintFloatingChat() && user?.id === report?.assignee?.id && (
+        <ChatSheet
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          reportId={report.id}
+          technicalOfficer={report.assignee}
+          externalMaintainer={null}
+          citizen={report.user}
+        />
+      )}
+
+      {/* CHAT SHEET - External Maintainer (floating button) */}
+      {user?.id === report?.externalMaintainer?.id && showExtMaintFloatingChat() && (
+        <ChatSheet
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          reportId={report.id}
+          technicalOfficer={report.assignee}
+          externalMaintainer={report.externalMaintainer}
+          citizen={null}
+        />
+      )}
+
+      {/* FLOATING CHAT BUTTON - Cittadino */}
+      {showCitizenFloatingChat() && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-black hover:bg-gray-900 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 z-50 flex items-center gap-2"
+          aria-label="Chat with Technical Officer"
+        >
+          <MessageSquare className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold border-2 border-white">
+              {unreadCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* FLOATING CHAT BUTTON - External Maintainer / Tech Staff without delegation */}
+      {showExtMaintFloatingChat() && (user?.id === report?.externalMaintainer?.id || (user?.id === report?.assignee?.id && !report?.externalMaintainer)) && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-black hover:bg-gray-900 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 z-50 flex items-center gap-2"
+          aria-label="Chat with Technical Officer"
+        >
+          <MessageSquare className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold border-2 border-white">
+              {unreadCount}
+            </span>
+          )}
+        </button>
       )}
 
     </div>
