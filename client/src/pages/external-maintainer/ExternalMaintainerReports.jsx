@@ -70,7 +70,7 @@ export default function ExternalMaintainerReports({ type = "active" }) {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const response = await staffAPI.getAssignedReports();
+      const response = await staffAPI.getAssignedReports('external_maintainer');
       const allData = response.data;
 
       const filteredData = allData.filter((report) => {

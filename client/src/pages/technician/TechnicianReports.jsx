@@ -80,8 +80,8 @@ export default function TechnicianReports({ type = "active" }) {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      // 1. Scarica TUTTI i report assegnati
-      const response = await staffAPI.getAssignedReports();
+      // 1. Scarica TUTTI i report assegnati (passando il ruolo technical_staff)
+      const response = await staffAPI.getAssignedReports('technical_staff');
       const allData = response.data;
       console.log('All assigned reports:', allData);
 

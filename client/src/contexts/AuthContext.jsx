@@ -77,7 +77,8 @@ export const AuthProvider = ({ children }) => {
       // La risposta contiene { authenticated: true, user: {...} }
       if (response.data.authenticated) {
         setUser(response.data.user);
-        setDefaultRole(response.data.user.roles);
+        // NON impostiamo automaticamente il ruolo qui
+        // Sarà gestito dalla pagina di login o dalla selezione ruolo
       }
       
       return { success: true, user: response.data.user };
@@ -148,6 +149,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('activeRole', JSON.stringify(role));
   };
 
+  // Select initial role after login
+  const selectInitialRole = (role) => {
+    setActiveRole(role);
+    localStorage.setItem('activeRole', JSON.stringify(role));
+  };
+
   const value = useMemo(() => ({
     user,
     loading,
@@ -157,6 +164,7 @@ export const AuthProvider = ({ children }) => {
     register,
     updateProfile,
     switchRole,
+    selectInitialRole,
     isAuthenticated: !!user,
   }), [user, loading, activeRole, login, logout, register, updateProfile, switchRole]);
 

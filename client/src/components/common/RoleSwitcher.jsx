@@ -35,10 +35,21 @@ export default function RoleSwitcher() {
     switch (name) {
       case 'municipal_public_relations_officer':
         return 'Municipal Officer (MPRO)';
-      case 'technical_staff':
+      case 'technical_staff': {
+        // Mostra ufficio tecnico se disponibile
+        if (user?.technicalOffices && user.technicalOffices.length > 0) {
+          const officeNames = user.technicalOffices.map(o => o.name).join(', ');
+          return `Technical Staff - ${officeNames}`;
+        }
         return 'Technical Staff';
-      case 'external_maintainer':
+      }
+      case 'external_maintainer': {
+        // Mostra company se disponibile
+        if (user?.company) {
+          return `External Maintainer - ${user.company.name}`;
+        }
         return 'External Maintainer';
+      }
       case 'admin':
         return 'Administrator';
       case 'citizen':
