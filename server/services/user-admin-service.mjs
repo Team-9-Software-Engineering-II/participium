@@ -95,9 +95,79 @@ export class UserAdminService {
         if (isCitizen) {
              throw new AppError("Operation not allowed: You cannot delete a Citizen account.", 403);
         }
+
+        // Check if user has active reports
+        const activeReportsCount = await db.Report.count({
+            where: {
+                [db.Sequelize.Op.or]: [
+                    { technicalOfficerId: userId },
+                    { externalMaintainerId: userId }
+                ],
+                status: {
+                    [db.Sequelize.Op.in]: ["Assigned", "In Progress", "Suspended"]
+                }
+            }
+        });
+
+        if (activeReportsCount > 0) {
+            throw new AppError(
+                `Cannot delete user. They have ${activeReportsCount} active report${activeReportsCount > 1 ? 's' : ''} that must be resolved first.`,
+                400
+            );
+        }
+
         await deleteUser(userId);
 
         return true;
+    }
+
+    /**
+     * Checks if a user can be deleted by verifying they have no active reports.
+     * @param {number} userId - The ID of the user to check.
+     * @returns {Promise<{canDelete: boolean, activeReportsCount: number, message?: string}>}
+     * @throws {AppError} If the user is not found.
+     */
+    static async checkUserDeletion(userId) {
+        const user = await findUserById(userId);
+        if (!user) {
+            throw new AppError(`User with ID ${userId} not found.`, 404);
+        }
+
+        const isCitizen = user.roles.some(role => role.name === "citizen"); 
+        
+        if (isCitizen) {
+            return {
+                canDelete: false,
+                activeReportsCount: 0,
+                message: "Operation not allowed: You cannot delete a Citizen account."
+            };
+        }
+
+        // Check if user has active reports
+        const activeReportsCount = await db.Report.count({
+            where: {
+                [db.Sequelize.Op.or]: [
+                    { technicalOfficerId: userId },
+                    { externalMaintainerId: userId }
+                ],
+                status: {
+                    [db.Sequelize.Op.in]: ["Assigned", "In Progress", "Suspended"]
+                }
+            }
+        });
+
+        if (activeReportsCount > 0) {
+            return {
+                canDelete: false,
+                activeReportsCount,
+                message: `Cannot delete user. They have ${activeReportsCount} active report${activeReportsCount > 1 ? 's' : ''} that must be resolved first.`
+            };
+        }
+
+        return {
+            canDelete: true,
+            activeReportsCount: 0
+        };
     }
 
     /**

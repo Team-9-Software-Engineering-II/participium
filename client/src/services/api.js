@@ -179,6 +179,7 @@ export const adminAPI = {
   createUser: (userData) => api.post('/admin/users', userData),
   updateUserRoles: (userId, roles) => api.put(`/admin/users/${userId}/roles`, { roles }),
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  checkUserDeletion: (userId) => api.get(`/admin/users/${userId}/deletion-check`),
 };
 
 export default api;

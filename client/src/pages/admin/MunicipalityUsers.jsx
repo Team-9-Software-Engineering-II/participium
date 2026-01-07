@@ -151,6 +151,7 @@ export default function MunicipalityUsers() {
   // Delete User Dialog States
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletionError, setDeletionError] = useState(null);
 
   // Fetch Users
   const fetchUsers = useCallback(async () => {
@@ -478,8 +479,31 @@ export default function MunicipalityUsers() {
   };
 
   // Funzioni per Delete User
-  const handleOpenDeleteDialog = (user) => {
-    setUserToDelete(user);
+  const handleOpenDeleteDialog = async (user) => {
+    // Check if user can be deleted before showing dialog
+    try {
+      const { data } = await adminAPI.checkUserDeletion(user.id);
+      
+      if (!data.canDelete) {
+        // Show error dialog instead of delete confirmation
+        setDeletionError({
+          user,
+          message: data.message,
+          activeReportsCount: data.activeReportsCount
+        });
+        return;
+      }
+      
+      // User can be deleted, show confirmation dialog
+      setUserToDelete(user);
+    } catch (error) {
+      console.error('Error checking user deletion:', error);
+      setDeletionError({
+        user,
+        message: error.response?.data?.message || 'Failed to check if user can be deleted',
+        activeReportsCount: 0
+      });
+    }
   };
 
   const handleCloseDeleteDialog = () => {
@@ -1053,6 +1077,27 @@ export default function MunicipalityUsers() {
             >
               {isDeleting ? 'Deleting...' : 'Delete user'}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deletion Error Dialog */}
+      <AlertDialog open={!!deletionError} onOpenChange={(open) => {
+        if (!open) setDeletionError(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot delete user</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deletionError ? formatDisplayName(deletionError.user) : ''}</strong> cannot be deleted at this time.
+              <br/><br/>
+              {deletionError?.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletionError(null)}>
+              Close
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

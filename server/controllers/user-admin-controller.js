@@ -84,3 +84,22 @@ export async function deleteUser(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * Handles HTTP requests for checking if a user can be deleted.
+ */
+export async function checkUserDeletion(req, res, next) {
+  try {
+    const userId = Number(req.params.userId);
+
+    if (!isIdNumberAndPositive(userId) || userId <= 0) {
+      return res.status(400).json({ message: "userId must be a positive integer." });
+    }
+
+    const result = await UserAdminService.checkUserDeletion(userId);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
