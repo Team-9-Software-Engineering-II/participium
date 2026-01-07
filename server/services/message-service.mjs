@@ -17,7 +17,7 @@ export class MessageService {
    * @param {string} content - The message content.
    * @returns {Promise<object>} The created message with author details.
    */
-  static async createMessage(userId, reportId, content) {
+  static async createMessage(userId, reportId, content, internal = true) {
     // Validate content is provided and not empty
     if (
       !content ||
@@ -36,10 +36,11 @@ export class MessageService {
       content: content.trim(),
       userId,
       reportId,
+      isInternal: internal,
     });
 
     // Fetch the message with author details
-    const messages = await findMessagesByReportId(reportId);
+    const messages = await findMessagesByReportId(reportId, internal);
     const message = messages.find((msg) => msg.id === createdMessage.id);
 
     return message || createdMessage;
@@ -52,7 +53,7 @@ export class MessageService {
    * @param {object} user - The authenticated user (from req.user).
    * @returns {Promise<Array>} List of messages.
    */
-  static async getReportMessages(reportId, user) {
+  static async getReportMessages(reportId, user, internal = true) {
     // check if report exixts
 
     const report = await findReportById(reportId);
@@ -60,28 +61,45 @@ export class MessageService {
       logger.warn(`Report with ID ${reportId} not found`);
       throw new AppError(`Report with ID ${reportId} not found`, 404);
     }
-    // check user authorization
-    // user with role "citizen" cannot access internal messages
-    const roles = user.roles || [];
-    const isCitizen = roles.some(role => role.name === "citizen");
-    if (isCitizen) {
-      logger.warn("Unauthorized: Citizens cannot access internal messages.");
-      throw new AppError(
-        "Unauthorized: Citizens cannot access internal messages.",
-        403
-      );
+
+    if (internal) {
+      if (user.role && user.role.name === "citizen") {
+        // check user authorization
+        // user with role "citizen" cannot access internal messages
+        logger.warn("Unauthorized: Citizens cannot access internal messages.");
+        throw new AppError(
+          "Unauthorized: Citizens cannot access internal messages.",
+          403
+        );
+      }
+
+      const isAdmin = user.role && user.role.name === "admin";
+
+      // checking the assigned officer and maintainer
+      const isAssignedOfficer =
+        report.technicalOfficerId && report.technicalOfficerId == user.id;
+      const isAssignedMaintainer =
+        report.externalMaintainerId && report.externalMaintainerId == user.id;
+
+      // if not admin, not assigned officer and not assigned maintainer -> throw 403
+      if (!isAdmin && !isAssignedOfficer && !isAssignedMaintainer) {
+        logger.warn("Unauthorized: You are not assigned to this report.");
+        throw new AppError(
+          "Unauthorized: You are not assigned to this report.",
+          403
+        );
+      }
+
+      // fetch and return messages
+      return await findMessagesByReportId(reportId, internal);
     }
 
-    const isAdmin = roles.some(role => role.name === "admin");
-
-    // checking the assigned officer and maintainer
+    const isAssignedCitizen = report.userId && report.userId == user.id;
     const isAssignedOfficer =
       report.technicalOfficerId && report.technicalOfficerId == user.id;
-    const isAssignedMaintainer =
-      report.externalMaintainerId && report.externalMaintainerId == user.id;
 
     // if not admin, not assigned officer and not assigned maintainer -> throw 403
-    if (!isAdmin && !isAssignedOfficer && !isAssignedMaintainer) {
+    if (!isAssignedOfficer && !isAssignedCitizen) {
       logger.warn("Unauthorized: You are not assigned to this report.");
       throw new AppError(
         "Unauthorized: You are not assigned to this report.",
@@ -90,6 +108,6 @@ export class MessageService {
     }
 
     // fetch and return messages
-    return await findMessagesByReportId(reportId);
+    return await findMessagesByReportId(reportId, internal);
   }
 }
