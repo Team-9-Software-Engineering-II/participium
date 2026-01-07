@@ -1,66 +1,115 @@
+/**
+ * @class AdminCreateMunicipalityUserPage
+ * @description Page Object Model for managing Municipality Users (creation and role management).
+ * Maps interactions with the React frontend using data-cy attributes.
+ */
 class AdminCreateMunicipalityUserPage {
   elements = {
-    openCreateUser: () => cy.get('[data-cy="open-create-user"]'),
-    firstName: () => cy.get('[data-cy="first-name"]'),
-    lastName: () => cy.get('[data-cy="last-name"]'),
-    email: () => cy.get('[data-cy="email"]'),
-    username: () => cy.get('[data-cy="username"]'),
-    password: () => cy.get('[data-cy="password"]'),
-    role: () => cy.get('[data-cy="role"]'),
-    submit: () => cy.get('[data-cy="submit"]'),
-    createRoleTrigger: () => cy.get('[data-cy="select-role"]'),
-    editRoleTrigger: () => cy.get('[data-cy="select-edit-role"]'),
-    errorMessage: () => cy.get('[data-cy="create-user-modal"]'),
-    submitEdit: () => cy.get('[data-cy="submit-edit-role"]'),
-    modalEdit: () => cy.get('[data-cy="edit-user-modal"]'),
-    editRole: () => cy.get('[data-cy="edit-role"]'),
+    // --- Create User Modal Selectors ---
+    openCreateUserBtn: () => cy.get('[data-cy="open-create-user"]'),
+    firstNameInput: () => cy.get('[data-cy="first-name"]'),
+    lastNameInput: () => cy.get('[data-cy="last-name"]'),
+    emailInput: () => cy.get('[data-cy="email"]'),
+    usernameInput: () => cy.get('[data-cy="username"]'),
+    passwordInput: () => cy.get('[data-cy="password"]'),
+
+    // Select Triggers (Shadcn UI)
+    roleSelectTrigger: () => cy.get('[data-cy="select-role"]'),
+    officeSelectTrigger: () => cy.get('[data-cy="select-office"]'),
+
+    submitCreateBtn: () => cy.get('[data-cy="submit"]'),
+    cancelCreateBtn: () => cy.get('[data-cy="cancel"]'),
+    createUserModal: () => cy.get('[data-cy="create-user-modal"]'),
+
+    // --- Table Actions ---
+    searchInput: () => cy.get('[data-cy="search-users"]'),
+    editUserBtn: () => cy.get('[data-cy="edit-user-button"]'),
+
+    // --- Edit User Modal Selectors ---
+    newRoleTrigger: () => cy.get('[data-cy="select-new-role"]'),
+    newOfficeTrigger: () => cy.get('[data-cy="select-new-role-office"]'),
+    addRoleBtn: () => cy.get('[data-cy="add-role-button"]'),
+    saveRolesBtn: () => cy.get('[data-cy="save-roles"]'),
+    cancelEditBtn: () => cy.get('[data-cy="cancel-edit"]'),
+
+    // Feedback
+    errorMessage: () => cy.get(".text-amber-800"),
   };
 
   /**
-   * Opens the "Create User" modal
+   * Opens the Create User modal.
    */
   openCreateUser() {
-    this.elements.openCreateUser().click();
+    this.elements.openCreateUserBtn().click();
   }
 
   /**
-   * Fills the create user form
-   * @param {Object} data - User information
-   * @param {string} [data.firstName] - First name
-   * @param {string} [data.lastName] - Last name
-   * @param {string} [data.email] - Email
-   * @param {string} [data.username] - Username
-   * @param {string} [data.password] - Password
-   * @param {string} [data.role] - Role to select
+   * Fills the creation form. Handles conditional Technical Office selection.
+   * @param {Object} data - User data.
+   * @param {string} data.role - Exact text of the role to select.
+   * @param {string} [data.office] - Exact text of the office (required if role is technical).
    */
-  fillForm({ firstName, lastName, email, username, password, role }) {
-    if (firstName) this.elements.firstName().type(firstName);
-    if (lastName) this.elements.lastName().type(lastName);
-    if (email) this.elements.email().type(email);
-    if (username) this.elements.username().type(username);
-    if (password) this.elements.password().type(password);
+  fillForm({ firstName, lastName, email, username, password, role, office }) {
+    if (firstName) this.elements.firstNameInput().clear().type(firstName);
+    if (lastName) this.elements.lastNameInput().clear().type(lastName);
+    if (email) this.elements.emailInput().clear().type(email);
+    if (username) this.elements.usernameInput().clear().type(username);
+    if (password) this.elements.passwordInput().clear().type(password);
 
     if (role) {
-      this.elements.createRoleTrigger().click();
-      this.elements.role().should("be.visible");
-      this.elements.role().contains(role).debug().should("be.visible").click();
+      this.elements.roleSelectTrigger().click();
+      // Select by text content within the dropdown portal
+      cy.contains('[role="option"]', role).should("be.visible").click();
+
+      // If office is provided (e.g., for technical staff), select it
+      if (office) {
+        this.elements.officeSelectTrigger().should("be.visible").click();
+        cy.contains('[role="option"]', office).should("be.visible").click();
+      }
     }
   }
 
   /**
-   * Edits an existing user's role
-   * @param {string} role - Role to assign
+   * Submits the creation form.
    */
-  editUser(role) {
-    this.elements.editRoleTrigger().should("be.visible").click();
-    this.elements.editRole().should("be.visible").contains(role).click();
+  submit() {
+    this.elements.submitCreateBtn().click();
   }
 
   /**
-   * Submits the create user form
+   * Searches for a user and opens their edit modal.
+   * @param {string} searchTerm - Username or name to search.
    */
-  submit() {
-    this.elements.submit().click();
+  searchAndOpenEdit(searchTerm) {
+    this.elements.searchInput().clear().type(searchTerm);
+    // Wait for table to filter, then find row and click edit
+    cy.contains("tr", searchTerm).within(() => {
+      this.elements.editUserBtn().click();
+    });
+  }
+
+  /**
+   * Adds a new role to an existing user in the Edit modal.
+   * @param {string} roleName - Role to add.
+   * @param {string} [officeName] - Technical office (if applicable).
+   */
+  addRoleInEdit(roleName, officeName = null) {
+    this.elements.newRoleTrigger().click();
+    cy.contains('[role="option"]', roleName).click();
+
+    if (officeName) {
+      this.elements.newOfficeTrigger().should("be.visible").click();
+      cy.contains('[role="option"]', officeName).click();
+    }
+
+    this.elements.addRoleBtn().click();
+  }
+
+  /**
+   * Saves changes in the Edit modal.
+   */
+  saveEdit() {
+    this.elements.saveRolesBtn().click();
   }
 }
 

@@ -2,142 +2,160 @@ import AdminCreateMunicipalityUserPage from "../../pages/admin/municipalityUsers
 import { requiredFieldsMunicipalityUser } from "../../support/constants";
 
 /**
- * @description Test suite for the Admin functionality related to creating, validating,
- * and managing Municipality Users (Officers/Staff).
- * @type {Cypress.Spec}
+ * @description E2E suite for Admin management of Municipality Users.
+ * Covers creation, validation, and multi-role assignment flexiblity.
  */
-describe("Admin Create Municipality User - simple test", () => {
+describe("Admin Municipality Users Management", () => {
   beforeEach(() => {
     cy.loginAsAdmin();
     cy.visit("/admin/municipality-users");
   });
 
-  /**
-   * @description Array of roles to be tested for user creation.
-   * @type {string[]}
-   */
-  const roles = ["municipal_public_relations_officer", "technical_staff"];
+  const roles = ["municipal_public_relations_officer"];
 
-  /**
-   * @description Iterates through defined roles to ensure an Admin can successfully create a user
-   * for each supported municipality role.
-   * @param {string} role - The municipality user role being tested.
-   */
-  for (const role of roles) {
-    it(`should allow admin to create a municipality user with role ${role}`, () => {
+  roles.forEach((role) => {
+    it(`should allow admin to create a standard municipality user with role ${role}`, () => {
       const uniqueSuffix = Cypress._.random(0, 1000000);
-      AdminCreateMunicipalityUserPage.openCreateUser();
-
-      AdminCreateMunicipalityUserPage.fillForm({
+      const user = {
         firstName: "Giovanni",
         lastName: "Bianchi",
-        email: `giovanni.bianchi.${uniqueSuffix}@example.com`,
-        username: `giovanni.bianchi.${uniqueSuffix}`,
+        email: `giovanni.${uniqueSuffix}@example.com`,
+        username: `giovanni.${uniqueSuffix}`,
         password: "password123",
-        role: "municipal_public_relations_officer",
-      });
+        role: role,
+      };
+
+      AdminCreateMunicipalityUserPage.openCreateUser();
+      AdminCreateMunicipalityUserPage.fillForm(user);
       AdminCreateMunicipalityUserPage.submit();
 
-      cy.url().should("include", "/admin/municipality-users");
-      cy.contains(`${"Giovanni"} ${"Bianchi"}`).should("exist");
-      cy.contains(`giovanni.bianchi.${uniqueSuffix}`).should("exist");
-      cy.contains("municipal_public_relations_officer").should("exist");
-
-      cy.get('[data-cy="search-users"]').type(
-        `giovanni.bianchi.${uniqueSuffix}`
-      );
-      cy.contains(`${"Giovanni"} ${"Bianchi"}`).should("exist");
+      // Verification
+      cy.get('[data-cy="search-users"]').type(user.username);
+      cy.contains(`${user.firstName} ${user.lastName}`).should("exist");
+      cy.contains(role).should("exist");
     });
-  }
+  });
 
-  /**
-   * @description Iterates through required fields to ensure user creation fails
-   * when any mandatory field is missing, confirming form validation.
-   * @param {string} field - The required field that is intentionally left blank.
-   */
-  for (const field of requiredFieldsMunicipalityUser) {
+  requiredFieldsMunicipalityUser.forEach((field) => {
     it(`should fail if ${field} is missing`, () => {
       const formData = {
         firstName: "Luigi",
         lastName: "Verdi",
-        email: "test2@example.com",
-        username: "user2",
+        email: `test.${Cypress._.random(0, 1000)}@example.com`,
+        username: `user.${Cypress._.random(0, 1000)}`,
         password: "Password123",
         role: "municipal_public_relations_officer",
       };
+      // Clear the specific field to test validation
       formData[field] = "";
 
       AdminCreateMunicipalityUserPage.openCreateUser();
-      AdminCreateMunicipalityUserPage.fillForm({ formData });
+      AdminCreateMunicipalityUserPage.fillForm(formData);
       AdminCreateMunicipalityUserPage.submit();
 
-      // Checks that the page is still "/register"
-      cy.url().should(
-        "eq",
-        Cypress.config().baseUrl + "/admin/municipality-users"
-      );
+      AdminCreateMunicipalityUserPage.elements
+        .createUserModal()
+        .should("be.visible");
     });
-  }
+  });
 
-  /**
-   * @description Test case to verify that the submit button is disabled or an error is shown
-   * if the user attempts to submit an incomplete form.
-   */
-  it("submit should be disabled if the form is incomplete", () => {
+  it("submit should be disabled or show error if the form is incomplete", () => {
     AdminCreateMunicipalityUserPage.openCreateUser();
     AdminCreateMunicipalityUserPage.submit();
-    AdminCreateMunicipalityUserPage.elements
-      .errorMessage()
-      .should(
-        "contain.text",
-        "Please complete all required fields before submitting."
-      );
+    cy.contains("Please complete all required fields").should("be.visible");
   });
 
-  /**
-   * @description Test case to verify that the creation modal closes correctly
-   * when the cancel button is clicked.
-   */
   it("should close the modal when clicking cancel", () => {
     AdminCreateMunicipalityUserPage.openCreateUser();
-    cy.get('[data-cy="cancel"]').click();
-    cy.get('[data-cy="create-user-modal"]').should("not.exist");
+    AdminCreateMunicipalityUserPage.elements.cancelCreateBtn().click();
+    AdminCreateMunicipalityUserPage.elements
+      .createUserModal()
+      .should("not.exist");
   });
 
   /**
-   * @description Test case to verify that an administrator can successfully update
-   * the role of an existing municipality user.
+   * @description Tests the creation of a Technical Staff user, which now strictly requires
+   * the selection of a Technical Office.
    */
-  it("should allow admin to update only the role of an existing municipality user", () => {
-    cy.visit("/admin/municipality-users");
+  it("should create a technical staff user with a mandatory office assignment", () => {
+    const uniqueId = Cypress._.random(0, 9999);
+    const techUser = {
+      firstName: "Tech",
+      lastName: "Master",
+      email: `tech.${uniqueId}@city.gov`,
+      username: `tech.${uniqueId}`,
+      password: "Password123!",
+      role: "technical_staff",
+      office: "Water Infrastructure Office", // Ensure this office exists in seeds
+    };
 
-    cy.get('[data-cy="search-users"]').type("pr_officer");
-    cy.contains("Giulia Bianchi").should("exist");
+    AdminCreateMunicipalityUserPage.openCreateUser();
+    AdminCreateMunicipalityUserPage.fillForm(techUser);
+    AdminCreateMunicipalityUserPage.submit();
 
-    cy.contains("Giulia Bianchi").click();
-    cy.get('[data-cy="edit-user"]').click();
-
-    AdminCreateMunicipalityUserPage.editUser("technical_staff");
-    cy.get('[data-cy="submit-edit-role"]').click();
-
-    cy.contains("technical_staff").should("exist");
+    // Verify user and office assignment in table
+    cy.get('[data-cy="search-users"]').type(techUser.username);
+    cy.contains(techUser.username).should("exist");
+    cy.contains(techUser.office).should("exist");
   });
 
   /**
-   * @description Test case to verify that the edit functionality works even if
-   * the administrator opens the edit modal and submits without making any changes.
+   * @description Validates the flexibility requirement: A user can hold multiple technical roles
+   * (work for multiple offices) simultaneously.
    */
-  it("should allow saving without changes", () => {
-    cy.visit("/admin/municipality-users");
+  it("should allow adding a second technical office to an existing staff member (Multi-role)", () => {
+    // 1. Create a base user
+    const uniqueId = Cypress._.random(10000, 99999);
+    const multiRoleUser = {
+      firstName: "Multi",
+      lastName: "Role",
+      email: `multi.${uniqueId}@city.gov`,
+      username: `multi.${uniqueId}`,
+      password: "Password123!",
+      role: "technical_staff",
+      office: "Water Infrastructure Office",
+    };
 
-    cy.get('[data-cy="search-users"]').type("pr_officer");
-    cy.contains("Giulia Bianchi").should("exist");
+    AdminCreateMunicipalityUserPage.openCreateUser();
+    AdminCreateMunicipalityUserPage.fillForm(multiRoleUser);
+    AdminCreateMunicipalityUserPage.submit();
 
-    cy.contains("Giulia Bianchi").click();
-    cy.get('[data-cy="edit-user"]').click();
-    cy.get('[data-cy="submit-edit-role"]').click();
+    // 2. Open Edit Modal
+    AdminCreateMunicipalityUserPage.searchAndOpenEdit(multiRoleUser.username);
 
-    cy.url().should("include", "/admin/municipality-users");
-    cy.contains("Giulia Bianchi").should("exist");
+    // 3. Add a second role/office (e.g., Roads)
+    const secondOffice = "Roads Maintenance Office"; // Ensure this office exists
+    AdminCreateMunicipalityUserPage.addRoleInEdit(
+      "technical_staff",
+      secondOffice
+    );
+
+    // 4. Save
+    AdminCreateMunicipalityUserPage.saveEdit();
+
+    // 5. Verify both offices appear in the table row
+    cy.get('[data-cy="search-users"]').clear().type(multiRoleUser.username);
+    cy.contains("tr", multiRoleUser.username).within(() => {
+      cy.contains(multiRoleUser.office).should("exist");
+      cy.contains(secondOffice).should("exist");
+    });
+  });
+
+  /**
+   * @description Verifies validation logic in the Edit modal preventing
+   * assignment of technical roles without an office.
+   */
+  it("should prevent adding a technical role without selecting an office in edit mode", () => {
+    cy.get("tbody tr").first().find('[data-cy="edit-user-button"]').click();
+
+    // Try to add technical role but skip office selection
+    AdminCreateMunicipalityUserPage.elements.newRoleTrigger().click();
+    cy.contains('[role="option"]', "technical_staff").click();
+
+    // Click add without selecting office
+    AdminCreateMunicipalityUserPage.elements.addRoleBtn().click();
+
+    // Verify error message
+    cy.contains("Please select a Technical Office").should("be.visible");
   });
 });
