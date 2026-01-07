@@ -122,9 +122,9 @@ export default function Navbar() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   const toggleDarkMode = () => {
