@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, UserRound, Eye, EyeOff, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, UserRound, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminAPI } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -147,6 +147,10 @@ export default function MunicipalityUsers() {
   const [editError, setEditError] = useState(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [companies, setCompanies] = useState([]);
+  
+  // Stati per gestire gli uffici tecnici associati al ruolo technical_staff
+  const [editUserTechnicalOffices, setEditUserTechnicalOffices] = useState([]);
+  const [originalUserTechnicalOffices, setOriginalUserTechnicalOffices] = useState([]);
 
   // Delete User Dialog States
   const [userToDelete, setUserToDelete] = useState(null);
@@ -320,6 +324,12 @@ export default function MunicipalityUsers() {
     const normalizedRoles = Array.isArray(userRoles) ? userRoles : [userRoles];
     setEditUserRoles(normalizedRoles);
     setOriginalUserRoles(normalizedRoles);
+    
+    // Carica gli uffici tecnici associati
+    const userOffices = user.technicalOffices || [];
+    setEditUserTechnicalOffices(userOffices);
+    setOriginalUserTechnicalOffices(userOffices);
+    
     setNewRoleToAdd('');
     setNewRoleTechnicalOfficeId('');
     setNewRoleCompanyId('');
@@ -332,6 +342,8 @@ export default function MunicipalityUsers() {
     setEditingUser(null);
     setEditUserRoles([]);
     setOriginalUserRoles([]);
+    setEditUserTechnicalOffices([]);
+    setOriginalUserTechnicalOffices([]);
     setNewRoleToAdd('');
     setNewRoleTechnicalOfficeId('');
     setNewRoleCompanyId('');
@@ -364,68 +376,78 @@ export default function MunicipalityUsers() {
     }
 
     // Controlla se il ruolo è già assegnato
-    // Per technical_staff e external_maintainer, verifica anche l'ufficio/company
-    const alreadyHasRole = editUserRoles.some(r => {
-      const sameRoleName = normalizeRole(r) === normalizeRole(roleToAdd.name);
-      if (!sameRoleName) return false;
-      
-      // Se è technical role, controlla se ha lo stesso ufficio
-      if (isTechnicalRole) {
-        const existingOfficeId = typeof r === 'object' ? r.technicalOfficeId : null;
-        return existingOfficeId && existingOfficeId === Number(newRoleTechnicalOfficeId);
-      }
-      
-      // Se è external role, controlla se ha la stessa company
-      if (isExternalRole) {
-        const existingCompanyId = typeof r === 'object' ? r.companyId : null;
-        return existingCompanyId && existingCompanyId === Number(newRoleCompanyId);
-      }
-      
-      // Per altri ruoli, basta verificare il nome
-      return true;
-    });
-
-    if (alreadyHasRole) {
-      if (isTechnicalRole) {
-        setEditError('This user already has this technical role for the selected office.');
-      } else if (isExternalRole) {
-        setEditError('This user already has this external role for the selected company.');
-      } else {
-        setEditError('This role is already assigned to the user.');
-      }
-      return;
-    }
-
-    // Aggiungi il ruolo alla lista con le informazioni aggiuntive
-    const newRole = { 
-      id: roleToAdd.id, 
-      name: roleToAdd.name 
-    };
-
+    const alreadyHasRole = editUserRoles.some(r => 
+      normalizeRole(r) === normalizeRole(roleToAdd.name)
+    );
+    
+    // Per technical_staff, permettiamo di aggiungere uffici anche se il ruolo esiste già
     if (isTechnicalRole) {
-      newRole.technicalOfficeId = Number(newRoleTechnicalOfficeId);
-    }
-    if (isExternalRole) {
-      newRole.companyId = Number(newRoleCompanyId);
-    }
+      const officeId = Number(newRoleTechnicalOfficeId);
+      const alreadyHasOffice = editUserTechnicalOffices.some(o => o.id === officeId);
+      
+      if (alreadyHasOffice) {
+        setEditError('This technical office is already assigned to this user.');
+        return;
+      }
+      
+      const selectedOffice = technicalOffices.find(o => o.id === officeId);
+      if (selectedOffice) {
+        setEditUserTechnicalOffices(prev => [...prev, selectedOffice]);
+      }
+      
+      // Se il ruolo non esiste ancora, aggiungilo
+      if (!alreadyHasRole) {
+        const newRole = { 
+          id: roleToAdd.id, 
+          name: roleToAdd.name 
+        };
+        setEditUserRoles(prev => [...prev, newRole]);
+      }
+    } else {
+      // Per altri ruoli, non permettere duplicati
+      if (alreadyHasRole) {
+        setEditError('This role is already assigned to the user.');
+        return;
+      }
 
-    setEditUserRoles(prev => [...prev, newRole]);
+      // Aggiungi il ruolo alla lista
+      const newRole = { 
+        id: roleToAdd.id, 
+        name: roleToAdd.name 
+      };
+
+      if (isExternalRole) {
+        newRole.companyId = Number(newRoleCompanyId);
+      }
+
+      setEditUserRoles(prev => [...prev, newRole]);
+    }
     setNewRoleToAdd('');
     setNewRoleTechnicalOfficeId('');
     setNewRoleCompanyId('');
     setEditError(null);
   };
 
-  // Verifica se ci sono modifiche ai ruoli
+  // Verifica se ci sono modifiche ai ruoli o agli uffici tecnici
   const hasRoleChanges = useMemo(() => {
+    // Controlla cambiamenti nei ruoli
     if (editUserRoles.length !== originalUserRoles.length) return true;
     
-    // Confronta i ruoli normalizzati
     const currentRoleNames = editUserRoles.map(r => normalizeRole(r)).sort((a, b) => a.localeCompare(b));
     const originalRoleNames = originalUserRoles.map(r => normalizeRole(r)).sort((a, b) => a.localeCompare(b));
     
-    return !currentRoleNames.every((role, index) => role === originalRoleNames[index]);
-  }, [editUserRoles, originalUserRoles]);
+    if (!currentRoleNames.every((role, index) => role === originalRoleNames[index])) {
+      return true;
+    }
+    
+    // Controlla cambiamenti negli uffici tecnici
+    if (editUserTechnicalOffices.length !== originalUserTechnicalOffices.length) return true;
+    
+    const currentOfficeIds = editUserTechnicalOffices.map(o => o.id).sort((a, b) => a - b);
+    const originalOfficeIds = originalUserTechnicalOffices.map(o => o.id).sort((a, b) => a - b);
+    
+    return !currentOfficeIds.every((id, index) => id === originalOfficeIds[index]);
+  }, [editUserRoles, originalUserRoles, editUserTechnicalOffices, originalUserTechnicalOffices]);
 
   const handleSaveUserRoles = async () => {
     if (editUserRoles.length === 0) {
@@ -440,10 +462,11 @@ export default function MunicipalityUsers() {
       // Format roles with their associations
       const roles = editUserRoles.map(role => {
         const roleData = { roleId: typeof role === 'object' ? role.id : role };
+        const roleName = normalizeRole(role);
         
-        // Add technical office association if present
-        if (typeof role === 'object' && role.technicalOfficeId) {
-          roleData.technicalOfficeIds = [role.technicalOfficeId];
+        // Se è technical_staff, aggiungi TUTTI gli uffici tecnici
+        if (roleName.includes('technical')) {
+          roleData.technicalOfficeIds = editUserTechnicalOffices.map(o => o.id);
         }
         
         // Add company association if present
@@ -886,17 +909,15 @@ export default function MunicipalityUsers() {
                   editUserRoles.map((role) => {
                     const roleName = extractRoleName(role);
                     const roleId = typeof role === 'object' ? role.id : role;
+                    const normalized = normalizeRole(role);
                     
-                    // Determina informazioni aggiuntive (ufficio/company)
+                    // Determina informazioni aggiuntive (company)
                     let additionalInfo = null;
-                    if (typeof role === 'object') {
-                      if (role.technicalOfficeId) {
-                        const office = technicalOffices.find(o => o.id === role.technicalOfficeId);
-                        additionalInfo = office ? ` • ${office.name}` : ' • Office';
-                      } else if (role.companyId) {
-                        const company = companies.find(c => c.id === role.companyId);
-                        additionalInfo = company ? ` • ${company.name}` : ' • Company';
-                      }
+                    if (typeof role === 'object' && role.companyId) {
+                      const company = companies.find(c => c.id === role.companyId);
+                      additionalInfo = company ? ` • ${company.name}` : ' • Company';
+                    } else if (normalized.includes('external') && editingUser?.company) {
+                      additionalInfo = ` • ${editingUser.company.name}`;
                     }
                     
                     return (
@@ -905,7 +926,7 @@ export default function MunicipalityUsers() {
                         className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
                         data-cy="assigned-role-item"
                       >
-                        <div className="flex flex-col">
+                        <div className="flex flex-col flex-1">
                           <span className="text-sm font-medium">{roleName}</span>
                           {additionalInfo && (
                             <span className="text-xs text-muted-foreground">{additionalInfo}</span>
@@ -917,6 +938,32 @@ export default function MunicipalityUsers() {
                 )}
               </div>
             </div>
+
+            {/* Lista uffici tecnici (se presente il ruolo technical_staff) */}
+            {editUserRoles.some(r => normalizeRole(r).includes('technical')) && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Technical Offices</Label>
+                <div className="space-y-2">
+                  {editUserTechnicalOffices.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No technical offices assigned</p>
+                  ) : (
+                    editUserTechnicalOffices.map((office) => (
+                      <div
+                        key={office.id}
+                        className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
+                      >
+                        <div className="flex flex-col flex-1">
+                          <span className="text-sm font-medium">{office.name}</span>
+                          {office.category && (
+                            <span className="text-xs text-muted-foreground">Category: {office.category.name}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Aggiungi nuovo ruolo */}
             <div className="space-y-2">
