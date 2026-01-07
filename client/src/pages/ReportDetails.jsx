@@ -40,7 +40,7 @@ const getImageUrl = (path) => {
 export default function ReportDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const { theme } = useTheme();
   
   const [report, setReport] = useState(null);
@@ -110,10 +110,9 @@ export default function ReportDetails() {
   }, [report]);
 
   const isOfficer = () => {
-    if (!user?.role) return false;
-    const roleName = typeof user.role === 'string' ? user.role : user.role.name;
-    return roleName?.toLowerCase().includes('municipal') || 
-           roleName?.toLowerCase().includes('officer');
+    if (!activeRole?.name) return false;
+    const roleName = activeRole.name.toLowerCase();
+    return roleName.includes('municipal') || roleName.includes('officer');
   };
 
   const isPending = () => {
@@ -202,34 +201,53 @@ export default function ReportDetails() {
   // Determina se mostrare le chat INLINE (solo per tech staff con delegazione)
   const canAccessChat = () => {
     console.log('=== canAccessChat CHECK START ===');
-    console.log('User info:', {
-      userId: user?.id,
-      userRoles: user?.roles?.map(r => r.name),
-      isOfficer: isOfficer()
-    });
-    console.log('Report info:', {
-      reportId: report?.id,
-      assigneeId: report?.assignee?.id,
-      assigneeName: report?.assignee?.username,
-      externalMaintainerId: report?.externalMaintainer?.id,
-      externalMaintainerName: report?.externalMaintainer?.username,
-      reportStatus: report?.status
-    });
-    
-    // REGOLA: Chat inline disponibile SOLO per tech staff che ha delegato
-    // Cioè: user è assignee E report ha externalMaintainer
+    console.log('User:', user?.id, user?.username);
+    console.log('Active Role:', activeRole?.name);
+    console.log('Report assignee:', report?.assignee?.id, report?.assignee?.username);
+    console.log('Report external maintainer:', report?.externalMaintainer?.id, report?.externalMaintainer?.username);
     
     const userIsAssignee = user?.id === report?.assignee?.id;
     const reportHasDelegation = !!report?.externalMaintainer?.id;
+    const userIsExternalMaintainer = user?.id === report?.externalMaintainer?.id;
+    const activeRoleIsExtMaint = activeRole?.name?.toLowerCase().includes('external_maintainer');
+    const activeRoleIsTechStaff = activeRole?.name?.toLowerCase().includes('technical_staff');
     
     console.log('Conditions:', {
       userIsAssignee,
       reportHasDelegation,
-      result: userIsAssignee && reportHasDelegation
+      userIsExternalMaintainer,
+      activeRoleIsExtMaint,
+      activeRoleIsTechStaff
     });
     
-    if (userIsAssignee && reportHasDelegation) {
+    // EDGE CASE: Se l'utente è CONTEMPORANEAMENTE assignee E external maintainer,
+    // controlla il ruolo ATTIVO per decidere quale UI mostrare
+    if (userIsAssignee && userIsExternalMaintainer) {
+      // Se l'utente sta usando il ruolo di external maintainer, usa floating button
+      if (activeRoleIsExtMaint) {
+        console.log('✗ canAccessChat: FALSE - user is BOTH but activeRole is external_maintainer (use floating button)');
+        console.log('=== canAccessChat CHECK END ===');
+        return false;
+      }
+      // Se l'utente sta usando il ruolo di tech staff, mostra inline buttons
+      if (activeRoleIsTechStaff && reportHasDelegation) {
+        console.log('✓ canAccessChat: TRUE - user is BOTH but activeRole is technical_staff WITH delegation');
+        console.log('=== canAccessChat CHECK END ===');
+        return true;
+      }
+    }
+    
+    // Caso normale: utente è solo external maintainer sul report
+    if (userIsExternalMaintainer && activeRoleIsExtMaint) {
+      console.log('✗ canAccessChat: FALSE - user is external maintainer (use floating button instead)');
+      console.log('=== canAccessChat CHECK END ===');
+      return false;
+    }
+    
+    // Caso normale: utente è solo assignee con delegation
+    if (userIsAssignee && reportHasDelegation && activeRoleIsTechStaff) {
       console.log('✓ canAccessChat: TRUE - user is assignee WITH delegation');
+      console.log('=== canAccessChat CHECK END ===');
       return true;
     }
     
@@ -254,44 +272,70 @@ export default function ReportDetails() {
 
   // Determina se mostrare il floating button per external maintainer e tech staff senza delegazione
   const showExtMaintFloatingChat = () => {
-    console.log('showExtMaintFloatingChat: Checking conditions...');
+    console.log('=== showExtMaintFloatingChat CHECK START ===');
+    console.log('User:', user?.id, user?.username);
+    console.log('Active Role:', activeRole?.name);
+    console.log('Report:', {
+      id: report?.id,
+      assigneeId: report?.assignee?.id,
+      assigneeUsername: report?.assignee?.username,
+      extMaintId: report?.externalMaintainer?.id,
+      extMaintUsername: report?.externalMaintainer?.username
+    });
     
-    // Prima, controlliamo il CONTESTO: l'utente sta agendo come assignee o externalMaintainer su QUESTO report?
+    const isAssignedExtMaint = user?.id === report?.externalMaintainer?.id;
     const isAssignee = user?.id === report?.assignee?.id;
-    const isExtMaint = user?.id === report?.externalMaintainer?.id;
+    const activeRoleIsExtMaint = activeRole?.name?.toLowerCase().includes('external_maintainer');
+    const activeRoleIsTechStaff = activeRole?.name?.toLowerCase().includes('technical_staff');
+    const isMunicipalOfficer = isOfficer();
     
-    // Se l'utente è assignee o externalMaintainer, NON sta agendo come MPRO in questo contesto
-    // Anche se ha il ruolo MPRO, qui sta agendo nel suo altro ruolo
-    if (isAssignee || isExtMaint) {
-      console.log('showExtMaintFloatingChat: User is assignee/extMaint, NOT MPRO in this context');
-      
-      // Tech staff CON delegazione → NON floating button (usa pulsanti inline)
-      if (isAssignee && report?.externalMaintainer) {
-        console.log('showExtMaintFloatingChat: Tech staff WITH delegation, returning FALSE (uses inline buttons)');
-        return false;
-      }
-      
-      // Tech staff senza delegazione → floating button
-      if (isAssignee && !report?.externalMaintainer) {
-        console.log('showExtMaintFloatingChat: Tech staff without delegation, returning TRUE');
-        return true;
-      }
-      
-      // External maintainer con assignee presente → floating button
-      if (isExtMaint && report?.assignee?.id) {
-        console.log('showExtMaintFloatingChat: Ext maint with assignee, returning TRUE');
-        return true;
-      }
-    }
+    console.log('Conditions:', {
+      isAssignedExtMaint,
+      isAssignee,
+      activeRoleIsExtMaint,
+      activeRoleIsTechStaff,
+      isMunicipalOfficer
+    });
     
-    // Se l'utente NON è assignee o externalMaintainer, controlliamo se è MPRO
-    // MPRO non deve avere accesso alla chat
-    if (isOfficer()) {
-      console.log('showExtMaintFloatingChat: User is MPRO (not assignee/extMaint), returning false');
+    // Se è MPRO, non può chattare con nessuno
+    if (isMunicipalOfficer) {
+      console.log('✗ showExtMaintFloatingChat: FALSE - MPRO cannot chat with anyone');
+      console.log('=== showExtMaintFloatingChat CHECK END ===');
       return false;
     }
-
-    console.log('showExtMaintFloatingChat: No match, returning false');
+    
+    // EDGE CASE: utente è sia assignee che external maintainer
+    if (isAssignee && isAssignedExtMaint) {
+      // Se sta usando il ruolo di external maintainer, mostra floating button
+      if (activeRoleIsExtMaint) {
+        console.log('✓ showExtMaintFloatingChat: TRUE - user is BOTH, activeRole is external_maintainer');
+        console.log('=== showExtMaintFloatingChat CHECK END ===');
+        return true;
+      }
+      // Se sta usando il ruolo di tech staff, NON mostrare floating (usa inline)
+      if (activeRoleIsTechStaff) {
+        console.log('✗ showExtMaintFloatingChat: FALSE - user is BOTH, activeRole is technical_staff (uses inline)');
+        console.log('=== showExtMaintFloatingChat CHECK END ===');
+        return false;
+      }
+    }
+    
+    // Caso normale: utente è solo external maintainer E sta usando quel ruolo
+    if (isAssignedExtMaint && activeRoleIsExtMaint) {
+      console.log('✓ showExtMaintFloatingChat: TRUE - user IS the assigned external maintainer with active role');
+      console.log('=== showExtMaintFloatingChat CHECK END ===');
+      return true;
+    }
+    
+    // Caso normale: tech staff senza delegazione E sta usando ruolo tech staff
+    if (isAssignee && !report?.externalMaintainer && activeRoleIsTechStaff) {
+      console.log('✓ showExtMaintFloatingChat: TRUE - tech staff without delegation with active role');
+      console.log('=== showExtMaintFloatingChat CHECK END ===');
+      return true;
+    }
+    
+    console.log('✗ showExtMaintFloatingChat: FALSE - no valid role/context for floating chat');
+    console.log('=== showExtMaintFloatingChat CHECK END ===');
     return false;
   };
 
