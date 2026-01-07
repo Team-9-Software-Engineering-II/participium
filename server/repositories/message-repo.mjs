@@ -29,7 +29,6 @@ export async function findMessagesByReportId(reportId) {
           "firstName",
           "lastName",
           "photoURL",
-          "roleId",
         ],
       },
     ],
