@@ -9,6 +9,7 @@ process.env.NODE_ENV = "test";
 import request from "supertest";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { app } from "../../index.mjs";
+import db from "../../models/index.mjs";
 
 // --- Import Test Utilities ---
 import {
@@ -58,6 +59,22 @@ describe("Preamble: Authentication", () => {
   it("should register a new citizen user (201)", async () => {
     const res = await request(app).post("/auth/register").send(citizenUser);
     expect(res.statusCode).toBe(201);
+    const userNode = await db.User.findOne({ where: { email: citizenUser.email } });
+    const roleNode = await db.Role.findOne({ where: { name: "citizen" } });
+
+    if (userNode && roleNode) {
+      if (typeof userNode.addRole === "function") {
+        await userNode.addRole(roleNode);
+      } else if (typeof userNode.addRoles === "function") {
+        await userNode.addRoles([roleNode]);
+      } else if (typeof userNode.setRole === "function") {
+        await userNode.setRole(roleNode);
+      } else {
+        if (userNode.dataValues.hasOwnProperty('roleId') || userNode.rawAttributes?.hasOwnProperty('roleId')) {
+           await userNode.update({ roleId: roleNode.id });
+        }
+      }
+    }
   });
 
   it("should login as the new citizen and store the cookie and user ID (200)", async () => {
@@ -84,6 +101,31 @@ describe("Preamble: Authentication", () => {
 
 describe("POST /reports (Integration Test)", () => {
   describe("Happy Path (User Story Success)", () => {
+    it("should create an anonymous report successfully (201)", async () => {
+      // 1. Prepare payload with anonymous flag set to true
+      const anonymousPayload = {
+        ...validReportPayload,
+        title: "Anonymous Hazard",
+        anonymous: true,
+      };
+
+      // 2. Send request
+      const res = await request(app)
+        .post("/reports")
+        .set("Cookie", cookie)
+        .send(anonymousPayload);
+
+      // 3. Assertions
+      expect(res.statusCode).toBe(201);
+      expect(res.body.title).toBe(anonymousPayload.title);
+
+      // Verify the anonymous flag is persisted and returned
+      expect(res.body.anonymous).toBe(true);
+
+      // Even if anonymous, the system tracks the creator internally (checked via response body here)
+      expect(res.body.user.id).toBe(loggedInUserId);
+    });
+
     it("should create a new report successfully (201)", async () => {
       const res = await request(app)
         .post("/reports")
@@ -123,7 +165,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Title is required.");
+      expect(res.body.message).toContain("Title is required.");
     });
 
     it("should fail with invalid 'categoryId' type (400)", async () => {
@@ -134,7 +176,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain("Valid categoryId is required.");
+      expect(res.body.message).toContain("Valid categoryId is required.");
     });
 
     it("should fail with invalid 'latitude' value (400)", async () => {
@@ -145,7 +187,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain(
+      expect(res.body.message).toContain(
         "Latitude must be a number between -90 and 90."
       );
     });
@@ -158,7 +200,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain(
+      expect(res.body.message).toContain(
         "Photos array must contain between 1 and 3 items."
       );
     });
@@ -174,7 +216,7 @@ describe("POST /reports (Integration Test)", () => {
         .send(payload);
 
       expect(res.statusCode).toBe(400);
-      expect(res.body.errors).toContain(
+      expect(res.body.message).toContain(
         "Photos array must contain between 1 and 3 items."
       );
     });

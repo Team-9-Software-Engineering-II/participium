@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, MapPin, Clock, ChevronRight } from 'lucide-react';
+import { Plus, FileText, MapPin, Clock, ChevronRight, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
-import { reportAPI } from '@/services/api';
+import { reportAPI, notificationAPI } from '@/services/api';
 import ReportStatus from '../components/ReportStatus';
+import { format } from 'date-fns';
 
 const API_BASE_URL = 'http://localhost:3000';
 
@@ -26,6 +27,8 @@ export default function Dashboard() {
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
 
   // FIX: Logica indirizzo migliorata per gestire parchi, cimiteri e aree senza via specifica
   const fetchAddress = async (lat, lng) => {
@@ -89,8 +92,22 @@ export default function Dashboard() {
 
     if (user?.id) {
       fetchMyReports();
+      fetchNotifications();
     }
   }, [user?.id]);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoadingNotifications(true);
+      const response = await notificationAPI.getMyNotifications();
+      setNotifications(response.data.slice(0, 3)); // Show only latest 3
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      setNotifications([]);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
 
   const renderReportsContent = () => {
     if (loading) {
@@ -211,6 +228,62 @@ export default function Dashboard() {
             New Report
           </Button>
         </div>
+
+        {/* Notifications Widget */}
+        {notifications.length > 0 && (
+          <Card className="mb-4 shadow-md border-border shrink-0">
+            <CardHeader className="py-3 px-4 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">Recent Notifications</CardTitle>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => navigate('/notifications')}
+                  className="text-xs h-auto py-1"
+                >
+                  View all
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 space-y-2">
+              {loadingNotifications ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => {
+                      if (notif.reportId) navigate(`/reports/${notif.reportId}`);
+                      else navigate('/notifications');
+                    }}
+                    className={`
+                      flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-colors
+                      ${notif.isRead ? 'bg-background hover:bg-accent' : 'bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50'}
+                    `}
+                  >
+                    <div className="flex-shrink-0 mt-0.5">
+                      {!notif.isRead && (
+                        <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium line-clamp-1">{notif.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(notif.createdAt), 'PPp')}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="max-h-full flex flex-col min-h-0 shadow-md border-border overflow-hidden">
           

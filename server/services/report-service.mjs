@@ -22,6 +22,7 @@ import {
   sanitizeReports,
 } from "../shared/utils/report-utils.mjs";
 import { mapReportsCollectionToAssignedListDTO } from "../shared/dto/report-dto.mjs";
+import { createNotification } from "../repositories/notification-repo.mjs";
 import AppError from "../shared/utils/app-error.mjs";
 import logger from "../shared/logging/logger.mjs";
 /**
@@ -209,6 +210,12 @@ export class ReportService {
 
   static async updateReport(reportId, payload) {
     await this.#ensureReportExists(reportId);
+
+    // If status is being updated, create a notification for the customer
+    if (payload.status !== undefined) {
+      await this.#createStatusChangeNotification(reportId, payload.status);
+    }
+
     return await updateReport(reportId, payload);
   }
 
@@ -222,11 +229,16 @@ export class ReportService {
    * Allow to check if a report is associated to the current autenticated user
    */
   static async isReportAssociatedToAuthenticatedUser(report, userId) {
-    return (
+    // Check both sanitized format (assignee.id) and raw format (technicalOfficerId)
+    const isTechnicalOfficer =
       report.technicalOfficerId === userId ||
+      report.assignee?.id === userId;
+    const isExternalMaintainer =
       report.externalMaintainerId === userId ||
-      report.userId === userId
-    );
+      report.externalMaintainer?.id === userId;
+    const isOwner = report.userId === userId;
+
+    return isTechnicalOfficer || isExternalMaintainer || isOwner;
   }
 
   /**
@@ -249,6 +261,69 @@ export class ReportService {
 
   static async #ensureReportExists(reportId) {
     await this.getReportById(reportId);
+  }
+
+  /**
+   * Creates a notification for the customer when report status changes.
+   * @param {number} reportId - The ID of the report.
+   * @param {string} newStatus - The new status of the report.
+   * @private
+   */
+  static async #createStatusChangeNotification(reportId, newStatus) {
+    try {
+      // Fetch the report to get the customer (userId) and report title
+      const report = await findReportById(reportId);
+      if (!report || !report.userId) {
+        logger.warn(
+          `Cannot create notification: Report ${reportId} not found or missing userId`
+        );
+        return;
+      }
+
+      // Map status to user-friendly notification messages
+      const statusMessages = {
+        "In Progress": {
+          title: "Report In Progress",
+          message: `Your report "${report.title}" is now being processed.`,
+        },
+        Resolved: {
+          title: "Report Resolved",
+          message: `Your report "${report.title}" has been resolved.`,
+        },
+        Suspended: {
+          title: "Report Suspended",
+          message: `Your report "${report.title}" has been temporarily suspended.`,
+        },
+      };
+
+      const notificationData = statusMessages[newStatus];
+      if (!notificationData) {
+        logger.warn(
+          `No notification message defined for status: ${newStatus}`
+        );
+        return;
+      }
+
+      // Create the notification
+      await createNotification({
+        userId: report.userId,
+        reportId: reportId,
+        type: "REPORT_STATUS_CHANGE",
+        title: notificationData.title,
+        message: notificationData.message,
+        isRead: false,
+      });
+
+      logger.info(
+        `Notification created for user ${report.userId} regarding report ${reportId} status change to ${newStatus}`
+      );
+    } catch (error) {
+      // Log error but don't fail the status update if notification creation fails
+      logger.error(
+        `Failed to create notification for report ${reportId} status change:`,
+        error
+      );
+    }
   }
 
   /**

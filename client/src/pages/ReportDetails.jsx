@@ -282,10 +282,8 @@ export default function ReportDetails() {
         }
       };
 
-      // Controlla IMMEDIATAMENTE al mount e poi ogni 3 secondi
+      // Controlla solo al mount, nessun polling automatico
       checkNewMessages();
-      const interval = setInterval(checkNewMessages, 3000);
-      return () => clearInterval(interval);
     }
   }, [chatOpen, report?.id, user, lastMessageId]);
 

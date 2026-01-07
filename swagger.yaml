@@ -471,19 +471,20 @@ paths:
 
   /admin/users:
     get:
-      summary: (Admin) Ottiene la lista di tutti gli utenti municipali e cittadini
+      summary: (Admin) Retrieves all users in the system and their details.
+      description: Retrieves a comprehensive list of users including their N:M roles, technical offices, company details, and reports.
       tags: [Admin]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Lista di tutti gli utenti nel sistema
+          description: List of all users in the system
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserProfile'
+                  $ref: '#/components/schemas/UserProfileRefactorized'
     post:
       summary: (Admin) Create a new municipal/staff member user
       description: This api allow an admin to register a new municipal or staff member user. It is necessary to pass a valid roleId and technicalOfficeId.
@@ -734,6 +735,47 @@ paths:
         '403':
           description: Forbidden (technical staff only)
 
+  /offices/reports/{reportId}/status:
+    put:
+      summary: (Technical Staff or External Maintainer) Update report status
+      description: >
+        Allows a technical staff member or external maintainer to update the status of a report assigned to them.
+        The allowed statuses are: 'In Progress', 'Resolved', 'Suspended'.
+        The user must be either the technical officer or external maintainer assigned to the report.
+      tags: [Technical Offices]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report to update
+      security:
+        - BearerAuth: []
+      x-security-role: technical_staff_or_external_maintainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportStatusUpdate'
+      responses:
+        '200':
+          description: Report status successfully updated. Returns the updated report object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId or invalid status value
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - user is not assigned to this report
+        '404':
+          description: Report not found
+
   /offices/reports/{reportId}/assign-external:
     put:
       summary: (Technical Staff) Assign a report to an external maintainer
@@ -811,6 +853,47 @@ paths:
         '404':
           description: Report not found.
 
+  /external-maintainer/reports/{reportId}/status:
+    put:
+      summary: (External Maintainer) Update report status
+      description: >
+        Allows an external maintainer to update the status of a report assigned to them.
+        The allowed statuses are: 'In Progress', 'Resolved', 'Suspended'.
+        The external maintainer must be assigned to the report.
+      tags: [External Maintainer]
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Unique ID of the report to update
+      security:
+        - BearerAuth: []
+      x-security-role: external_maintainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportStatusUpdate'
+      responses:
+        '200':
+          description: Report status successfully updated. Returns the updated report object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid reportId or invalid status value
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden - user is not assigned to this report
+        '404':
+          description: Report not found
+
   /messages/reports/{reportId}:
     post:
       summary: Create a new message for a report
@@ -887,6 +970,54 @@ paths:
           description: Forbidden - User is a citizen OR not assigned to this report
         '404':
           description: Report not found
+
+  /notifications:
+    get:
+      summary: Retrieve user notifications
+      description: Fetches a list of notifications for the logged-in user, ordered by date (newest first). Includes associated report details if applicable.
+      tags:
+        - Notifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
+                    message:
+                      type: string
+                    type:
+                      type: string
+                      enum: [REPORT_STATUS_CHANGE, NEW_MESSAGE, ASSIGNMENT, SYSTEM]
+                    isRead:
+                      type: boolean
+                    createdAt:
+                      type: string
+                      format: date-time
+                    report:
+                      type: object
+                      nullable: true
+                      properties:
+                        id:
+                          type: integer
+                        title:
+                          type: string
+                        status:
+                          type: string
+        '401':
+          description: Unauthorized - User not logged in
+
+        '500':
+          description: Internal Server Error
 
 components:
   securitySchemes:
@@ -1490,6 +1621,15 @@ components:
           type: string
           description: Name of the Technical Office.
 
+    ReportStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [In Progress, Resolved, Suspended]
+          description: The new status for the report. Only these three statuses are allowed.
+
     ExternalMaintainerAssignment:
       type: object
       required: [companyId]
@@ -1582,6 +1722,175 @@ components:
         roleId:
           type: integer
           
+
+    
+    # Main User Schema
+    UserProfileRefactorized:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: "citizen@example.com"
+        username:
+          type: string
+          example: "mario.rossi"
+        firstName:
+          type: string
+          example: "Mario"
+        lastName:
+          type: string
+          example: "Rossi"
+        telegramUsername:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        companyId:
+          type: integer
+          nullable: true
+        photoUrl:
+          type: string
+          nullable: true
+        emailNotificationsEnabled:
+          type: boolean
+        
+        # --- N:M Relationships ---
+        roles:
+          type: array
+          description: Array of roles assigned to the user
+          items:
+            $ref: '#/components/schemas/RoleWithJunction'
+        
+        technicalOffices:
+          type: array
+          description: Array of technical offices the user belongs to
+          items:
+            $ref: '#/components/schemas/TechnicalOffice'
+            
+        company:
+          $ref: '#/components/schemas/Company'
+          nullable: true
+          
+        reports:
+          type: array
+          description: List of reports created by the user
+          items:
+            $ref: '#/components/schemas/ReportDetail'
+
+    # Sub-Schema for Roles (including junction table info)
+    RoleWithJunction:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: "citizen"
+        UserRole:
+          type: object
+          description: Metadata from the many-to-many junction table
+          properties:
+            user_id:
+              type: integer
+            role_id:
+              type: integer
+
+    # Sub-Schema for Reports inside User profile
+    ReportDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          example: "Pending Approval"
+        rejection_reason:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        address:
+          type: string
+        anonymous:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        userId:
+          type: integer
+        technicalOfficerId:
+          type: integer
+          nullable: true
+        externalMaintainerId:
+          type: integer
+          nullable: true
+        categoryId:
+          type: integer
+        companyId:
+          type: integer
+          nullable: true
+        photosLinks:
+          type: array
+          items:
+            type: string
+            example: "/uploads/reports/image.jpg"
+
+    # Generic Schema for Technical Office (inferred)
+    TechnicalOffice:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        categoryId:
+          type: integer
+        UserTechnicalOffice:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            tech_office_id:
+              type: integer
+
+    # Generic Schema for Company (inferred)
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        region:
+          type: string
+        country:
+          type: string
+        
+
           
 
     

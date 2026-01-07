@@ -321,10 +321,12 @@ describe("Auth Controller (Unit)", () => {
 
   describe("logout", () => {
     it("should logout, destroy session, clear cookie and return 204", () => {
+      mockReq.user = { id: 1, username: "testuser" };
+
       AuthController.logout(mockReq, mockRes, mockNext);
 
       expect(mockReq.logout).toHaveBeenCalled();
-      expect(mockReq.session.destroy).toHaveBeenCalled(); // Ora funziona
+      expect(mockReq.session.destroy).toHaveBeenCalled(); 
       expect(mockRes.clearCookie).toHaveBeenCalledWith("connect.sid");
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();

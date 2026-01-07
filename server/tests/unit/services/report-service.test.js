@@ -79,6 +79,11 @@ jest.unstable_mockModule("../../../shared/validators/report-validator.mjs", () =
   validateCreateReportInput: mockValidateCreateReportInput,
 }));
 
+const mockCreateNotification = jest.fn();
+jest.unstable_mockModule("../../../repositories/notification-repo.mjs", () => ({
+  createNotification: mockCreateNotification,
+}));
+
 // Mocking the Logger
 const mockLogger = {
   info: jest.fn(),
@@ -985,6 +990,116 @@ describe("ReportService (Unit)", () => {
       mockFindReportsByExternalMaintainerId.mockResolvedValue([]);
       await ReportService.getReportsByExternalMaintainer(5);
       expect(mockFindReportsByExternalMaintainerId).toHaveBeenCalledWith(5);
+    });
+  });
+
+  // ----------------------------------------------------------------------
+  // Status Change Notifications (Private Method Coverage)
+  // ----------------------------------------------------------------------
+  describe("Status Change Notifications (triggered via updateReport)", () => {
+    const reportId = 1;
+    const mockReportWithUser = { 
+      id: reportId, 
+      userId: 42, 
+      title: "Dangerous Pothole" 
+    };
+
+    beforeEach(() => {
+      mockUpdateReport.mockResolvedValue([1]); 
+      mockCreateNotification.mockResolvedValue(true);
+    });
+
+    it("should create a notification when status changes to 'In Progress'", async () => {
+
+      mockFindReportById.mockResolvedValue(mockReportWithUser);
+
+      await ReportService.updateReport(reportId, { status: "In Progress" });
+
+
+      expect(mockCreateNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: 42,
+        reportId: reportId,
+        type: "REPORT_STATUS_CHANGE",
+        title: "Report in lavorazione",
+
+        message: expect.stringContaining('messa in lavorazione')
+      }));
+    });
+
+    it("should create a notification when status changes to 'Resolved'", async () => {
+      mockFindReportById.mockResolvedValue(mockReportWithUser);
+
+      await ReportService.updateReport(reportId, { status: "Resolved" });
+
+      expect(mockCreateNotification).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Report risolto",
+        message: expect.stringContaining('stata risolta')
+      }));
+    });
+
+    it("should create a notification when status changes to 'Suspended'", async () => {
+      mockFindReportById.mockResolvedValue(mockReportWithUser);
+
+      await ReportService.updateReport(reportId, { status: "Suspended" });
+
+      expect(mockCreateNotification).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Report sospeso",
+        message: expect.stringContaining('sospesa temporaneamente')
+      }));
+    });
+
+    it("should NOT create notification if report or userId is missing", async () => {
+
+      mockFindReportById.mockResolvedValue({ id: reportId, userId: null });
+
+      await ReportService.updateReport(reportId, { status: "Resolved" });
+
+
+      expect(mockCreateNotification).not.toHaveBeenCalled();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("Cannot create notification")
+      );
+    });
+
+    it("should NOT create notification if status is not mapped (e.g. Assigned)", async () => {
+      mockFindReportById.mockResolvedValue(mockReportWithUser);
+
+
+      await ReportService.updateReport(reportId, { status: "Assigned" });
+
+      expect(mockCreateNotification).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("No notification message defined")
+      );
+    });
+
+    it("should catch errors in notification creation without failing the update", async () => {
+      mockFindReportById.mockResolvedValue(mockReportWithUser);
+      
+
+      const notificationError = new Error("Notification Service Down");
+      mockCreateNotification.mockRejectedValue(notificationError);
+
+
+      await expect(ReportService.updateReport(reportId, { status: "Resolved" }))
+        .resolves.not.toThrow();
+
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to create notification"),
+        notificationError
+      );
+    });
+
+    it("should NOT trigger notification if payload does not contain status (e.g. description update)", async () => {
+
+      mockFindReportById.mockResolvedValue({ id: reportId, userId: 42 });
+      mockUpdateReport.mockResolvedValue([1]);
+
+      const payloadWithoutStatus = { description: "Updated description text" };
+      await ReportService.updateReport(reportId, payloadWithoutStatus);
+      expect(mockCreateNotification).not.toHaveBeenCalled();
     });
   });
 

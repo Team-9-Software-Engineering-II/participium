@@ -11,6 +11,7 @@ import { sequelize } from "../../config/db/db-config.mjs";
 import { seedDatabase } from "../../seeders/index.mjs";
 import db from "../../models/index.mjs";
 import redisClient from "../../config/redis.mjs";
+import { transporter } from "../../config/email.mjs";
 
 // --- 1. GLOBAL SETUP & TEARDOWN ---
 
@@ -35,12 +36,19 @@ export async function setupTestDatabase() {
  */
 export async function teardownTestDatabase() {
   // Close Redis
-  if (redisClient && redisClient.isOpen) {
-    await redisClient.quit();
+  if (redisClient) {
+    if (typeof redisClient.quit === "function") await redisClient.quit();
+  }
+
+  if (transporter && typeof transporter.close === "function") {
+    transporter.close();
   }
 
   if (sequelize) {
     await sequelize.close();
+    if (sequelize.connectionManager && sequelize.connectionManager.pool) {
+      await sequelize.connectionManager.pool.destroyAllNow();
+    }
   }
 }
 
@@ -157,9 +165,15 @@ export async function loginAndGetCookie(userCredentials) {
 export async function findAnotherTechnicalOfficer(excludeUsername) {
   return db.User.findOne({
     where: {
-      // Assuming Role ID 4 is the Technical Officer role based on File 7
-      roleId: 4,
       username: { [db.Sequelize.Op.ne]: excludeUsername },
     },
+    include: [
+      {
+        model: db.Role,
+        as: "roles",
+        where: { name: "technical_staff" },
+        required: true,
+      },
+    ],
   });
 }

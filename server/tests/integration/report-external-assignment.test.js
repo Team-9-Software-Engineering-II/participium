@@ -22,7 +22,6 @@ let prOfficerCookie; // PR Officer for report review
 let citizenCookie;
 let extMaintainerCookie; // External Maintainer user cookie (created in beforeAll)
 
-const CITS_COMPANY_ID = 5;
 const MAINTAINER_PASSWORD = "password123";
 
 describe("Report External Assignment (Integration)", () => {
@@ -35,16 +34,21 @@ describe("Report External Assignment (Integration)", () => {
     prOfficerCookie = await loginAndGetCookie(prOfficerLogin);
     citizenCookie = await loginAndGetCookie(citizenLogin);
 
-    const officerUser = await db.User.findOne({
-      where: { username: technicalStaffLogin.username },
+    // 3. Create a unique Company
+    const testCompany = await db.Company.create({
+      name: `Unique Test Logistics ${Date.now()}`,
+      address: "123 Maintenance Way",
+      city: "Turin",
+      region: "Piedmont",
+      country: "Italy",
     });
-    testData.technicalOfficerId = officerUser.id;
+    testData.companyId = testCompany.id;
 
-    // 3. Find External Company associated with Category ID 7 (Roads, handled by CITS, ID 5)
-    const company = await db.Company.findByPk(CITS_COMPANY_ID);
-    testData.companyId = company.id; // Should be 5
+    const category = await db.Category.findByPk(7);
+    if (!category) throw new Error("Category ID 7 not found in database. Check your seeders.");
+    await testCompany.addCategory(category);
 
-    // 4. Create External Maintainer User and link to CITS (ID 5)
+    // 4. Create External Maintainer User
     const externalMaintainerRole = await db.Role.findOne({
       where: { name: "external_maintainer" },
     });
@@ -55,13 +59,17 @@ describe("Report External Assignment (Integration)", () => {
       username: uniqueMaintainerUsername,
       firstName: "Ext",
       lastName: "Man",
-
       hashedPassword: await bcrypt.hash(MAINTAINER_PASSWORD, 10),
       roleId: externalMaintainerRole.id,
       companyId: testData.companyId,
       emailConfiguration: true,
     });
     testData.maintainerId = maintainerUser.id;
+
+    const officerUser = await db.User.findOne({
+      where: { username: technicalStaffLogin.username },
+    });
+    testData.technicalOfficerId = officerUser.id;
 
     // 5. Login External Maintainer
     extMaintainerCookie = await loginAndGetCookie({
@@ -120,7 +128,6 @@ describe("Report External Assignment (Integration)", () => {
 
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    // Verify the correct seeded company (CITS, ID 5) is returned
     expect(res.body.some((c) => c.id === testData.companyId)).toBe(true);
     expect(res.body[0]).toHaveProperty("address");
   });

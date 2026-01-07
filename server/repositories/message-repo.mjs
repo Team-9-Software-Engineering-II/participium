@@ -23,12 +23,14 @@ export async function findMessagesByReportId(reportId) {
       {
         model: db.User,
         as: "author",
-        attributes: [
-          "id",
-          "username",
-          "firstName",
-          "lastName",
-          "photoURL",
+        attributes: ["id", "username", "firstName", "lastName", "photoURL"],
+        include: [
+          {
+            model: db.Role,
+            as: "roles",
+            attributes: ["id", "name"],
+            through: { attributes: [] },
+          },
         ],
       },
     ],

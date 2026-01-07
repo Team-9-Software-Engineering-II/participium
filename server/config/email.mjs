@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import logger from "../shared/logging/logger.mjs";
 
-let transporter = null;
+export let transporter = null;
 let testAccount = null;
 let resendClient = null;
 let emailProvider = "ethereal"; // "ethereal", "smtp", or "resend"

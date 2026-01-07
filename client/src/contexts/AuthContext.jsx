@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import PropTypes from 'prop-types';
+/* eslint-disable react/prop-types */
+import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI, userAPI } from '../services/api';
 
 const AuthContext = createContext(null);
