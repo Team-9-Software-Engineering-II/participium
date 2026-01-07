@@ -59,6 +59,7 @@ export default function ReportDetails() {
   
   // STATO PER LA CHAT
   const [chatOpen, setChatOpen] = useState(false);
+  const [extMaintChatOpen, setExtMaintChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastMessageId, setLastMessageId] = useState(null);
 
@@ -200,25 +201,27 @@ export default function ReportDetails() {
 
   // Determina se mostrare il pulsante chat
   const canAccessChat = () => {
-    // Il backend restituisce assignee (technical officer) e externalMaintainer come oggetti
-    // Dobbiamo verificare che entrambi esistano e che l'utente corrente sia uno dei due
     console.log('canAccessChat check:', {
       hasAssignee: !!report?.assignee?.id,
       hasExternalMaintainer: !!report?.externalMaintainer?.id,
       userId: user?.id,
       assigneeId: report?.assignee?.id,
       externalMaintainerId: report?.externalMaintainer?.id,
+      reportUserId: report?.user?.id,
       report: report
     });
     
-    if (!report?.assignee?.id || !report?.externalMaintainer?.id) return false;
+    // Chat sempre disponibile se c'è un assignee
+    if (report?.assignee?.id) {
+      const isTechOfficer = user?.id === report.assignee.id;
+      const isExternalMaintainer = report?.externalMaintainer?.id && user?.id === report.externalMaintainer.id;
+      const isCitizen = user?.id === report.user?.id;
+      
+      console.log('Chat access check:', { isTechOfficer, isExternalMaintainer, isCitizen });
+      return isTechOfficer || isExternalMaintainer || isCitizen;
+    }
     
-    const isTechOfficer = user?.id === report.assignee.id;
-    const isExternalMaintainer = user?.id === report.externalMaintainer.id;
-    
-    console.log('Access check result:', { isTechOfficer, isExternalMaintainer });
-    
-    return isTechOfficer || isExternalMaintainer;
+    return false;
   };
 
   // Controlla periodicamente se ci sono nuovi messaggi (solo quando chat è chiusa)
@@ -480,12 +483,56 @@ export default function ReportDetails() {
             </div>
             <div className="bg-card border rounded-lg p-6 space-y-2">
               <Label className="text-sm text-muted-foreground">Submitted By</Label>
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="h-4 w-4 text-primary" /></div>
-                <div><p data-cy="reporter-name" className="font-medium text-sm">{report.anonymous ? 'Anonymous Citizen' : (report.user?.username || report.reporterName || 'User')}</p></div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="h-4 w-4 text-primary" /></div>
+                  <div><p data-cy="reporter-name" className="font-medium text-sm">{report.anonymous ? 'Anonymous Citizen' : (report.user?.username || report.reporterName || 'User')}</p></div>
+                </div>
+                {/* Pulsante Chat con cittadino per Tech Staff */}
+                {user?.id === report?.assignee?.id && !report.anonymous && canAccessChat() && (
+                  <Button
+                    onClick={() => setChatOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 flex-shrink-0 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-400"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Chat with {report.user?.firstName || 'Citizen'}
+                    {unreadCount > 0 && (
+                      <span className="ml-1 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Sezione Chat con External Maintainer - Solo per Tech Staff quando c'è delegazione */}
+          {user?.id === report?.assignee?.id && report?.externalMaintainer && canAccessChat() && (
+            <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                    <Building2 className="h-5 w-5" />
+                    Delegated to External Maintainer
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {report.externalMaintainer.firstName} {report.externalMaintainer.lastName} - {report.company?.name}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setExtMaintChatOpen(true)}
+                  className="gap-2 bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 text-white flex-shrink-0"
+                  size="default"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat with External Maintainer
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="bg-card border rounded-lg p-6 space-y-4">
             <h2 className="text-xl font-semibold">Photos</h2>
@@ -571,32 +618,43 @@ export default function ReportDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* CHAT BUTTON (Floating) - Solo se tech officer e external maintainer esistono */}
+      {/* CHAT SHEETS - Aperti dai pulsanti contestuali nelle card */}
       {canAccessChat() && (
         <>
-          <Button
-            onClick={() => {
-              console.log('Chat button clicked, unreadCount:', unreadCount);
-              setChatOpen(true);
-            }}
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
-            size="icon"
-          >
-            <MessageSquare className="h-6 w-6" />
-            {console.log('Rendering badge check:', { unreadCount, shouldShow: unreadCount > 0 })}
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 flex items-center justify-center border-2 border-background">
-              </span>
-            )}
-          </Button>
-          
-          <ChatSheet
-            open={chatOpen}
-            onOpenChange={setChatOpen}
-            reportId={report.id}
-            technicalOfficer={report.assignee}
-            externalMaintainer={report.externalMaintainer}
-          />
+          {/* Tech Staff: due chat separate quando c'è delegazione */}
+          {user?.id === report?.assignee?.id && report?.externalMaintainer?.id ? (
+            <>
+              {/* ChatSheet Cittadino */}
+              <ChatSheet
+                open={chatOpen}
+                onOpenChange={setChatOpen}
+                reportId={report.id}
+                technicalOfficer={report.assignee}
+                externalMaintainer={null}
+                citizen={report.user}
+              />
+              
+              {/* ChatSheet External Maintainer */}
+              <ChatSheet
+                open={extMaintChatOpen}
+                onOpenChange={setExtMaintChatOpen}
+                reportId={report.id}
+                technicalOfficer={report.assignee}
+                externalMaintainer={report.externalMaintainer}
+                citizen={null}
+              />
+            </>
+          ) : (
+            /* Tutti gli altri: una sola chat */
+            <ChatSheet
+              open={chatOpen}
+              onOpenChange={setChatOpen}
+              reportId={report.id}
+              technicalOfficer={report.assignee}
+              externalMaintainer={report.externalMaintainer}
+              citizen={report.user}
+            />
+          )}
         </>
       )}
 

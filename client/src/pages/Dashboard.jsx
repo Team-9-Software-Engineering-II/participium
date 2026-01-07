@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, MapPin, Clock, ChevronRight, Bell } from 'lucide-react';
+import { Plus, FileText, MapPin, Clock, ChevronRight, Bell, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
-import { reportAPI, notificationAPI } from '@/services/api';
+import { reportAPI, notificationAPI, messageAPI } from '@/services/api';
 import ReportStatus from '../components/ReportStatus';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 const API_BASE_URL = 'http://localhost:3000';
 
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [addresses, setAddresses] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [unreadChatCounts, setUnreadChatCounts] = useState({}); // { reportId: unreadCount }
 
   // FIX: Logica indirizzo migliorata per gestire parchi, cimiteri e aree senza via specifica
   const fetchAddress = async (lat, lng) => {
@@ -96,6 +98,63 @@ export default function Dashboard() {
     }
   }, [user?.id]);
 
+  // Funzione per calcolare i messaggi non letti per un report
+  const calculateUnreadMessages = async (reportId) => {
+    try {
+      const response = await messageAPI.getMessages(reportId);
+      const messages = response.data || [];
+      
+      if (messages.length === 0) return 0;
+
+      const storageKey = `lastReadMessage_${reportId}_${user?.id}`;
+      const lastReadId = localStorage.getItem(storageKey);
+
+      if (lastReadId) {
+        const lastReadIdNum = Number.parseInt(lastReadId, 10);
+        const newMessages = messages.filter(m => 
+          m.id > lastReadIdNum && m.author?.id !== user?.id
+        );
+        return newMessages.length;
+      } else {
+        const unreadMessages = messages.filter(m => m.author?.id !== user?.id);
+        return unreadMessages.length;
+      }
+    } catch (error) {
+      console.error('Error calculating unread messages:', error);
+      return 0;
+    }
+  };
+
+  // Effetto per caricare i conteggi dei messaggi non letti
+  useEffect(() => {
+    const loadUnreadCounts = async () => {
+      if (myReports.length === 0) return;
+
+      const counts = {};
+      for (const report of myReports) {
+        // Calcola per TUTTI i report che hanno un tech officer assegnato
+        // (la chat cittadino-tech ora funziona anche con report delegato)
+        if (report.assignee?.id) {
+          counts[report.id] = await calculateUnreadMessages(report.id);
+        }
+      }
+      setUnreadChatCounts(counts);
+    };
+
+    loadUnreadCounts();
+
+    // Listener per aggiornare quando la chat viene chiusa
+    const handleChatRead = () => {
+      loadUnreadCounts();
+    };
+
+    globalThis.addEventListener('chatMessageRead', handleChatRead);
+
+    return () => {
+      globalThis.removeEventListener('chatMessageRead', handleChatRead);
+    };
+  }, [myReports, user?.id]);
+
   const fetchNotifications = async () => {
     try {
       setLoadingNotifications(true);
@@ -137,9 +196,17 @@ export default function Dashboard() {
         className="bg-card border border-border rounded-xl shadow-sm p-4 transition-all hover:shadow-md hover:border-primary/50 group"
       >
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mr-2">
-            {report.title}
-          </h3>
+          <div className="flex items-center gap-2 flex-1 mr-2">
+            <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+              {report.title}
+            </h3>
+            {/* Badge chat per cittadino se ha messaggi non letti - solo icona senza numero */}
+            {unreadChatCounts[report.id] > 0 && (
+              <Badge variant="destructive" className="h-5 w-5 flex items-center justify-center p-0">
+                <MessageSquare className="h-3 w-3" />
+              </Badge>
+            )}
+          </div>
           <Button 
             variant="ghost" 
             size="icon" 

@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { authAPI, userAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -169,12 +169,4 @@ export const AuthProvider = ({ children }) => {
   }), [user, loading, activeRole, login, logout, register, updateProfile, switchRole]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-AuthProvider.propTypes = {
-  children: PropTypes.node.isRequired,
-};
-
-AuthProvider.propTypes = {
-  children: PropTypes.node.isRequired,
 };

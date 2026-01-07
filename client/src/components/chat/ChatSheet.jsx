@@ -10,7 +10,7 @@ import { messageAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
-export default function ChatSheet({ open, onOpenChange, reportId, technicalOfficer, externalMaintainer }) {
+export default function ChatSheet({ open, onOpenChange, reportId, technicalOfficer, externalMaintainer, citizen }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -26,7 +26,11 @@ export default function ChatSheet({ open, onOpenChange, reportId, technicalOffic
   const previousOpenRef = useRef(open);
 
   // Determina chi è l'altro utente nella chat
-  const otherUser = user?.id === technicalOfficer?.id ? externalMaintainer : technicalOfficer;
+  // Se c'è externalMaintainer: chat Tech-ExtMaint
+  // Altrimenti: chat Cittadino-Tech
+  const otherUser = externalMaintainer 
+    ? (user?.id === technicalOfficer?.id ? externalMaintainer : technicalOfficer)
+    : (user?.id === technicalOfficer?.id ? citizen : technicalOfficer);
 
   useEffect(() => {
     if (open && reportId && user) {
