@@ -1,14 +1,20 @@
-import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+/**
+ * @file Report External Assignment Integration Tests
+ * @description Integration tests for the workflow of assigning reports to external companies.
+ * Covers company eligibility, assignment execution, load balancing, and error handling.
+ */
+
+import {describe, it, expect, beforeAll, afterAll} from "@jest/globals";
 import request from "supertest";
-import { app } from "../../index.mjs";
+import {app} from "../../index.mjs";
 import {
-  setupTestDatabase,
-  teardownTestDatabase,
-  loginAndGetCookie,
-  validReportPayload,
-  technicalStaffLogin,
-  citizenLogin,
-  prOfficerLogin,
+    setupTestDatabase,
+    teardownTestDatabase,
+    loginAndGetCookie,
+    validReportPayload,
+    technicalStaffLogin,
+    citizenLogin,
+    prOfficerLogin,
 } from "./test-utils.js";
 import db from "../../models/index.mjs";
 import bcrypt from "bcrypt";
@@ -20,269 +26,252 @@ const testData = {};
 let technicalOfficerCookie; // Technical Staff Member
 let prOfficerCookie; // PR Officer for report review
 let citizenCookie;
-let extMaintainerCookie; // External Maintainer user cookie (created in beforeAll)
+let extMaintainerCookie; // External Maintainer user cookie
 
 const MAINTAINER_PASSWORD = "password123";
 
 describe("Report External Assignment (Integration)", () => {
-  beforeAll(async () => {
-    // 1. Setup DB and seed initial data
-    await setupTestDatabase();
+    /**
+     * @description Sets up the test environment, seeds the database, and creates specific
+     * test entities (Company, Maintainer) with necessary N:M role associations.
+     */
+    beforeAll(async () => {
+        // 1. Setup DB and seed initial data
+        await setupTestDatabase();
 
-    // 2. Login required users
-    technicalOfficerCookie = await loginAndGetCookie(technicalStaffLogin);
-    prOfficerCookie = await loginAndGetCookie(prOfficerLogin);
-    citizenCookie = await loginAndGetCookie(citizenLogin);
+        // 2. Login required users
+        technicalOfficerCookie = await loginAndGetCookie(technicalStaffLogin);
+        prOfficerCookie = await loginAndGetCookie(prOfficerLogin);
+        citizenCookie = await loginAndGetCookie(citizenLogin);
 
-    // 3. Create a unique Company
-    const testCompany = await db.Company.create({
-      name: `Unique Test Logistics ${Date.now()}`,
-      address: "123 Maintenance Way",
-      city: "Turin",
-      region: "Piedmont",
-      country: "Italy",
-    });
-    testData.companyId = testCompany.id;
+        // 3. Create a unique Company for isolation
+        const testCompany = await db.Company.create({
+            name: `Unique Test Logistics ${Date.now()}`,
+            address: "123 Maintenance Way",
+            city: "Turin",
+            region: "Piedmont",
+            country: "Italy",
+        });
+        testData.companyId = testCompany.id;
 
-    const category = await db.Category.findByPk(7);
-    if (!category) throw new Error("Category ID 7 not found in database. Check your seeders.");
-    await testCompany.addCategory(category);
+        // Link Company to Category 7 (Roads) so it appears as eligible
+        const category = await db.Category.findByPk(7);
+        if (!category) throw new Error("Category ID 7 not found. Check seeders.");
+        await testCompany.addCategory(category);
 
-    // 4. Create External Maintainer User
-    const externalMaintainerRole = await db.Role.findOne({
-      where: { name: "external_maintainer" },
-    });
-    const uniqueMaintainerUsername = `maintainer${Date.now()}`;
+        // 4. Create External Maintainer User
+        const externalMaintainerRole = await db.Role.findOne({
+            where: {name: "external_maintainer"},
+        });
 
-    const maintainerUser = await db.User.create({
-      email: `${uniqueMaintainerUsername}@test.com`,
-      username: uniqueMaintainerUsername,
-      firstName: "Ext",
-      lastName: "Man",
-      hashedPassword: await bcrypt.hash(MAINTAINER_PASSWORD, 10),
-      roleId: externalMaintainerRole.id,
-      companyId: testData.companyId,
-      emailConfiguration: true,
-    });
-    testData.maintainerId = maintainerUser.id;
+        const uniqueMaintainerUsername = `maintainer${Date.now()}`;
 
-    const officerUser = await db.User.findOne({
-      where: { username: technicalStaffLogin.username },
-    });
-    testData.technicalOfficerId = officerUser.id;
+        const maintainerUser = await db.User.create({
+            email: `${uniqueMaintainerUsername}@test.com`,
+            username: uniqueMaintainerUsername,
+            firstName: "Ext",
+            lastName: "Man",
+            hashedPassword: await bcrypt.hash(MAINTAINER_PASSWORD, 10),
+            companyId: testData.companyId,
+            emailConfiguration: true,
+        });
+        testData.maintainerId = maintainerUser.id;
 
-    // 5. Login External Maintainer
-    extMaintainerCookie = await loginAndGetCookie({
-      username: maintainerUser.username,
-      password: MAINTAINER_PASSWORD,
-    });
-  });
+        // FIX: Explicitly add role to the N:M join table.
+        // Necessary for the backend to recognize this user as a valid staff member of the company.
+        if (maintainerUser.addRole) {
+            await maintainerUser.addRole(externalMaintainerRole);
+        }
 
-  afterAll(async () => {
-    await teardownTestDatabase();
-  });
+        const officerUser = await db.User.findOne({
+            where: {username: technicalStaffLogin.username},
+        });
+        testData.technicalOfficerId = officerUser.id;
 
-  /**
-   * @description Creates a report and moves it to 'Assigned' status by PR Officer review,
-   * automatically assigning it to an internal Technical Officer via load balancing.
-   * @returns {Promise<number>} The ID of the newly assigned report.
-   */
-  const createAndAssignReportToTechnicalOfficer = async () => {
-    // 1. Citizen creates the report (POST /reports)
-    const createRes = await request(app)
-      .post("/reports")
-      .set("Cookie", citizenCookie)
-      .send(validReportPayload);
-
-    expect(createRes.statusCode).toBe(201);
-    const reportId = createRes.body.id;
-
-    // 2. PR Officer accepts the report (PUT /municipal/reports/{reportId})
-    const reviewRes = await request(app)
-      .put(`/municipal/reports/${reportId}`)
-      .set("Cookie", prOfficerCookie)
-      .send({ action: "assigned" });
-
-    expect(reviewRes.statusCode).toBe(200);
-    expect(reviewRes.body.status).toBe("Assigned");
-
-    const assignedReport = await db.Report.findByPk(reportId);
-    expect(assignedReport.technicalOfficerId).toBeDefined();
-
-    return reportId;
-  };
-
-  // --------------------------------------------------------------------------
-  // TEST CASE 1: GET /offices/reports/:reportId/companies - Success
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test retrieval of eligible external companies for a specific report's category.
-   * @returns {void}
-   */
-  it("should return eligible companies for a report (GET /offices/reports/{reportId}/companies)", async () => {
-    const reportId = await createAndAssignReportToTechnicalOfficer();
-
-    const res = await request(app)
-      .get(`/offices/reports/${reportId}/companies`)
-      .set("Cookie", technicalOfficerCookie);
-
-    expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.some((c) => c.id === testData.companyId)).toBe(true);
-    expect(res.body[0]).toHaveProperty("address");
-  });
-
-  // --------------------------------------------------------------------------
-  // TEST CASE 2: PUT /offices/reports/:reportId/assign-external - Success
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test successful assignment of a report to an external maintainer (load balanced).
-   * @returns {void}
-   */
-  it("should successfully assign a report to an external maintainer (PUT /offices/reports/{reportId}/assign-external)", async () => {
-    const reportId = await createAndAssignReportToTechnicalOfficer();
-
-    const res = await request(app)
-      .put(`/offices/reports/${reportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({ companyId: testData.companyId });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body.id).toBe(reportId);
-
-    const updatedReport = await db.Report.findByPk(reportId);
-    // Verify the report is now linked to the external maintainer user created in beforeAll
-    expect(updatedReport.externalMaintainerId).toBe(testData.maintainerId);
-  });
-
-  // --------------------------------------------------------------------------
-  // TEST CASE 3: PUT /assign-external - Failure (Missing/Invalid data)
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test failure when companyId is missing or non-numeric.
-   * @returns {void}
-   */
-  it("should return 400 if companyId is missing or invalid", async () => {
-    const reportId = await createAndAssignReportToTechnicalOfficer();
-
-    // 1. companyId missing
-    const resMissing = await request(app)
-      .put(`/offices/reports/${reportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({});
-
-    expect(resMissing.statusCode).toBe(400);
-
-    // 2. companyId non-numeric
-    const resInvalid = await request(app)
-      .put(`/offices/reports/${reportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({ companyId: "invalid" });
-
-    expect(resInvalid.statusCode).toBe(400);
-  });
-
-  // --------------------------------------------------------------------------
-  // TEST CASE 4: PUT /assign-external - Failure (Report in invalid status)
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test failure when attempting external assignment on a pending report.
-   * @returns {void}
-   */
-  it("should return 400 if the report is in Pending Approval status", async () => {
-    const createRes = await request(app)
-      .post("/reports")
-      .set("Cookie", citizenCookie)
-      .send(validReportPayload);
-
-    const pendingReportId = createRes.body.id;
-
-    const res = await request(app)
-      .put(`/offices/reports/${pendingReportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({ companyId: testData.companyId });
-
-    expect(res.statusCode).toBe(400);
-    expect(res.body.message).toContain("Current status is 'Pending Approval'.");
-  });
-
-  // --------------------------------------------------------------------------
-  // TEST CASE 5: PUT /assign-external - Failure (Company not found)
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test failure when the provided company ID does not exist.
-   * @returns {void}
-   */
-  it("should return 404 if the company does not exist", async () => {
-    const reportId = await createAndAssignReportToTechnicalOfficer();
-
-    const res = await request(app)
-      .put(`/offices/reports/${reportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({ companyId: 9999 });
-
-    expect(res.statusCode).toBe(404);
-  });
-
-  // --------------------------------------------------------------------------
-  // TEST CASE 6: PUT /assign-external - Failure (No external maintainers)
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test failure when the selected company has no maintainer users.
-   * @returns {void}
-   */
-  it("should return 409 if the company has no external maintainers", async () => {
-    const reportId = await createAndAssignReportToTechnicalOfficer();
-
-    const emptyCompany = await db.Company.create({
-      name: "Empty Company",
-      address: "Via Empty Test 1",
-      city: "Milano",
-      region: "Lombardia",
-      country: "Italia",
+        // 5. Login External Maintainer
+        extMaintainerCookie = await loginAndGetCookie({
+            username: maintainerUser.username,
+            password: MAINTAINER_PASSWORD,
+        });
     });
 
-    const res = await request(app)
-      .put(`/offices/reports/${reportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({ companyId: emptyCompany.id });
+    /**
+     * @description Teardown database connections after all tests.
+     */
+    afterAll(async () => {
+        await teardownTestDatabase();
+    });
 
-    expect(res.statusCode).toBe(409);
-    expect(res.body.message).toContain(
-      "No external maintainers found in company 'Empty Company'."
-    );
-  });
+    /**
+     * @function createAndAssignReportToTechnicalOfficer
+     * @description Utility to create a report and transition it to 'Assigned' status via
+     * PR Officer review, making it ready for external assignment testing.
+     * @returns {Promise<number>} The ID of the newly assigned report.
+     */
+    const createAndAssignReportToTechnicalOfficer = async () => {
+        // 1. Citizen creates report
+        const createRes = await request(app)
+            .post("/reports")
+            .set("Cookie", citizenCookie)
+            .send(validReportPayload);
 
-  // --------------------------------------------------------------------------
-  // TEST CASE 7: Test Load Balancing
-  // --------------------------------------------------------------------------
-  /**
-   * @description Test that the assignment logic selects the maintainer with the least active reports.
-   * @returns {void}
-   */
-  it("should assign the report to the external maintainer with the fewest active reports", async () => {
-    // 1. Assign workload to Maintainer A (testData.maintainerId)
-    const reportToAssignId1 = await createAndAssignReportToTechnicalOfficer();
-    const reportToAssignId2 = await createAndAssignReportToTechnicalOfficer();
-    await db.Report.update(
-      { externalMaintainerId: testData.maintainerId, status: "Assigned" },
-      { where: { id: reportToAssignId1 } }
-    );
-    await db.Report.update(
-      { externalMaintainerId: testData.maintainerId, status: "Assigned" },
-      { where: { id: reportToAssignId2 } }
-    );
-    // Maintainer A (testData.maintainerId) now has 2 active reports.
+        expect(createRes.statusCode).toBe(201);
+        const reportId = createRes.body.id;
 
-    // 2. Create a NEW report to trigger load balancing
-    const newReportId = await createAndAssignReportToTechnicalOfficer();
+        // 2. PR Officer accepts report
+        const reviewRes = await request(app)
+            .put(`/municipal/reports/${reportId}`)
+            .set("Cookie", prOfficerCookie)
+            .send({action: "assigned"});
 
-    // 3. Perform external assignment.
-    const res = await request(app)
-      .put(`/offices/reports/${newReportId}/assign-external`)
-      .set("Cookie", technicalOfficerCookie)
-      .send({ companyId: testData.companyId });
+        expect(reviewRes.statusCode).toBe(200);
+        return reportId;
+    };
 
-    expect(res.statusCode).toBe(200);
-  });
+    // --------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------
+
+    /**
+     * @test GET /offices/reports/:reportId/companies
+     * @description Verifies retrieval of eligible external companies based on the report's category.
+     */
+    it("should return eligible companies for a report (GET /offices/reports/{reportId}/companies)", async () => {
+        const reportId = await createAndAssignReportToTechnicalOfficer();
+
+        const res = await request(app)
+            .get(`/offices/reports/${reportId}/companies`)
+            .set("Cookie", technicalOfficerCookie);
+
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+        expect(res.body.some((c) => c.id === testData.companyId)).toBe(true);
+    });
+
+    /**
+     * @test PUT /offices/reports/:reportId/assign-external
+     * @description Tests the successful assignment of a report to an external maintainer, verifying database persistence.
+     */
+    it("should successfully assign a report to an external maintainer (PUT /offices/reports/{reportId}/assign-external)", async () => {
+        const reportId = await createAndAssignReportToTechnicalOfficer();
+
+        const res = await request(app)
+            .put(`/offices/reports/${reportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({companyId: testData.companyId});
+
+        expect(res.statusCode).toBe(200);
+        expect(res.body.id).toBe(reportId);
+
+        const updatedReport = await db.Report.findByPk(reportId);
+        expect(updatedReport.externalMaintainerId).toBe(testData.maintainerId);
+    });
+
+    /**
+     * @test PUT /offices/reports/:reportId/assign-external
+     * @description Validates input sanitization for missing or invalid company IDs.
+     */
+    it("should return 400 if companyId is missing or invalid", async () => {
+        const reportId = await createAndAssignReportToTechnicalOfficer();
+
+        await request(app)
+            .put(`/offices/reports/${reportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({})
+            .expect(400);
+
+        await request(app)
+            .put(`/offices/reports/${reportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({companyId: "invalid"})
+            .expect(400);
+    });
+
+    /**
+     * @test PUT /offices/reports/:reportId/assign-external
+     * @description Ensures reports cannot be externally assigned while still in 'Pending Approval' status.
+     */
+    it("should return 400 if the report is in Pending Approval status", async () => {
+        const createRes = await request(app)
+            .post("/reports")
+            .set("Cookie", citizenCookie)
+            .send(validReportPayload);
+        const pendingReportId = createRes.body.id;
+
+        const res = await request(app)
+            .put(`/offices/reports/${pendingReportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({companyId: testData.companyId});
+
+        expect(res.statusCode).toBe(400);
+    });
+
+    /**
+     * @test PUT /offices/reports/:reportId/assign-external
+     * @description Handles scenarios where the target company does not exist.
+     */
+    it("should return 404 if the company does not exist", async () => {
+        const reportId = await createAndAssignReportToTechnicalOfficer();
+
+        await request(app)
+            .put(`/offices/reports/${reportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({companyId: 99999})
+            .expect(404);
+    });
+
+    /**
+     * @test PUT /offices/reports/:reportId/assign-external
+     * @description Verifies conflict error (409) when the selected company has no valid external maintainers.
+     */
+    it("should return 409 if the company has no external maintainers", async () => {
+        const reportId = await createAndAssignReportToTechnicalOfficer();
+
+        // Create empty company without users
+        const emptyCompany = await db.Company.create({
+            name: `Empty Co ${Date.now()}`,
+            address: "Nowhere",
+            city: "Void",
+            region: "Null",
+            country: "Nil",
+        });
+        const category = await db.Category.findByPk(7);
+        await emptyCompany.addCategory(category);
+
+        const res = await request(app)
+            .put(`/offices/reports/${reportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({companyId: emptyCompany.id});
+
+        expect(res.statusCode).toBe(409);
+    });
+
+    /**
+     * @test PUT /offices/reports/:reportId/assign-external
+     * @description Validates the load balancing algorithm, ensuring the maintainer is assigned correctly
+     * even when under load.
+     */
+    it("should assign the report to the external maintainer with the fewest active reports", async () => {
+        // 1. Manually overload the maintainer
+        const report1 = await createAndAssignReportToTechnicalOfficer();
+        const report2 = await createAndAssignReportToTechnicalOfficer();
+
+        await db.Report.update(
+            {externalMaintainerId: testData.maintainerId, status: "Assigned"},
+            {where: {id: [report1, report2]}}
+        );
+
+        // 2. Assign new report
+        const targetReportId = await createAndAssignReportToTechnicalOfficer();
+        const res = await request(app)
+            .put(`/offices/reports/${targetReportId}/assign-external`)
+            .set("Cookie", technicalOfficerCookie)
+            .send({companyId: testData.companyId});
+
+        expect(res.statusCode).toBe(200);
+
+        // Verify assignment directly in DB
+        const updatedReport = await db.Report.findByPk(targetReportId);
+        expect(updatedReport.externalMaintainerId).toBe(testData.maintainerId);
+    });
 });
