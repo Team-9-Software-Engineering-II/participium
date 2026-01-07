@@ -1874,22 +1874,7 @@ components:
               type: integer
 
     # Generic Schema for Company (inferred)
-    Company:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        address:
-          type: string
-        city:
-          type: string
-        region:
-          type: string
-        country:
-          type: string
-        
+   
 
           
 

@@ -30,6 +30,12 @@ export class AuthService {
    * @param {object} userInput - Raw registration data from the client.
    * @returns {Promise<object>} A sanitized user representation without sensitive fields.
    */
+  /**
+   * Registers a new user after validating uniqueness and hashing the password.
+   * Assigns the citizen role (role_id=1) by default in the user_role table.
+   * @param {object} userInput - Raw registration data from the client.
+   * @returns {Promise<object>} A sanitized user representation without sensitive fields.
+   */
   static async registerUser(userInput) {
     const { email, username, password, firstName, lastName } = userInput;
 
@@ -40,17 +46,31 @@ export class AuthService {
     const defaultCitizenRole = await this.#assignCitizenRole();
 
     const hashedPassword = await this.#hashPassword(password);
-    const createdUser = await createUser({
-      email,
-      username,
-      firstName,
-      lastName,
-      hashedPassword,
-      roleId: defaultCitizenRole,
-    });
 
-    const hydratedUser = await findUserByIdRepo(createdUser.id);
-    return this.#sanitizeUser(hydratedUser ?? createdUser);
+    // Use transaction to ensure atomicity when creating user and assigning role
+    const t = await db.sequelize.transaction();
+
+    try {
+      // Create the user first
+      const createdUser = await createUser({
+        email,
+        username,
+        firstName,
+        lastName,
+        hashedPassword,
+      });
+
+      // Assign citizen role (role_id=1) in the user_role table
+      await createdUser.addRole(defaultCitizenRole, { transaction: t });
+
+      await t.commit();
+
+      const hydratedUser = await findUserByIdRepo(createdUser.id);
+      return this.#sanitizeUser(hydratedUser ?? createdUser);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
   }
 
   /**
@@ -361,24 +381,38 @@ export class AuthService {
     await this.#ensureEmailAvailable(temporaryUser.email);
     await this.#ensureUsernameAvailable(temporaryUser.username);
 
-    // Get the default citizen role
+    // Get the default citizen role (role_id=1)
     const defaultCitizenRole = await this.#assignCitizenRole();
 
-    // Hash the password and create the user
+    // Hash the password
     const hashedPassword = await this.#hashPassword(temporaryUser.password);
-    const createdUser = await createUser({
-      email: temporaryUser.email,
-      username: temporaryUser.username,
-      firstName: temporaryUser.firstName,
-      lastName: temporaryUser.lastName,
-      hashedPassword,
-      roleId: defaultCitizenRole,
-    });
 
-    // Delete the temporary data from Redis after successful registration
-    await deleteTemporaryUser(email);
+    // Use transaction to ensure atomicity when creating user and assigning role
+    const t = await db.sequelize.transaction();
 
-    const hydratedUser = await findUserByIdRepo(createdUser.id);
-    return this.#sanitizeUser(hydratedUser ?? createdUser);
+    try {
+      // Create the user first
+      const createdUser = await createUser({
+        email: temporaryUser.email,
+        username: temporaryUser.username,
+        firstName: temporaryUser.firstName,
+        lastName: temporaryUser.lastName,
+        hashedPassword,
+      });
+
+      // Assign citizen role (role_id=1) in the user_role table
+      await createdUser.addRole(defaultCitizenRole, { transaction: t });
+
+      await t.commit();
+
+      // Delete the temporary data from Redis after successful registration
+      await deleteTemporaryUser(email);
+
+      const hydratedUser = await findUserByIdRepo(createdUser.id);
+      return this.#sanitizeUser(hydratedUser ?? createdUser);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
   }
 }
