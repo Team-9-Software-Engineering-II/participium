@@ -283,16 +283,16 @@ export class ReportService {
       // Map status to user-friendly notification messages
       const statusMessages = {
         "In Progress": {
-          title: "Report in lavorazione",
-          message: `La tua segnalazione "${report.title}" è stata messa in lavorazione.`,
+          title: "Report In Progress",
+          message: `Your report "${report.title}" is now being processed.`,
         },
         Resolved: {
-          title: "Report risolto",
-          message: `La tua segnalazione "${report.title}" è stata risolta.`,
+          title: "Report Resolved",
+          message: `Your report "${report.title}" has been resolved.`,
         },
         Suspended: {
-          title: "Report sospeso",
-          message: `La tua segnalazione "${report.title}" è stata sospesa temporaneamente.`,
+          title: "Report Suspended",
+          message: `Your report "${report.title}" has been temporarily suspended.`,
         },
       };
 

@@ -1,5 +1,4 @@
 import { findReportById } from "../repositories/report-repo.mjs";
-import { ReportService } from "../services/report-service.mjs";
 import { ROLE } from "../shared/constants/models.mjs";
 import AppError from "../shared/utils/app-error.mjs";
 

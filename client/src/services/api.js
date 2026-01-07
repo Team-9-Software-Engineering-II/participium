@@ -181,4 +181,12 @@ export const adminAPI = {
   assignRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
 };
 
+// ==================== NOTIFICATIONS ====================
+export const notificationAPI = {
+  getMyNotifications: () => api.get('/notifications'),
+  markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`),
+};
+
 export default api;

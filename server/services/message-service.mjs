@@ -5,7 +5,6 @@ import {
 import { findReportById } from "../repositories/report-repo.mjs";
 import logger from "../shared/logging/logger.mjs";
 import AppError from "../shared/utils/app-error.mjs";
-import { ReportService } from "./report-service.mjs";
 
 /**
  * Encapsulates message business logic and orchestrates repository calls.
@@ -19,9 +18,6 @@ export class MessageService {
    * @returns {Promise<object>} The created message with author details.
    */
   static async createMessage(userId, reportId, content) {
-    // Validate that the report exists
-    const report = await ReportService.getReportById(reportId);
-
     // Validate content is provided and not empty
     if (
       !content ||
