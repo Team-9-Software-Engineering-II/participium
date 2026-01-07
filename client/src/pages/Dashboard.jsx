@@ -27,39 +27,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addresses, setAddresses] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [unreadChatCounts, setUnreadChatCounts] = useState({}); // { reportId: unreadCount }
-
-  // FIX: Logica indirizzo migliorata per gestire parchi, cimiteri e aree senza via specifica
-  const fetchAddress = async (lat, lng) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
-      );
-      const data = await res.json();
-      
-      // 1. Prova a costruire un indirizzo breve (Via + Civico)
-      const road = data.address?.road || data.address?.pedestrian || data.address?.street || "";
-      const houseNumber = data.address?.house_number || "";
-      let formattedAddress = `${road} ${houseNumber}`.trim();
-
-      // 2. Se vuoto, usa il nome del luogo (es. "Cimitero Monumentale") o il nome visualizzato completo
-      if (!formattedAddress) {
-        // data.name contiene spesso il nome del POI (Point of Interest)
-        // data.display_name contiene l'indirizzo completo
-        formattedAddress = data.name || data.display_name || "Address not available";
-      }
-      
-      // Pulizia opzionale: se il display_name è lunghissimo, prendiamo solo le prime parti? 
-      // Per ora lasciamo l'indirizzo completo come richiesto dall'utente.
-      return formattedAddress;
-    } catch (error) {
-      console.error("Error fetching address:", error);
-      return "Address not available";
-    }
-  };
 
   useEffect(() => {
     const fetchMyReports = async () => {
@@ -69,21 +39,6 @@ export default function Dashboard() {
         const userReports = response.data.filter(report => report.userId === user?.id);
         userReports.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setMyReports(userReports);
-
-        const addressPromises = userReports.map(async (report) => {
-          if (report.latitude && report.longitude) {
-            const address = await fetchAddress(report.latitude, report.longitude);
-            return { id: report.id, address };
-          }
-          return { id: report.id, address: null };
-        });
-
-        const fetchedAddresses = await Promise.all(addressPromises);
-        const addressMap = {};
-        fetchedAddresses.forEach(({ id, address }) => {
-          addressMap[id] = address;
-        });
-        setAddresses(addressMap);
       } catch (error) {
         console.error("Error fetching reports:", error);
         setMyReports([]);
@@ -227,9 +182,9 @@ export default function Dashboard() {
               <MapPin className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
               <span 
                 className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-xs font-medium text-foreground/80"
-                title={addresses[report.id]} 
+                title={report.address || 'Address not available'} 
               >
-                {addresses[report.id] || "Loading address..."}
+                {report.address || "Address not available"}
               </span>
             </div>
             
