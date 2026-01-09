@@ -24,17 +24,22 @@ We acknowledge that some technical debt is inevitable during rapid development c
 Refactoring is not treated as a separate phase at the end of the project but as an integral part of the daily workflow.
 * **"The Boy Scout Rule":** We apply the principle of leaving the code cleaner than we found it. When touching a legacy module for a new feature, developers are encouraged to improve its structure.
 * **Code Refactoring Tasks:** Specific tasks labeled "Code Refactoring" are scheduled within sprints when necessary to address larger structural issues (e.g., unifying duplicate logic, renaming variables for clarity, or removing dead code).
+### 3.2 Automated Code Quality Monitoring
+We use **SonarCloud**, integrated into our CI/CD pipeline, to monitor and enforce high standards of code quality and maintainability across the entire codebase.
+* **Maintainability Goal:** We are committed to achieving and maintaining an overall **A-Rating** for Code Maintainability.
+* **Quality Gate:** The CI/CD pipeline is configured with a Quality Gate threshold and any new code introduced must pass this gate before the Pull Request can be merged into the main branch.
+* **Target Debt Reduction:** Technical debt and high-impact Code Smells identified by SonarCloud are addressed during scheduled refactoring periods.
 
 ## 4. Testing Strategy
 A comprehensive testing strategy is the primary tool to ensure system stability and facilitate safe refactoring.
 
 ### 4.1 Backend Testing
 * **Unit Testing:** We utilize **Jest** to test individual components in isolation. We rely heavily on mocking dependencies (e.g., mocking repositories when testing services) to ensure tests are fast and deterministic.
+* **Integration Testing:** These tests verify the correct interaction and data flow between multiple backend components. Their primary goal is to ensure that interfaces and contracts between these units function correctly as a subsystem.
 * **Coverage Goal:** We aim for high code coverage (targeting 80-100% for critical business logic) to minimize the risk of regression bugs.
 
 ### 4.2 Frontend and End-to-End (E2E) Testing
-* **E2E Testing:** We verify critical user flows (e.g., Registration, Login, Report Submission) using **Cypress** or **Supertest**. These tests ensure that the integrated system (Frontend + Backend + Database) functions correctly from the user's perspective.
-* **Integration Checks:** E2E tests are updated alongside new features to guarantee that new code does not break existing functionality.
+* **E2E Testing:** We verify critical user flows (e.g., Registration, Login, Report Submission) using **Cypress**. These tests ensure that the integrated system (Frontend + Backend + Database) functions correctly from the user's perspective.
 
 ## 5. Documentation
 Lack of documentation is a form of "Knowledge Debt". To mitigate this:
