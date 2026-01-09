@@ -1,0 +1,45 @@
+# ⚠️ WARNING: This Dockerfile includes email credentials in the image
+# This is NOT recommended for public images with personal credentials
+# Use a dedicated service account email, not your personal Gmail
+
+# syntax=docker/dockerfile:1
+
+FROM node:20-bookworm-slim AS client-builder
+WORKDIR /app/client
+COPY client/package*.json ./
+RUN npm ci
+COPY client/ .
+# Build with /api as the base URL for API routes
+ENV VITE_API_BASE_URL="/api"
+RUN npm run build
+
+FROM node:20-bookworm-slim AS server
+WORKDIR /app/server
+ENV NODE_ENV=production
+
+# Default email configuration (can be overridden at runtime)
+ARG SMTP_HOST=""
+ARG SMTP_PORT="587"
+ARG SMTP_SECURE="false"
+ARG SMTP_USER=""
+ARG SMTP_PASS=""
+ARG EMAIL_FROM=""
+
+ENV SMTP_HOST=${SMTP_HOST}
+ENV SMTP_PORT=${SMTP_PORT}
+ENV SMTP_SECURE=${SMTP_SECURE}
+ENV SMTP_USER=${SMTP_USER}
+ENV SMTP_PASS=${SMTP_PASS}
+ENV EMAIL_FROM=${EMAIL_FROM}
+
+COPY server/package*.json ./
+RUN npm ci --omit=dev
+COPY server/ .
+COPY --from=client-builder /app/client/dist ./public
+RUN mkdir -p data uploads/reports && chown -R node:node /app/server
+USER node
+EXPOSE 3000
+CMD ["node", "index.mjs"]
+
+
+

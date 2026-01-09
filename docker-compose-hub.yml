@@ -1,0 +1,67 @@
+# Docker Compose file for running Participium from Docker Hub
+# This file uses the pre-built image from Docker Hub
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: participium-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - participium-network
+    restart: unless-stopped
+
+  app:
+    image: shayanizadi23/participium:latest
+    container_name: participium-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SESSION_SECRET=${SESSION_SECRET:-8Qz!m29sWf4B#1tKjLx0v^RzPpDnCy7h}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}
+      - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://localhost:3000}
+      - CLIENT_BUILD_DIR=
+      - DB_SYNC_FORCE=${DB_SYNC_FORCE:-false}
+      - REDIS_URL=redis://redis:6379
+      - SKIP_DB_SEED=${SKIP_DB_SEED:-false}
+      # Email Configuration (OPTIONAL - see note below)
+      # Without these, app uses Ethereal (fake SMTP) - emails won't be sent but app works!
+      # To send real emails, create a .env file with your SMTP settings
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+      # Or use Resend API instead of SMTP
+      - RESEND_API_KEY=${RESEND_API_KEY}
+    volumes:
+      - participium-db:/app/server/data
+      - participium-uploads:/app/server/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - participium-network
+    restart: unless-stopped
+
+networks:
+  participium-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  participium-db:
+  participium-uploads:
+
