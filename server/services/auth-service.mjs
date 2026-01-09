@@ -1,4 +1,6 @@
 import bcrypt from "bcrypt";
+import db from "../models/index.mjs";
+import { sequelize } from "../config/db/db-config.mjs";
 import {
   createUser,
   findUserByEmail,
@@ -8,6 +10,14 @@ import {
 import { findRoleById } from "../repositories/role-repo.mjs";
 import { findRoleByName } from "../repositories/role-repo.mjs"; // added for refactoring
 import { findTechnicalOfficeById } from "../repositories/technical-office-repo.mjs";
+import {
+  saveTemporaryUser,
+  getTemporaryUser,
+  deleteTemporaryUser,
+} from "../repositories/redis-repo.mjs";
+import { EmailService } from "./email-service.mjs";
+import AppError from "../shared/utils/app-error.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -17,6 +27,12 @@ const PASSWORD_SALT_ROUNDS = 10;
 export class AuthService {
   /**
    * Registers a new user after validating uniqueness and hashing the password.
+   * @param {object} userInput - Raw registration data from the client.
+   * @returns {Promise<object>} A sanitized user representation without sensitive fields.
+   */
+  /**
+   * Registers a new user after validating uniqueness and hashing the password.
+   * Assigns the citizen role (role_id=1) by default in the user_role table.
    * @param {object} userInput - Raw registration data from the client.
    * @returns {Promise<object>} A sanitized user representation without sensitive fields.
    */
@@ -30,17 +46,31 @@ export class AuthService {
     const defaultCitizenRole = await this.#assignCitizenRole();
 
     const hashedPassword = await this.#hashPassword(password);
-    const createdUser = await createUser({
-      email,
-      username,
-      firstName,
-      lastName,
-      hashedPassword,
-      roleId: defaultCitizenRole,
-    });
 
-    const hydratedUser = await findUserByIdRepo(createdUser.id);
-    return this.#sanitizeUser(hydratedUser ?? createdUser);
+    // Use transaction to ensure atomicity when creating user and assigning role
+    const t = await db.sequelize.transaction();
+
+    try {
+      // Create the user first
+      const createdUser = await createUser({
+        email,
+        username,
+        firstName,
+        lastName,
+        hashedPassword,
+      });
+
+      // Assign citizen role (role_id=1) in the user_role table
+      await createdUser.addRole(defaultCitizenRole, { transaction: t });
+
+      await t.commit();
+
+      const hydratedUser = await findUserByIdRepo(createdUser.id);
+      return this.#sanitizeUser(hydratedUser ?? createdUser);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
   }
 
   /**
@@ -66,24 +96,38 @@ export class AuthService {
     await this.#ensureTechnicalOfficeExists(technicalOfficeId);
     const isRoleExisting = await this.#isRoleExsisting(roleId);
     if (!isRoleExisting) {
-      const error = new Error(`Role with id ${roleId} not found`);
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(`Role with id ${roleId} not found`, 404);
     }
 
     const hashedPassword = await this.#hashPassword(password);
-    const createdUser = await createUser({
-      email,
-      username,
-      firstName,
-      lastName,
-      hashedPassword,
-      roleId,
-      technicalOfficeId,
-    });
 
-    const hydratedUser = await findUserByIdRepo(createdUser.id);
-    return this.#sanitizeUser(hydratedUser ?? createdUser);
+    const t = await db.sequelize.transaction();
+
+    try {
+      const newUser = await createUser({
+        email,
+        username,
+        firstName,
+        lastName,
+        hashedPassword,
+      });
+
+      if (roleId) {
+        await newUser.addRole(roleId, { transaction: t });
+      }
+
+      if (technicalOfficeId) {
+        await newUser.addTechnicalOffice(technicalOfficeId, { transaction: t });
+      }
+
+      await t.commit();
+
+      const hydratedUser = await findUserByIdRepo(newUser.id);
+      return this.#sanitizeUser(hydratedUser ?? newUser);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
   }
 
   /** Validates the provided email format using a basic regex
@@ -95,9 +139,7 @@ export class AuthService {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!email || !emailRegex.test(email)) {
-      const error = new Error("Invalid email format.");
-      error.statusCode = 400; // <-- Error 400 Bad Request
-      throw error;
+      throw new AppError("Invalid email format.", 400);
     }
   }
 
@@ -141,9 +183,7 @@ export class AuthService {
   static async #ensureEmailAvailable(email) {
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      const error = new Error("Email is already registered.");
-      error.statusCode = 409;
-      throw error;
+      throw new AppError("Email is already registered.", 409);
     }
   }
 
@@ -156,9 +196,7 @@ export class AuthService {
   static async #ensureUsernameAvailable(username) {
     const existingUser = await findUserByUsername(username);
     if (existingUser) {
-      const error = new Error("Username is already registered.");
-      error.statusCode = 409;
-      throw error;
+      throw new AppError("Username is already registered.", 409);
     }
   }
 
@@ -170,11 +208,10 @@ export class AuthService {
   static async #assignCitizenRole() {
     const citizenRole = await findRoleByName("citizen");
     if (!citizenRole) {
-      const error = new Error(
-        "Default citizen role not found in database. Registration process stops"
+      throw new Error(
+        "Default citizen role not found in database. Registration process stops",
+        500
       );
-      error.statusCode = 500;
-      throw error;
     }
     return citizenRole.id;
   }
@@ -190,9 +227,7 @@ export class AuthService {
     if (existingTechnicalOffice || id === null) {
       return;
     }
-    const error = new Error(`Technical office with id ${id} not found.`);
-    error.statusCode = 404;
-    throw error;
+    throw new AppError(`Technical office with id ${id} not found.`, 404);
   }
 
   /**
@@ -214,15 +249,170 @@ export class AuthService {
   static #sanitizeUser(user) {
     const plainUser = user.get ? user.get({ plain: true }) : { ...user };
     delete plainUser.hashedPassword;
-    
+
     // Ensure role is properly converted to a plain object with name property
-    if (plainUser.role && typeof plainUser.role === 'object') {
+    if (
+      plainUser.roles &&
+      Array.isArray(plainUser.roles) &&
+      plainUser.roles.length > 0
+    ) {
       plainUser.role = {
-        id: plainUser.role.id,
-        name: plainUser.role.name
+        id: plainUser.roles[0].id,
+        name: plainUser.roles[0].name,
+      };
+      plainUser.roles = plainUser.roles.map((r) => ({
+        id: r.id,
+        name: r.name,
+      }));
+    } else {
+      plainUser.role = null;
+      plainUser.roles = [];
+    }
+
+    // Include technicalOffices for TechnicalOfficeStaff
+    if (plainUser.technicalOffices && Array.isArray(plainUser.technicalOffices)) {
+      plainUser.technicalOffices = plainUser.technicalOffices.map((office) => ({
+        id: office.id,
+        name: office.name,
+        categoryId: office.categoryId,
+        category: office.category ? {
+          id: office.category.id,
+          name: office.category.name,
+        } : null,
+      }));
+    }
+
+    // Include company for ExternalMaintainer
+    if (plainUser.company) {
+      plainUser.company = {
+        id: plainUser.company.id,
+        name: plainUser.company.name,
       };
     }
-    
+
     return plainUser;
+  }
+
+  /**
+   * Generates a random 6-digit confirmation code.
+   * @returns {string} A 6-digit string code.
+   * @private
+   */
+  static #generateConfirmationCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  /**
+   * Registers a new user temporarily in Redis with a confirmation code.
+   * If the email or username already exists in the database, an error is thrown.
+   * If the same email exists in Redis, it will be overwritten.
+   * Sends a verification email with the confirmation code.
+   * @param {object} userInput - Raw registration data from the client.
+   * @returns {Promise<object>} An object containing the confirmation code and expiration time.
+   */
+  static async registerUserRequest(userInput) {
+    const { email, username, password, firstName, lastName } = userInput;
+
+    this.#validateEmailFormat(email);
+
+    // Check if email or username already exist in the database
+    await this.#ensureEmailAvailable(email);
+    await this.#ensureUsernameAvailable(username);
+
+    // Generate a 6-digit confirmation code
+    const confirmationCode = this.#generateConfirmationCode();
+
+    // Save user data temporarily in Redis (overwrites if same email exists)
+    await saveTemporaryUser(
+      email,
+      {
+        email,
+        username,
+        password,
+        firstName,
+        lastName,
+      },
+      confirmationCode
+    );
+
+    // Send verification email with the confirmation code
+    const emailResult = await EmailService.sendVerificationCode(
+      email,
+      confirmationCode,
+      firstName
+    );
+
+    return {
+      message:
+        "Registration request submitted successfully. Please check your email for the verification code.",
+      confirmationCode,
+      expiresIn: 1800,
+      emailPreviewUrl: emailResult.previewUrl,
+    };
+  }
+
+  /**
+   * Verifies the OTP code and creates the user in the database if valid.
+   * @param {string} email - Email used to look up the temporary registration data.
+   * @param {string} confirmationCode - The 6-digit confirmation code to verify.
+   * @returns {Promise<object>} A sanitized user representation without sensitive fields.
+   */
+  static async verifyAndCreateUser(email, confirmationCode) {
+    this.#validateEmailFormat(email);
+
+    // Retrieve temporary user data from Redis
+    const temporaryUser = await getTemporaryUser(email);
+
+    if (!temporaryUser) {
+      const registrationReqNotFoundOrExpiredMessage =
+        "Registration request not found or has expired. Please submit a new registration request.";
+      logger.warn(registrationReqNotFoundOrExpiredMessage);
+      throw new AppError(registrationReqNotFoundOrExpiredMessage, 404);
+    }
+
+    // Verify the confirmation code
+    if (temporaryUser.verificationCode !== confirmationCode) {
+      const invalidConfirmationCodeMessage = "Invalid confirmation code.";
+      logger.warn(invalidConfirmationCodeMessage);
+      throw new AppError(invalidConfirmationCodeMessage, 400);
+    }
+
+    // Double-check that email and username are still available (race condition protection)
+    await this.#ensureEmailAvailable(temporaryUser.email);
+    await this.#ensureUsernameAvailable(temporaryUser.username);
+
+    // Get the default citizen role (role_id=1)
+    const defaultCitizenRole = await this.#assignCitizenRole();
+
+    // Hash the password
+    const hashedPassword = await this.#hashPassword(temporaryUser.password);
+
+    // Use transaction to ensure atomicity when creating user and assigning role
+    const t = await db.sequelize.transaction();
+
+    try {
+      // Create the user first
+      const createdUser = await createUser({
+        email: temporaryUser.email,
+        username: temporaryUser.username,
+        firstName: temporaryUser.firstName,
+        lastName: temporaryUser.lastName,
+        hashedPassword,
+      });
+
+      // Assign citizen role (role_id=1) in the user_role table
+      await createdUser.addRole(defaultCitizenRole, { transaction: t });
+
+      await t.commit();
+
+      // Delete the temporary data from Redis after successful registration
+      await deleteTemporaryUser(email);
+
+      const hydratedUser = await findUserByIdRepo(createdUser.id);
+      return this.#sanitizeUser(hydratedUser ?? createdUser);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
   }
 }

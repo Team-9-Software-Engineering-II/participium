@@ -23,6 +23,7 @@ const mockDb = {
   TechnicalOffice: mockTechnicalOfficeModel,
   Category: mockCategoryModel,
   Report: mockReportModel,
+  Company: {},
 };
 
 // Mock del modulo models
@@ -32,16 +33,31 @@ jest.unstable_mockModule("../../../models/index.mjs", () => ({
 
 let UserRepo;
 
-// Definizione delle opzioni 'include' attese (copiate dalla logica del repo)
 const expectedIncludeOptions = [
-  { model: mockDb.Role, as: "role" },
+  { 
+    model: mockDb.Role, 
+    as: "roles"
+  },
   {
     model: mockDb.TechnicalOffice,
-    as: "technicalOffice",
+    as: "technicalOffices",
     required: false,
-    include: { model: mockDb.Category, as: "category" },
+    include: { 
+      model: mockDb.Category, 
+      as: "category" 
+    },
   },
-  { model: mockDb.Report, as: "reports", required: false },
+  { 
+
+    model: mockDb.Company, 
+    as: "company",
+    required: false,
+  },
+  { 
+    model: mockDb.Report, 
+    as: "reports", 
+    required: false
+  },
 ];
 
 describe("User Repository (Unit)", () => {
@@ -110,11 +126,32 @@ describe("User Repository (Unit)", () => {
       const user = { id: 1, email };
       mockUserModel.findOne.mockResolvedValue(user);
 
+      const expectedOptionsForEmail = [
+        { 
+          model: mockDb.Role, 
+          as: "roles"
+        },
+        {
+          model: mockDb.TechnicalOffice,
+          as: "technicalOffices",
+          required: false,
+          include: { 
+            model: mockDb.Category, 
+            as: "category" 
+          },
+        },
+        { 
+          model: mockDb.Report, 
+          as: "reports", 
+          required: false 
+        },
+      ];
+
       const result = await UserRepo.findUserByEmail(email);
 
       expect(mockUserModel.findOne).toHaveBeenCalledWith({
         where: { email },
-        include: expectedIncludeOptions,
+        include: expectedOptionsForEmail, // Usiamo l'array specifico
       });
       expect(result).toEqual(user);
     });
@@ -129,11 +166,32 @@ describe("User Repository (Unit)", () => {
       const user = { id: 1, username };
       mockUserModel.findOne.mockResolvedValue(user);
 
+      const expectedOptionsForUsername = [
+        { 
+          model: mockDb.Role, 
+          as: "roles" 
+        },
+        {
+          model: mockDb.TechnicalOffice,
+          as: "technicalOffices",
+          required: false,
+          include: { 
+            model: mockDb.Category, 
+            as: "category" 
+          },
+        },
+        { 
+          model: mockDb.Report, 
+          as: "reports",
+          required: false 
+        },
+      ];
+
       const result = await UserRepo.findUserByUsername(username);
 
       expect(mockUserModel.findOne).toHaveBeenCalledWith({
         where: { username },
-        include: expectedIncludeOptions,
+        include: expectedOptionsForUsername,
       });
       expect(result).toEqual(user);
     });
@@ -185,29 +243,6 @@ describe("User Repository (Unit)", () => {
     });
   });
 
-  // --------------------------------------------------------------------------
-  // getNumberOfCurrentActiveReportsByStaffMemberId
-  // --------------------------------------------------------------------------
-  describe("getNumberOfCurrentActiveReportsByStaffMemberId", () => {
-    it("should return counterActiveReports if user is found", async () => {
-      const mockUserWithCount = { id: 1, counterActiveReports: 5 };
-      mockUserModel.findByPk.mockResolvedValue(mockUserWithCount);
-
-      const result = await UserRepo.getNumberOfCurrentActiveReportsByStaffMemberId(1);
-
-      expect(mockUserModel.findByPk).toHaveBeenCalledWith(1);
-      expect(result).toBe(5);
-    });
-
-    it("should return null if user is not found", async () => {
-      mockUserModel.findByPk.mockResolvedValue(null);
-
-      const result = await UserRepo.getNumberOfCurrentActiveReportsByStaffMemberId(999);
-
-      expect(mockUserModel.findByPk).toHaveBeenCalledWith(999);
-      expect(result).toBeNull();
-    });
-  });
 
   describe("findStaffWithFewestReports", () => {
     const technicalOfficeId = 1;
@@ -271,6 +306,91 @@ describe("User Repository (Unit)", () => {
       mockUserModel.findAll.mockResolvedValueOnce([staffEmpty, staffFull]);
       const result2 = await UserRepo.findStaffWithFewestReports(technicalOfficeId);
       expect(result2).toEqual(staffEmpty);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: findExternalMaintainerWithFewestReports
+  // --------------------------------------------------------------------------
+  describe("findExternalMaintainerWithFewestReports", () => {
+    const companyId = 10;
+
+    it("should return null if no maintainers found in company", async () => {
+      mockUserModel.findAll.mockResolvedValue([]); // Nessuno staff
+
+      const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+
+      expect(mockUserModel.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: { companyId }
+      }));
+      expect(result).toBeNull();
+    });
+
+    it("should return maintainer with fewest active reports", async () => {
+      const staffBusy = { id: 1, firstName: "Busy", lastName: "Guy", externalReports: [1, 2, 3] }; 
+      const staffFree = { id: 2, firstName: "Free", lastName: "Guy", externalReports: [] };       
+      
+      mockUserModel.findAll.mockResolvedValue([staffBusy, staffFree]);
+
+      const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+
+      expect(result).toEqual(staffFree);
+    });
+
+    it("should resolve tie by alphabetical order (LastName)", async () => {
+      const staffA = { id: 1, firstName: "John", lastName: "Doe", externalReports: [] };
+      const staffB = { id: 2, firstName: "Jane", lastName: "Aloha", externalReports: [] }; 
+      
+      mockUserModel.findAll.mockResolvedValue([staffA, staffB]);
+
+      const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+
+      expect(result).toEqual(staffB);
+    });
+    
+    it("should resolve tie by alphabetical order (FirstName) if LastName is same", async () => {
+        const staffA = { id: 1, firstName: "Albert", lastName: "Doe", externalReports: [] };
+        const staffB = { id: 2, firstName: "John", lastName: "Doe", externalReports: [] };
+        
+        mockUserModel.findAll.mockResolvedValue([staffB, staffA]);
+  
+        const result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+  
+        expect(result).toEqual(staffA);
+    });
+
+    it("should handle null/undefined externalReports array", async () => {
+      const staffNull = { id: 1, firstName: "A", lastName: "A", externalReports: undefined };
+      const staffOne = { id: 2, firstName: "B", lastName: "B", externalReports: [1] };
+      
+      mockUserModel.findAll.mockResolvedValueOnce([staffOne, staffNull]);
+      let result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+      expect(result).toEqual(staffNull);
+
+      mockUserModel.findAll.mockResolvedValueOnce([staffNull, staffOne]);
+      result = await UserRepo.findExternalMaintainerWithFewestReports(companyId);
+      expect(result).toEqual(staffNull);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST: findUsersByCompanyId
+  // --------------------------------------------------------------------------
+  describe("findUsersByCompanyId", () => {
+    it("should find users by companyId with role included", async () => {
+      const companyId = 5;
+      const mockUsers = [{ id: 1, username: "maintainer", companyId: 5 }];
+      
+      mockUserModel.findAll.mockResolvedValue(mockUsers);
+
+      const result = await UserRepo.findUsersByCompanyId(companyId);
+
+      expect(mockUserModel.findAll).toHaveBeenCalledWith({
+        where: { companyId },
+        include: [{ model: mockDb.Role, as: "roles" }]
+      });
+      
+      expect(result).toEqual(mockUsers);
     });
   });
 });

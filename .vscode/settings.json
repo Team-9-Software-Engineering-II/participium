@@ -2,5 +2,12 @@
     "sonarlint.connectedMode.project": {
         "connectionId": "team-9-software-engineering-ii",
         "projectKey": "Team-9-Software-Engineering-II_participium"
-    }
-}
+    },
+    
+    "jest.jestCommandLine": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "jest.rootPath": "server",
+    "jest.disabledWorkspaceFolders": [],
+    "jest.runMode": "on-demand"
+    
+
+}   

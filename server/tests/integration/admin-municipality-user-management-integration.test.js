@@ -59,7 +59,10 @@ beforeAll(async () => {
   const admin = await User.findOne({ where: { username: adminUser.username } });
 
   if (admin) {
-    await admin.update({ roleId: adminRole.id }); // Assign admin role
+    if (admin.addRole) {
+      await admin.addRole(adminRole);
+    }
+    try { await admin.update({ roleId: adminRole.id }); } catch(e) {}
   }
 
   // 4. Log in as admin to get the cookie
@@ -107,11 +110,31 @@ describe("Municipality User Management", () => {
      * Test case: Failure due to existing email (Conflict 409).
      */
     it("should fail to create with existing email (409)", async () => {
+      const timestamp = Date.now();
+      const conflictEmail = `conflict-${timestamp}@example.com`;
+
+      const userToPreload = {
+        ...municipalityUser,
+        email: conflictEmail,
+        username: `user1-${timestamp}`,
+      };
+
+      await request(app)
+        .post("/admin/users")
+        .set("Cookie", adminCookie)
+        .send(userToPreload)
+        .expect(201);
+
+      const duplicateUser = {
+        ...municipalityUser,
+        email: conflictEmail,
+        username: `user2-${timestamp}`,
+      };
+
       const res = await request(app)
         .post("/admin/users")
         .set("Cookie", adminCookie)
-        // Use existing email but a new username
-        .send({ ...municipalityUser, username: `another${uniqueId}` });
+        .send(duplicateUser);
 
       expect(res.statusCode).toBe(409);
     });
@@ -120,14 +143,31 @@ describe("Municipality User Management", () => {
      * Test case: Failure due to existing username (Conflict 409).
      */
     it("should fail to create with existing username (409)", async () => {
+      const timestamp = Date.now();
+      const conflictUsername = `${timestamp}`;
+
+      const userToPreload = {
+        ...municipalityUser,
+        username: conflictUsername,
+        email: "newEMail@gmail.com",
+      };
+
+      await request(app)
+        .post("/admin/users")
+        .set("Cookie", adminCookie)
+        .send(userToPreload)
+        .expect(201);
+
+      const duplicateUser = {
+        ...municipalityUser,
+        email: `user2@gmail.com`,
+        username: conflictUsername,
+      };
+
       const res = await request(app)
         .post("/admin/users")
         .set("Cookie", adminCookie)
-        // Use existing username but a new email
-        .send({
-          ...municipalityUser,
-          email: `another-${uniqueId}@example.com`,
-        });
+        .send(duplicateUser);
 
       expect(res.statusCode).toBe(409);
     });

@@ -1,3 +1,4 @@
+import "dotenv/config"; // Load environment variables from .env file
 import express from "express";
 import fs from "fs";
 import morgan from "morgan";
@@ -9,6 +10,9 @@ import cors from "cors";
 import { seedDatabase } from "./seeders/index.mjs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { connectRedis } from "./config/redis.mjs";
+import { initializeEmailTransporter } from "./config/email.mjs";
+import { globalErrorHandler } from "./middlewares/error-handler.mjs";
 
 const app = express();
 
@@ -26,8 +30,9 @@ const syncOptions = {
   force: forceSync,
   alter: alterSync,
 };
-const clientBuildPath =
-  process.env.CLIENT_BUILD_DIR || path.join(__dirname, "public");
+const clientBuildPath = process.env.CLIENT_BUILD_DIR
+  ? path.resolve(process.cwd(), process.env.CLIENT_BUILD_DIR)
+  : path.join(__dirname, "public");
 const clientIndexPath = path.join(clientBuildPath, "index.html");
 const hasClientBuild =
   fs.existsSync(clientBuildPath) && fs.existsSync(clientIndexPath);
@@ -84,10 +89,10 @@ function bootstrapExpress() {
         secure: sessionCookieSecure,
         sameSite: sessionSameSite,
         maxAge: 1000 * 60 * 60 * 24,
-        path: '/',
+        path: "/",
         domain: undefined, // Let browser handle domain for same-origin
       },
-      name: 'connect.sid',
+      name: "connect.sid",
       proxy: false, // Not behind a proxy in Docker
     })
   );
@@ -98,27 +103,16 @@ function bootstrapExpress() {
   // Debug middleware for session tracking (only in non-production)
   if (NODE_ENV !== "production") {
     app.use((req, res, next) => {
-      console.log(`[${req.method}] ${req.path} - Authenticated: ${req.isAuthenticated()}, User: ${req.user?.username || 'none'}`);
+      console.log(
+        `[${req.method}] ${
+          req.path
+        } - Authenticated: ${req.isAuthenticated()}, User: ${
+          req.user?.username || "none"
+        }`
+      );
       next();
     });
   }
-}
-
-/**
- * Handles application level errors and provides consistent responses.
- */
-function registerErrorHandlers() {
-  // eslint-disable-next-line no-unused-vars
-  app.use((err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
-    const message =
-      statusCode >= 500
-        ? "An unexpected error occurred. Please try again later."
-        : err.message;
-
-    console.error(err);
-    res.status(statusCode).json({ message });
-  });
 }
 
 bootstrapExpress();
@@ -134,30 +128,30 @@ if (hasClientBuild) {
   });
 }
 
-registerErrorHandlers();
+app.use(globalErrorHandler);
 
-db.sequelize
-  .sync(syncOptions)
-  .then(async () => {
-    console.log("Database synced successfully.");
+if (NODE_ENV !== "test") {
+  db.sequelize
+    .sync(syncOptions)
+    .then(async () => {
+      console.log("Database synced successfully.");
 
-    // Seed initial data
-    // <-- INIZIA LA MODIFICA
-    if (shouldSeed) {
-      console.log("Running database seeder...");
-      await seedDatabase();
-    }
-    // <-- FINE MODIFICA
+      if (shouldSeed) {
+        console.log("Running database seeder...");
+        await seedDatabase();
+      }
 
-    if (NODE_ENV !== "test") {
-      // Start the Express server only after the DB connection is ready
+      await connectRedis();
+      await initializeEmailTransporter();
+
+      const mode = NODE_ENV === "production" ? "production" : "development";
       app.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT}`);
+        console.log(`Server in ${mode} listening on port ${PORT}`);
       });
-    }
-  })
-  .catch((err) => {
-    console.error("Error syncing database:", err);
-  });
+    })
+    .catch((err) => {
+      console.error("Error syncing database:", err);
+    });
+}
 
 export { app };

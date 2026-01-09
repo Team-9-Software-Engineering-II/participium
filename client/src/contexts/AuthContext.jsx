@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+/* eslint-disable react/prop-types */
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { authAPI, userAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -14,6 +15,39 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeRole, setActiveRole] = useState(null);
+
+  // Helper function to set default role
+  const setDefaultRole = (userRoles) => {
+    const firstRole = userRoles?.[0];
+    setActiveRole(firstRole);
+    if (firstRole) {
+      localStorage.setItem('activeRole', JSON.stringify(firstRole));
+    }
+  };
+
+  // Helper function to restore saved role
+  const restoreSavedRole = (userRoles) => {
+    const savedActiveRole = localStorage.getItem('activeRole');
+    if (!savedActiveRole) {
+      setDefaultRole(userRoles);
+      return;
+    }
+
+    try {
+      const parsedRole = JSON.parse(savedActiveRole);
+      const isValidRole = userRoles.some(r => r.id === parsedRole.id);
+      
+      if (isValidRole) {
+        setActiveRole(parsedRole);
+      } else {
+        setDefaultRole(userRoles);
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved active role:', e);
+      setDefaultRole(userRoles);
+    }
+  };
 
   // Verifica la sessione all'avvio
   useEffect(() => {
@@ -22,6 +56,8 @@ export const AuthProvider = ({ children }) => {
         const response = await authAPI.getSession();
         if (response.data.authenticated) {
           setUser(response.data.user);
+          const userRoles = response.data.user.roles || [];
+          restoreSavedRole(userRoles);
         }
       } catch (error) {
         console.error('Errore verifica sessione:', error);
@@ -41,6 +77,8 @@ export const AuthProvider = ({ children }) => {
       // La risposta contiene { authenticated: true, user: {...} }
       if (response.data.authenticated) {
         setUser(response.data.user);
+        // NON impostiamo automaticamente il ruolo qui
+        // Sarà gestito dalla pagina di login o dalla selezione ruolo
       }
       
       return { success: true, user: response.data.user };
@@ -58,10 +96,14 @@ export const AuthProvider = ({ children }) => {
     try {
       await authAPI.logout();
       setUser(null);
+      setActiveRole(null);
+      localStorage.removeItem('activeRole');
     } catch (error) {
       console.error('Errore durante il logout:', error);
       // Logout locale anche in caso di errore
       setUser(null);
+      setActiveRole(null);
+      localStorage.removeItem('activeRole');
     }
   };
 
@@ -73,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       // Login automatico dopo registrazione
       if (response.data.authenticated) {
         setUser(response.data.user);
+        setDefaultRole(response.data.user.roles);
       }
       
       return { success: true };
@@ -100,15 +143,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  // Switch active role
+  const switchRole = (role) => {
+    setActiveRole(role);
+    localStorage.setItem('activeRole', JSON.stringify(role));
+  };
+
+  // Select initial role after login
+  const selectInitialRole = (role) => {
+    setActiveRole(role);
+    localStorage.setItem('activeRole', JSON.stringify(role));
+  };
+
+  const value = useMemo(() => ({
     user,
     loading,
+    activeRole,
     login,
     logout,
     register,
     updateProfile,
+    switchRole,
+    selectInitialRole,
     isAuthenticated: !!user,
-  };
+  }), [user, loading, activeRole, login, logout, register, updateProfile, switchRole]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

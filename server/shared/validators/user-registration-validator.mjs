@@ -1,4 +1,6 @@
 import { isIdNumberAndPositive } from "./common-validator.mjs";
+import logger from "../logging/logger.mjs";
+import AppError from "../utils/app-error.mjs";
 
 /**
  * Extracts and validates registration data from the request body.
@@ -12,11 +14,13 @@ export function validateRegistrationInput(req, res) {
   const { email, username, firstName, lastName, password } = req.body ?? {};
 
   if (!email || !username || !firstName || !lastName || !password) {
-    res.status(400).json({
-      message:
-        "Missing required fields: email, username, firstName, lastName, password.",
-    });
-    return null;
+    logger.warn(
+      "Missing required fields: email, username, firstName, lastName, password."
+    );
+    throw new AppError(
+      "Missing required fields: email, username, firstName, lastName, password.",
+      400
+    );
   }
 
   return {
@@ -47,40 +51,39 @@ export function validateRegistrationInputForMunicipalOrStaffCreation(req, res) {
     technicalOfficeId,
   } = req.body ?? {};
 
-  if (
-    !email ||
-    !username ||
-    !firstName ||
-    !lastName ||
-    !password ||
-    !roleId
-  ) {
-    res.status(400).json({
-      message:
-        "Missing required fields: email, username, firstName, lastName, password, roleId, technicalOfficeId.",
-    });
-    return null;
+  if (!email || !username || !firstName || !lastName || !password || !roleId) {
+    logger.warn(
+      "Missing required fields: email, username, firstName, lastName, password, roleId, technicalOfficeId."
+    );
+    throw new AppError(
+      "Missing required fields: email, username, firstName, lastName, password, roleId, technicalOfficeId.",
+      400
+    );
   }
 
   if (roleId !== undefined) {
     const parsedRoleId = Number(roleId);
     if (!isIdNumberAndPositive(parsedRoleId)) {
-      res.status(400).json({
-        message: "roleId must be a positive integer when provided.",
-      });
-      return null;
+      logger.warn("roleId must be a positive integer when provided.");
+      throw new AppError(
+        "roleId must be a positive integer when provided.",
+        400
+      );
     }
   }
 
   // Validazione opzionale del technicalOfficeId se presente
-  if (technicalOfficeId !== undefined && technicalOfficeId !== null && technicalOfficeId !== "") {
-      const parsedTechId = Number(technicalOfficeId);
-      if (!isIdNumberAndPositive(parsedTechId)) {
-          res.status(400).json({
-              message: "technicalOfficeId must be a positive integer when provided.",
-          });
-          return null;
-      }
+  if (technicalOfficeId != null && technicalOfficeId !== "") {
+    const parsedTechId = Number(technicalOfficeId);
+    if (!isIdNumberAndPositive(parsedTechId)) {
+      logger.warn(
+        "technicalOfficeId must be a positive integer when provided."
+      );
+      throw new AppError(
+        "technicalOfficeId must be a positive integer when provided.",
+        400
+      );
+    }
   }
 
   return {

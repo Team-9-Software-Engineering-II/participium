@@ -1,39 +1,69 @@
+import { findReportById } from "../repositories/report-repo.mjs";
 import { ROLE } from "../shared/constants/models.mjs";
+import AppError from "../shared/utils/app-error.mjs";
 
 export function isAuthenticated(req, res, next) {
   if (req.isAuthenticated?.()) return next();
-
-  return res.status(401).json({ error: "User not authenticated" });
+  throw new AppError("User not authenticated", 401);
 }
 
 export function isAdmin(req, res, next) {
-  if (req.user?.role?.name === "admin") {
+  const roles = req.user?.roles || [];
+  const hasAdminRole = roles.some(role => role.name === "admin");
+  if (hasAdminRole) {
     return next();
   }
-  return res.status(403).json({ error: "Forbidden: admin only" });
+  throw new AppError("Forbidden: admin only", 403);
 }
 
 export function isCitizen(req, res, next) {
-  if (req.user?.role?.name === "citizen") {
+  const roles = req.user?.roles || [];
+  const hasCitizenRole = roles.some(role => role.name === "citizen");
+  if (hasCitizenRole) {
     return next();
   }
-  return res.status(403).json({ error: "Forbidden: citizen only" });
+  throw new AppError("Forbidden: citizen only", 403);
 }
 
 export function isTechnicalStaff(req, res, next) {
-  if (req.user?.role?.name === "technical_staff") {
+  const roles = req.user?.roles || [];
+  const hasTechnicalRole = roles.some(role => role.name === "technical_staff");
+  if (hasTechnicalRole) {
     return next();
   }
-  return res.status(403).json({ error: "Forbidden: technical staff only" });
+  throw new AppError("Forbidden: technical staff only", 403);
+}
+
+export function isExternalMaintainer(req, res, next) {
+  const roles = req.user?.roles || [];
+  const hasExternalRole = roles.some(role => role.name === "external_maintainer");
+  if (hasExternalRole) {
+    return next();
+  }
+  throw new AppError("Forbidden: external maintainer only", 403);
+}
+
+export function isTechnicalStaffOrExternalMaintainer(req, res, next) {
+  const roles = req.user?.roles || [];
+  const hasRequiredRole = roles.some(role => 
+    role.name === "technical_staff" || role.name === "external_maintainer"
+  );
+  if (hasRequiredRole) {
+    return next();
+  }
+  throw new AppError(
+    "Forbidden: technical staff or external maintainer only",
+    403
+  );
 }
 
 export function isPublicRelationsOfficer(req, res, next) {
-  if (req.user?.role?.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER) {
+  const roles = req.user?.roles || [];
+  const hasOfficerRole = roles.some(role => role.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER);
+  if (hasOfficerRole) {
     return next();
   }
-  return res
-    .status(403)
-    .json({ error: "Forbidden: municipal public relations officer only" });
+  throw new AppError("Forbidden: municipal public relations officer only", 403);
 }
 
 /**
@@ -47,9 +77,7 @@ export function isOwner(req, res, next) {
     return next();
   }
 
-  return res
-    .status(403)
-    .json({ error: "Forbidden: Cannot access other users' data." });
+  throw new AppError("Forbidden: Cannot access other users' data.", 403);
 }
 
 /**
@@ -58,9 +86,7 @@ export function isOwner(req, res, next) {
  */
 export function isOwnerOrPublicRelationsOfficer(req, res, next) {
   const authorizationFailed = () => {
-    return res.status(403).json({
-      error: "Forbidden: Cannot access this resource",
-    });
+    throw new AppError("Forbidden: Cannot access this resource", 403);
   };
 
   const isOwner = () => {
@@ -71,7 +97,8 @@ export function isOwnerOrPublicRelationsOfficer(req, res, next) {
   };
 
   const isPublicRelationsOfficer = () => {
-    return req.user?.role?.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER;
+    const roles = req.user?.roles || [];
+    return roles.some(role => role.name === ROLE.MUNICIP_PUBLIC_RELATIONS_OFFICER);
   };
 
   if (isOwner()) return next();
@@ -79,3 +106,61 @@ export function isOwnerOrPublicRelationsOfficer(req, res, next) {
   return authorizationFailed;
 }
 
+/**
+ * Middleware to verify that the authenticated user is either the technical officer
+ * or external maintainer assigned to the report specified in req.params.reportId.
+ * This is used for message creation to ensure only authorized parties can exchange messages.
+ */
+export async function isReportParticipant(req, res, next) {
+  try {
+    const reportId = Number(req.params.reportId);
+    const userId = req.user?.id;
+    const { internal } = req.body;
+
+    if (!userId) {
+      throw new AppError("User not authenticated", 401);
+    }
+
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      throw new AppError("Invalid report ID", 400);
+    }
+
+    const report = await findReportById(reportId);
+    if (!report) {
+      throw new AppError("Report not found", 404);
+    }
+
+    if (internal === undefined || internal) {
+      // Check both the foreign key fields and the related objects (in case includes are used)
+      const isTechnicalOfficer =
+        report.technicalOfficerId === userId ||
+        report.technicalOfficer?.id === userId;
+      const isExternalMaintainer =
+        report.externalMaintainerId === userId ||
+        report.externalMaintainer?.id === userId;
+
+      if (isTechnicalOfficer || isExternalMaintainer) {
+        return next();
+      }
+      throw new AppError(
+        "Forbidden: You must be the technical officer or external maintainer assigned to this report",
+        403
+      );
+    }
+    const isTechnicalOfficer =
+      report.technicalOfficerId === userId ||
+      report.technicalOfficer?.id === userId;
+
+    const isCitizen = report.userId === userId || report.user?.id === userId;
+
+    if (isCitizen || isTechnicalOfficer) {
+      return next();
+    }
+    throw new AppError(
+      "Forbidden: You must be the technical officer or citizen associated to this report",
+      403
+    );
+  } catch (error) {
+    return next(error);
+  }
+}

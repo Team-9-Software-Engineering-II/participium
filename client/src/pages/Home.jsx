@@ -5,6 +5,7 @@ import Navbar from "../components/common/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -39,37 +40,17 @@ import {
   SlidersHorizontal,
   ListTree,
   Info,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { reportAPI } from "@/services/api";
+import { calculateDistance, isReportOnStreet } from "@/lib/geoFilters";
+import { toast } from "sonner";
 
 // Reusable Reports List component
-const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, navigate }) => {
-  // Se non autenticato, mostra il box di login
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-        <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No reports</h3>
-        <p className="text-sm text-muted-foreground max-w-xs mb-6">
-          Log in to view and manage reports in your area.
-        </p>
-        <div className="w-full bg-background rounded-lg p-4 text-center space-y-3 border">
-          <p className="text-sm font-medium">Log in to see reports</p>
-          <Button
-            onClick={() => navigate("/login")}
-            className="w-full"
-            size="sm"
-          >
-            Log in
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+const ReportsList = ({ loading, displayReports, showMyReports, navigate, onViewInMap, onNavigateToReport }) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -95,10 +76,10 @@ const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, 
         </div>
       ) : (
         displayReports.map((report) => (
-          <button
+          <Card
             key={report.id}
-            className="w-full p-4 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors text-left"
-            onClick={() => navigate(`/reports/${report.id}`)}
+            className="p-4 cursor-pointer transition-colors hover:bg-accent"
+            onClick={() => onNavigateToReport(report.id)}
           >
             <h3 className="font-semibold mb-2">{report.title}</h3>
             <div className="space-y-1 text-sm text-muted-foreground">
@@ -139,20 +120,19 @@ const ReportsList = ({ isAuthenticated, loading, displayReports, showMyReports, 
               <div className="flex items-center gap-2">
                 {/* Status Badge removed for brevity if not used, or add back if needed */}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
+              <button 
+                type="button"
+                className="inline-flex items-center justify-center gap-1 rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // handleViewInMap would need to be passed as prop
+                  onViewInMap(report);
                 }}
-                className="text-xs"
               >
-                <MapPin className="h-3 w-3 mr-1" />
+                <MapPin className="h-3 w-3" />
                 View in map
-              </Button>
+              </button>
             </div>
-          </button>
+          </Card>
         ))
       )}
     </div>
@@ -173,7 +153,11 @@ export default function Home() {
   const [allReports, setAllReports] = useState([]);
   const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReport] = useState(null);
+  const [selectedReport, setSelectedReport] = useState(null);
+
+  // Geographic filter state
+  const [geoFilter, setGeoFilter] = useState(null);
+  const [geoFilterActive, setGeoFilterActive] = useState(false);
 
   // Mobile/desktop detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -187,33 +171,57 @@ export default function Home() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Restore filters from sessionStorage on mount
+  useEffect(() => {
+    const savedFilters = sessionStorage.getItem('homeFilters');
+    if (savedFilters) {
+      try {
+        const filters = JSON.parse(savedFilters);
+        if (filters.searchQuery) setSearchQuery(filters.searchQuery);
+        if (filters.showMyReports) setShowMyReports(filters.showMyReports);
+        if (filters.selectedCategory) setSelectedCategory(filters.selectedCategory);
+        if (filters.selectedStatus) setSelectedStatus(filters.selectedStatus);
+        if (filters.selectedDate) setSelectedDate(filters.selectedDate);
+        if (filters.geoFilter) {
+          setGeoFilter(filters.geoFilter);
+          setGeoFilterActive(filters.geoFilterActive);
+        }
+        // Clear after restoring
+        sessionStorage.removeItem('homeFilters');
+      } catch (error) {
+        console.error('Error restoring filters:', error);
+      }
+    }
+  }, []);
+
   // Load reports from API
   useEffect(() => {
     const fetchReports = async () => {
-      // PULIZIA: Rimosso controllo if (!isAuthenticated).
-      // Ci affidiamo alla risposta del backend (401 se non autorizzato).
-
       setLoading(true);
       try {
-        // Fetch all reports
-        // Nota: Se non autenticato, questo lancerà un errore (401) che verrà catturato sotto
+        // Fetch all reports - questo endpoint è pubblico
         const response = await reportAPI.getAll();
-        const assignedResponse = await reportAPI.getAssigned();
         const fetchedReports = response.data;
-        const assignedReports = assignedResponse.data;
 
-        setAllReports(assignedReports);
+        // Se l'utente è autenticato, carica anche i report assegnati
+        if (isAuthenticated) {
+          const assignedResponse = await reportAPI.getAssigned();
+          const assignedReports = assignedResponse.data;
+          setAllReports(assignedReports);
 
-        // OTTIMIZZAZIONE: Filtriamo i report dell'utente direttamente dai dati già scaricati
-        // invece di fare una seconda chiamata API ridondante.
-        if (user) {
-          const userReports = fetchedReports.filter(
-            (report) => report.userId === user.id
-          );
-          setMyReports(userReports);
+          // Filtriamo i report dell'utente direttamente dai dati già scaricati
+          if (user) {
+            const userReports = fetchedReports.filter(
+              (report) => report.userId === user.id
+            );
+            setMyReports(userReports);
+          }
+        } else {
+          // Se non autenticato, mostra tutti i report pubblici
+          setAllReports(fetchedReports);
+          setMyReports([]);
         }
       } catch (error) {
-        // Se l'errore è 401 (non autenticato) o altro, svuotiamo le liste
         console.error("Error fetching reports:", error);
         setAllReports([]);
         setMyReports([]);
@@ -249,7 +257,6 @@ export default function Home() {
     { value: "Assigned", label: "Assigned" },
     { value: "In Progress", label: "In Progress" },
     { value: "Suspended", label: "Suspended" },
-    { value: "Rejected", label: "Rejected" },
     { value: "Resolved", label: "Resolved" },
   ];
 
@@ -334,8 +341,30 @@ export default function Home() {
 
       // Date filter
       const matchesDate = matchesDateFilter(report.createdAt);
+      
+      // Geographic filter
+      let matchesGeo = true;
+      if (geoFilterActive && geoFilter) {
+        if (geoFilter.type === 'street') {
+          // Filter by street name
+          matchesGeo = isReportOnStreet(report.address, geoFilter.streetName);
+        } else if (geoFilter.type === 'radius') {
+          // Filter by radius (500m)
+          if (report.latitude && report.longitude) {
+            const distance = calculateDistance(
+              geoFilter.center[0],
+              geoFilter.center[1],
+              report.latitude,
+              report.longitude
+            );
+            matchesGeo = distance <= geoFilter.radius;
+          } else {
+            matchesGeo = false;
+          }
+        }
+      }
 
-      return matchesSearch && matchesCategory && matchesStatus && matchesDate;
+      return matchesSearch && matchesCategory && matchesStatus && matchesDate && matchesGeo;
     });
   };
 
@@ -355,14 +384,71 @@ export default function Home() {
     }
   };
 
+  const handleToggleMyReports = (checked) => {
+    // Se l'utente non è autenticato e prova ad attivare "My reports", mostra il dialog di login
+    if (!isAuthenticated && checked) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setShowMyReports(checked);
+  };
+
   const handleResetFilters = () => {
     setSelectedCategory("");
     setSelectedStatus("");
     setSelectedDate("");
+    sessionStorage.removeItem('homeFilters');
   };
 
   const handleApplyFilters = () => {
     setShowFilters(false);
+  };
+
+  const handleViewInMap = (report) => {
+    setSelectedReport(report);
+    // Chiudi la sheet mobile se aperta
+    if (isMobile) {
+      const sheetTrigger = document.querySelector('[data-state="open"]');
+      if (sheetTrigger) {
+        sheetTrigger.click();
+      }
+    }
+  };
+  
+  const handleGeoFilterApplied = (filter) => {
+    setGeoFilter(filter);
+    setGeoFilterActive(true);
+    
+    // Show toast notification
+    if (filter.type === 'street') {
+      toast.success(`Showing reports on ${filter.streetName}`, {
+        duration: 4000,
+      });
+    } else if (filter.type === 'radius') {
+      toast.success('Showing reports within 500m radius', {
+        duration: 4000,
+      });
+    }
+  };
+  
+  const handleClearGeoFilter = () => {
+    setGeoFilter(null);
+    setGeoFilterActive(false);
+  };
+  
+  const handleNavigateToReport = (reportId) => {
+    // Save current filters to sessionStorage before navigating
+    const filtersToSave = {
+      searchQuery,
+      showMyReports,
+      selectedCategory,
+      selectedStatus,
+      selectedDate,
+      geoFilter,
+      geoFilterActive,
+    };
+    sessionStorage.setItem('homeFilters', JSON.stringify(filtersToSave));
+    navigate(`/reports/${reportId}`);
   };
 
 
@@ -374,50 +460,71 @@ export default function Home() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Left Sidebar - Reports List */}
         <div className="w-96 border-r border-border bg-background flex flex-col relative">
-          {/* Mostra Search Bar solo se autenticato */}
-          {isAuthenticated && (
-            <div className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search for a report"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                  onClick={() => setShowFilters(true)}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
+          {/* Search Bar - sempre visibile */}
+          <div className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search for a report"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                onClick={() => setShowFilters(true)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </Button>
             </div>
-          )}
+          </div>
 
-          {/* Mostra Toggle "My reports" solo se autenticato */}
-          {isAuthenticated && (
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">My reports</span>
-                <Switch
-                  checked={showMyReports}
-                  onCheckedChange={setShowMyReports}
-                />
-              </div>
+          {/* Toggle "My reports" - sempre visibile */}
+          <div className="px-4 py-3">
+            <span className="text-xl font-bold">All reports</span>
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-sm font-medium">My reports</span>
+              <Switch
+                checked={showMyReports}
+                onCheckedChange={handleToggleMyReports}
+              />
             </div>
-          )}
+            
+            {/* Geographic filter indicator and clear button */}
+            {geoFilterActive && geoFilter && (
+              <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-primary mb-1">
+                      {geoFilter.type === 'street' ? 'Filtered by street' : 'Filtered by radius'}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {geoFilter.type === 'street' 
+                        ? geoFilter.streetName 
+                        : '500m radius'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 flex-shrink-0"
+                    onClick={handleClearGeoFilter}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Reports List Area */}
           <div className="px-4 py-4">
-            {isAuthenticated && (
-              <p className="text-sm text-muted-foreground">
-                {totalResults} results
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {totalResults} results
+            </p>
           </div>
           <div className="flex-1 overflow-y-auto px-4">
             <ReportsList 
@@ -426,6 +533,8 @@ export default function Home() {
               displayReports={displayReports}
               showMyReports={showMyReports}
               navigate={navigate}
+              onViewInMap={handleViewInMap}
+              onNavigateToReport={handleNavigateToReport}
             />
           </div>
 
@@ -458,7 +567,14 @@ export default function Home() {
         {/* Right - Map */}
         <div className="flex-1 relative bg-neutral-100 dark:bg-neutral-900 h-full">
           <div className="absolute inset-0 h-full z-0">
-            <MapView reports={displayReports} selectedReport={selectedReport} />
+            <MapView 
+              reports={displayReports} 
+              selectedReport={selectedReport}
+              onGeoFilterApplied={handleGeoFilterApplied}
+              geoFilterActive={geoFilterActive}
+              geoFilter={geoFilter}
+              onClearGeoFilter={handleClearGeoFilter}
+            />
           </div>
         </div>
       </div>
@@ -467,7 +583,14 @@ export default function Home() {
       <div className="md:hidden relative h-screen w-screen">
         {/* Map Area */}
         <div className="absolute inset-0 z-0 pointer-events-auto">
-          <MapView reports={displayReports} selectedReport={selectedReport} />
+          <MapView 
+            reports={displayReports} 
+            selectedReport={selectedReport}
+            onGeoFilterApplied={handleGeoFilterApplied}
+            geoFilterActive={geoFilterActive}
+            geoFilter={geoFilter}
+            onClearGeoFilter={handleClearGeoFilter}
+          />
         </div>
 
         {/* Theme Toggle Button - Bottom Left (only when not logged in) */}
@@ -522,42 +645,67 @@ export default function Home() {
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
-                {/* Search bar e Toggle visibili solo se autenticato */}
-                {isAuthenticated && (
-                  <>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search for a report"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-10"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                        onClick={() => setShowFilters(true)}
-                      >
-                        <SlidersHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
+                {/* Search bar e Toggle - sempre visibili */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search for a report"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                    onClick={() => setShowFilters(true)}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
 
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm font-medium">My reports</span>
-                      <Switch
-                        checked={showMyReports}
-                        onCheckedChange={setShowMyReports}
-                      />
+                <div>
+                  <span className="text-xl font-bold">All reports</span>
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-sm font-medium">My reports</span>
+                    <Switch
+                      checked={showMyReports}
+                      onCheckedChange={handleToggleMyReports}
+                    />
+                  </div>
+                  
+                  {/* Geographic filter indicator and clear button */}
+                  {geoFilterActive && geoFilter && (
+                    <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-primary mb-1">
+                            {geoFilter.type === 'street' ? 'Filtered by street' : 'Filtered by radius'}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {geoFilter.type === 'street' 
+                              ? geoFilter.streetName 
+                              : '500m radius'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 flex-shrink-0"
+                          onClick={handleClearGeoFilter}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
+                  )}
+                </div>
 
-                    <div className="py-2">
-                      <p className="text-sm text-muted-foreground">
-                        {totalResults} results
-                      </p>
-                    </div>
-                  </>
-                )}
+                <div className="py-2">
+                  <p className="text-sm text-muted-foreground">
+                    {totalResults} results
+                  </p>
+                </div>
 
                 <div
                   className="overflow-y-auto"
@@ -569,6 +717,8 @@ export default function Home() {
                     displayReports={displayReports}
                     showMyReports={showMyReports}
                     navigate={navigate}
+                    onViewInMap={handleViewInMap}
+                    onNavigateToReport={handleNavigateToReport}
                   />
                 </div>
               </div>
@@ -825,13 +975,18 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Login required</DialogTitle>
             <DialogDescription>
-              You must log in to access this feature.
+              {showMyReports 
+                ? "You must log in to view your personal reports."
+                : "You must log in to access this feature."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
             <Button
               variant="outline"
-              onClick={() => setShowLoginPrompt(false)}
+              onClick={() => {
+                setShowLoginPrompt(false);
+                setShowMyReports(false);
+              }}
               className="flex-1"
             >
               Cancel
@@ -871,28 +1026,35 @@ export default function Home() {
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
                     style={{ backgroundColor: "#3B82F6" }}
                   />
-                  <span className="text-sm">To Assign</span>
+                  <span className="text-sm">Pending Approval</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#F59E0B" }}
+                    style={{ backgroundColor: "#F97316" }}
                   />
                   <span className="text-sm">Assigned</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#EAB308" }}
+                    style={{ backgroundColor: "#FACC15" }}
                   />
                   <span className="text-sm">In Progress</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-6 h-6 rounded-full border-2 border-white shadow-md"
-                    style={{ backgroundColor: "#10B981" }}
+                    style={{ backgroundColor: "#22C55E" }}
                   />
-                  <span className="text-sm">Completed</span>
+                  <span className="text-sm">Resolved</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: "#6B7280" }}
+                  />
+                  <span className="text-sm">Suspended</span>
                 </div>
               </div>
             </div>

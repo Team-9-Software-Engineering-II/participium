@@ -1,14 +1,14 @@
 import { REPORT } from "../constants/models.mjs";
 import { isIdNumberAndPositive } from "./common-validator.mjs";
-
+import AppError from "../utils/app-error.mjs";
 /**
  * Validates the payload for creating a report.
- * Responds with 400 when validation fails and returns the sanitized payload otherwise.
+ * Throws an AppError if validation fails, otherwise returns sanitized payload.
  * @param {import("express").Request} req - Incoming request containing report data.
  * @param {import("express").Response} res - Response used to send validation errors.
  * @returns {object | null} Sanitized payload or null when the response has been sent.
  */
-export function validateCreateReportInput(req, res) {
+export function validateCreateReportInput(req) {
   const {
     title,
     description,
@@ -52,9 +52,7 @@ export function validateCreateReportInput(req, res) {
     errors.push("Longitude must be a number between -180 and 180.");
   }
 
-  if (!Array.isArray(photos)) {
-    errors.push("Photos must be an array.");
-  } else {
+  if (Array.isArray(photos)) {
     if (photos.length < 1 || photos.length > 3) {
       errors.push("Photos array must contain between 1 and 3 items.");
     }
@@ -65,6 +63,8 @@ export function validateCreateReportInput(req, res) {
     if (invalidPhotos) {
       errors.push("Each photo must be a non-empty string.");
     }
+  } else {
+    errors.push("Photos must be an array.");
   }
 
   if (typeof anonymous !== "boolean") {
@@ -72,8 +72,8 @@ export function validateCreateReportInput(req, res) {
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ message: "Invalid report payload.", errors });
-    return null;
+    const errorMessage = `Invalid report payload: ${errors.join(" ")}`;
+    throw new AppError(errorMessage, 400);
   }
 
   return {
@@ -101,20 +101,17 @@ export function validateReportToBeAcceptedOrRejected(data) {
   };
 
   if (data.status !== undefined && typeof data.status !== "string") {
-    const error = new Error(`Status do not provided. Please, provide one.`);
-    error.statusCode = 400;
-    throw error;
+    throw new AppError(`Status do not provided. Please, provide one.`, 400);
   }
 
   if (
     data.status !== REPORT.STATUS.ASSIGNED &&
     data.status !== REPORT.STATUS.REJECTED
   ) {
-    const error = new Error(
-      `Invalid status provided. Status must be one among ${REPORT.STATUS.ASSIGNED} and ${REPORT.STATUS.REJECTED}`
+    throw new AppError(
+      `Invalid status provided. Status must be one among ${REPORT.STATUS.ASSIGNED} and ${REPORT.STATUS.REJECTED}`,
+      400
     );
-    error.statusCode = 400;
-    throw error;
   }
 
   validatedReport.status = data.status;
@@ -125,9 +122,7 @@ export function validateReportToBeAcceptedOrRejected(data) {
       typeof data.rejection_reason !== "string" ||
       data.rejection_reason.trim() === ""
     ) {
-      const error = new Error("Please provide a rejection reason.");
-      error.statusCode = 400;
-      throw error;
+      throw new AppError("Please provide a rejection reason.", 400);
     }
     validatedReport.rejection_reason = data.rejection_reason;
   }
@@ -136,11 +131,10 @@ export function validateReportToBeAcceptedOrRejected(data) {
     validatedReport.status === REPORT.STATUS.ASSIGNED &&
     data.rejection_reason !== undefined
   ) {
-    const error = new Error(
-      "Cannot provide a rejection reason for an Assigned report"
+    throw new AppError(
+      "Cannot provide a rejection reason for an Assigned report",
+      400
     );
-    error.statusCode = 400;
-    throw error;
   }
 
   return validatedReport;
@@ -156,14 +150,10 @@ export async function validateNewReportCategory(data) {
     typeof data.categoryId != Number &&
     data.categoryId === null
   ) {
-    const error = new Error("Category id must be a number.");
-    error.statusCode = 400;
-    throw error;
+    throw new AppError("Category id must be a number.", 400);
   }
   if (!isIdNumberAndPositive(data.categoryId)) {
-    const error = new Error("Invalid ID format");
-    error.statusCode = 400;
-    throw error;
+    throw new AppError("Invalid ID format", 400);
   }
   validatedData.categoryId = data.categoryId;
   return validatedData;

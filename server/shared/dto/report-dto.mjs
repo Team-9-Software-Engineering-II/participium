@@ -15,8 +15,6 @@
  * @property {string | null} rejectionReason
  */
 
-import { mapUserToPublicDTO } from "./user-dto.mjs";
-
 /**
  * Map a single Report to an AssignedReport data transfer object, removing sensible data.
  * It removes references to userId and user details.

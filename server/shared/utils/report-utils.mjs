@@ -3,6 +3,28 @@
  * @param {import("sequelize").Model | null} report - Report instance returned by Sequelize.
  * @returns {object | null} Plain JavaScript object with normalized properties.
  */
+/**
+ * Parses photo links from various formats
+ * @param {*} photosLinks - Photo links in array, string, or null format
+ * @returns {Array} Parsed photos array
+ */
+function parsePhotosLinks(photosLinks) {
+  if (Array.isArray(photosLinks)) {
+    return photosLinks;
+  }
+  
+  if (typeof photosLinks === "string") {
+    try {
+      return JSON.parse(photosLinks);
+    } catch {
+      // Invalid JSON, return empty array
+      return [];
+    }
+  }
+  
+  return [];
+}
+
 export function sanitizeReport(report) {
   if (!report) {
     return null;
@@ -10,17 +32,7 @@ export function sanitizeReport(report) {
 
   const plainReport = report.get ? report.get({ plain: true }) : { ...report };
 
-  if (Array.isArray(plainReport.photosLinks)) {
-    plainReport.photos = plainReport.photosLinks;
-  } else if (typeof plainReport.photosLinks === "string") {
-    try {
-      plainReport.photos = JSON.parse(plainReport.photosLinks);
-    } catch (error) {
-      plainReport.photos = [];
-    }
-  } else if (plainReport.photosLinks == null) {
-    plainReport.photos = [];
-  }
+  plainReport.photos = parsePhotosLinks(plainReport.photosLinks);
   delete plainReport.photosLinks;
 
   const fullName =
@@ -39,6 +51,10 @@ export function sanitizeReport(report) {
   const technicalOfficeDetails = plainReport.category?.technicalOffice || null;
 
   const assigneeDetails = plainReport.technicalOfficer || null;
+  
+  const externalMaintainerDetails = plainReport.externalMaintainer || null;
+  
+  const companyDetails = plainReport.company || null;
 
   return {
     id: plainReport.id,
@@ -56,6 +72,8 @@ export function sanitizeReport(report) {
     categoryId: plainReport.categoryId,
     rejectionReason: plainReport.rejectionReason,
     reporterName: plainReport.reporterName,
+    externalMaintainerId: plainReport.externalMaintainerId || null,
+    companyId: plainReport.companyId || null,
 
     category: plainReport.category
       ? {
@@ -79,6 +97,23 @@ export function sanitizeReport(report) {
           lastName: assigneeDetails.lastName,
           username: assigneeDetails.username,
           email: assigneeDetails.email,
+        }
+      : null,
+
+    externalMaintainer: externalMaintainerDetails
+      ? {
+          id: externalMaintainerDetails.id,
+          firstName: externalMaintainerDetails.firstName,
+          lastName: externalMaintainerDetails.lastName,
+          username: externalMaintainerDetails.username,
+          email: externalMaintainerDetails.email,
+        }
+      : null,
+
+    company: companyDetails
+      ? {
+          id: companyDetails.id,
+          name: companyDetails.name,
         }
       : null,
 

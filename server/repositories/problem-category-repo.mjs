@@ -54,3 +54,29 @@ export async function deleteCategory(id) {
   });
   return deletedRows > 0;
 }
+
+/**
+ * Finds a category by ID and lists all companies managing it plus the responsible technicalOffice.
+ */
+export async function findCategoryByIdWithCompanies(id) {
+  return db.Category.findByPk(id, {
+    include: [
+      {
+        model: db.Company,
+        as: "companies",
+        through: { attributes: [] },
+      },
+      { model: db.TechnicalOffice, as: "technicalOffice" },
+    ],
+  });
+}
+
+/**
+ * Adds a company to a category.
+ */
+export async function addCompanyToCategory(categoryId, companyId) {
+  const category = await db.Category.findByPk(categoryId);
+  if (!category) throw new Error("Category not found");
+
+  return category.addCompany(companyId);
+}

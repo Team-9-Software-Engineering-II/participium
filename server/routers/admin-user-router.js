@@ -2,6 +2,9 @@ import { Router } from "express";
 import {
   createMunicipalityUser,
   getAllUsers,
+  updateUserRoles,
+  deleteUser,
+  checkUserDeletion,
 } from "../controllers/user-admin-controller.js";
 import { isAdmin, isAuthenticated } from "../middlewares/auth.mjs";
 
@@ -19,5 +22,19 @@ router.get("/", isAuthenticated, isAdmin, getAllUsers);
  */
 router.post("/", isAuthenticated, isAdmin, createMunicipalityUser);
 
+/**
+ * Allow an admin to update user roles
+ */
+router.put("/:userId/roles", isAuthenticated, isAdmin, updateUserRoles);
+
+/**
+ * Allow an admin to check if a user can be deleted
+ */
+router.get("/:userId/deletion-check", isAuthenticated, isAdmin, checkUserDeletion);
+
+/**
+ * Allow an admin to delete a municipality user
+ */
+router.delete("/:userId", isAuthenticated, isAdmin, deleteUser);
 
 export default router;

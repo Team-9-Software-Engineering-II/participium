@@ -1,4 +1,5 @@
 import db from "../models/index.mjs";
+import logger from "../shared/logging/logger.mjs";
 
 /**
  * Populate the 'roles' table.
@@ -15,11 +16,12 @@ export const seedRoles = async () => {
       { id: 2, name: "admin" },
       { id: 3, name: "municipal_public_relations_officer" },
       { id: 4, name: "technical_staff" },
+      { id: 5, name: "external_maintainer" },
     ]);
 
-    console.log("Roles seeded successfully.");
+    logger.info("Roles seeded successfully.");
   } catch (err) {
-    console.error("Error seeding roles:", err);
+    logger.error("Error seeding roles:", err);
     throw err;
   }
 };

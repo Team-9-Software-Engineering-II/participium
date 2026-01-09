@@ -19,24 +19,31 @@ import OfficerLayout from './pages/officer/OfficerLayout';
 import OfficerReports from './pages/officer/OfficerReports';
 import TechnicianLayout from './pages/technician/TechnicianLayout';
 import TechnicianReports from './pages/technician/TechnicianReports';
+import ExternalMaintainerLayout from './pages/external-maintainer/ExternalMaintainerLayout';
+import ExternalMaintainerReports from './pages/external-maintainer/ExternalMaintainerReports';
 import { Toaster } from "@/components/ui/sonner"
 
-// Componente spostato fuori da App per risolvere S6478
+// Componente che deve essere dentro AuthProvider
 const HomeRoute = () => {
   const { user } = useAuth();
-  if (user?.role === 'municipal' || user?.role === 'officer') {
+  const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name;
+  
+  if (roleName?.toLowerCase().includes('municipal') || roleName?.toLowerCase().includes('officer')) {
     return <Navigate to="/municipal/dashboard" replace />;
   }
-  if (user?.role === 'technical') {
-    return <Navigate to="/technical/dashboard" replace />;
+  if (roleName?.toLowerCase().includes('technical')) {
+    return <Navigate to="/technical/reports/active" replace />;
+  }
+  if (roleName?.toLowerCase().includes('external')) {
+    return <Navigate to="/external-maintainer/reports/active" replace />;
   }
   return <Home />;
 };
 
 function App() {
   return (
-    <Router>
-      <ThemeProvider>
+    <ThemeProvider>
+      <Router>
         <AuthProvider>
           <Routes>
           <Route path="/" element={<HomeRoute />} />
@@ -114,7 +121,18 @@ function App() {
             }>
               <Route index element={<Navigate to="reports/active" replace />} />
               <Route path="reports/active" element={<TechnicianReports type="active" />} />
+              <Route path="reports/maintainer" element={<TechnicianReports type="maintainer" />} />
               <Route path="reports/history" element={<TechnicianReports type="history" />} />
+            </Route>
+
+          <Route path="/external-maintainer" element={
+              <ProtectedRoute>
+                <ExternalMaintainerLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="reports/active" replace />} />
+              <Route path="reports/active" element={<ExternalMaintainerReports type="active" />} />
+              <Route path="reports/history" element={<ExternalMaintainerReports type="history" />} />
             </Route>
 
         </Routes>
@@ -122,8 +140,8 @@ function App() {
         <Toaster />
 
         </AuthProvider>
-      </ThemeProvider>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import { AuthService } from "../services/auth-service.mjs";
 import { passport } from "../services/passport-service.mjs";
+import logger from "../shared/logging/logger.mjs";
 import { validateRegistrationInput } from "../shared/validators/user-registration-validator.mjs";
 /**
  * Sends a JSON response containing sanitized user data and session metadata.
@@ -86,6 +87,7 @@ export function currentSession(req, res) {
  * Terminates the current user session and clears related cookies.
  */
 export function logout(req, res, next) {
+  const user = req.user;
   req.logout((logoutError) => {
     if (logoutError) {
       return next(logoutError);
@@ -97,6 +99,9 @@ export function logout(req, res, next) {
           return next(sessionError);
         }
         res.clearCookie("connect.sid");
+        logger.info(
+          `User logged out successfully: ${user.username} (ID: ${user.id})`
+        );
         return res.status(204).send();
       });
     } else {
@@ -104,4 +109,53 @@ export function logout(req, res, next) {
       return res.status(204).send();
     }
   });
+}
+
+/**
+ * Handles user registration request - saves user data temporarily to Redis
+ * with a confirmation code for email verification.
+ */
+export async function registerRequest(req, res, next) {
+  try {
+    const validatedInput = validateRegistrationInput(req, res);
+
+    if (!validatedInput) {
+      return;
+    }
+
+    const result = await AuthService.registerUserRequest(validatedInput);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * Handles OTP verification and user creation.
+ * Verifies the confirmation code against Redis and creates the user if valid.
+ */
+export async function verifyRegistration(req, res, next) {
+  try {
+    const { email, confirmationCode } = req.body ?? {};
+
+    if (!email || !confirmationCode) {
+      return res.status(400).json({
+        message: "Missing required fields: email, confirmationCode.",
+      });
+    }
+
+    const user = await AuthService.verifyAndCreateUser(email, confirmationCode);
+
+    // Log the user in after successful registration
+    req.login(user, (loginError) => {
+      if (loginError) {
+        return next(loginError);
+      }
+
+      return sendSessionResponse(req, res, user, 201);
+    });
+  } catch (error) {
+    return next(error);
+  }
 }

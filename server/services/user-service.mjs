@@ -1,7 +1,5 @@
-import {
-  findUserById,
-  updateUser,
-} from "../repositories/user-repo.mjs";
+import { findUserById, updateUser } from "../repositories/user-repo.mjs";
+import AppError from "../shared/utils/app-error.mjs";
 import { sanitizeUser } from "../shared/utils/userUtils.mjs";
 
 /**
@@ -32,19 +30,17 @@ export class UserService {
 
     const success = await updateUser(userId, mappedUpdates);
     if (!success) {
-      const error = new Error(`User with ID ${userId} not found or not updated.`);
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(
+        `User with ID ${userId} not found or not updated.`,
+        404
+      );
     }
 
     const updatedUser = await findUserById(userId);
     if (!updatedUser) {
-      const error = new Error(`User with ID ${userId} not found after update.`);
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(`User with ID ${userId} not found after update.`, 404);
     }
 
     return sanitizeUser(updatedUser);
   }
 }
-

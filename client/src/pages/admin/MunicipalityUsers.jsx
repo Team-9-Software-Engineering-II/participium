@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, UserRound, Eye, EyeOff } from 'lucide-react';
-import { adminAPI } from '@/services/api';
-import { Button } from '@/components/ui/button';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Plus,
+  Search,
+  UserRound,
+  Eye,
+  EyeOff,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { adminAPI } from "@/services/api";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,9 +21,19 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -33,11 +53,20 @@ const extractRoleName = (role) => {
   return '';
 };
 
+const extractRoleNames = (roles) => {
+  if (!roles) return [];
+  if (Array.isArray(roles)) return roles.map(r => extractRoleName(r));
+  return [extractRoleName(roles)];
+};
+
 const normalizeRole = (role) => extractRoleName(role).trim().toLowerCase();
 
-const isRestrictedRole = (role) => {
-  const normalized = normalizeRole(role);
-  return normalized === 'admin' || normalized === 'citizen';
+const isRestrictedRole = (roles) => {
+  const roleNames = extractRoleNames(roles);
+  return roleNames.some(roleName => {
+    const normalized = normalizeRole(roleName);
+    return normalized === 'admin' || normalized === 'citizen';
+  });
 };
 
 const formatDisplayName = (user) => {
@@ -48,19 +77,46 @@ const formatDisplayName = (user) => {
 
 // Determina cosa mostrare nella colonna "Office"
 const getOfficeDisplay = (user) => {
-  const roleName = extractRoleName(user?.role);
-  const normalized = normalizeRole(roleName);
-
-  if (normalized.includes('municipal') || normalized === 'mpro') {
-    return 'MPRO';
+  const roleNames = extractRoleNames(user?.roles);
+  const offices = [];
+  
+  // Check if user has municipal/mpro role
+  const hasMunicipalRole = roleNames.some(name => {
+    const normalized = normalizeRole(name);
+    return normalized.includes('municipal') || normalized === 'mpro';
+  });
+  if (hasMunicipalRole) {
+    offices.push('MPRO');
   }
 
-  if (normalized.includes('technical') || normalized === 'technician') {
-    // Mostra il nome dell'ufficio se presente, altrimenti fallback
-    return user.technicalOffice?.name || 'Technical Office';
+  // Check if user has technical role
+  const hasTechnicalRole = roleNames.some(name => {
+    const normalized = normalizeRole(name);
+    return normalized.includes('technical') || normalized === 'technician';
+  });
+  if (hasTechnicalRole) {
+    // Show all technical offices - use office.name directly
+    if (user.technicalOffices && user.technicalOffices.length > 0) {
+      user.technicalOffices.forEach(office => {
+        offices.push(office.name);
+      });
+    } else {
+      // Fallback: prova a usare il nome dalla categoria se presente
+      offices.push('Technical Office (not assigned)');
+    }
   }
 
-  return '—';
+  // Check if user has external maintainer role
+  const hasExternalRole = roleNames.some(name => {
+    const normalized = normalizeRole(name);
+    return normalized.includes('external') || normalized === 'external_maintainer';
+  });
+  if (hasExternalRole) {
+    // Show company name for external maintainer
+    offices.push(user.company?.name || 'External Company');
+  }
+
+  return offices.length > 0 ? offices.join(', ') : '—';
 };
 
 export default function MunicipalityUsers() {
@@ -89,6 +145,27 @@ export default function MunicipalityUsers() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Edit User Dialog States
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserRoles, setEditUserRoles] = useState([]); // Array di ruoli assegnati all'utente
+  const [originalUserRoles, setOriginalUserRoles] = useState([]); // Ruoli originali per confronto
+  const [newRoleToAdd, setNewRoleToAdd] = useState('');
+  const [newRoleTechnicalOfficeId, setNewRoleTechnicalOfficeId] = useState('');
+  const [newRoleCompanyId, setNewRoleCompanyId] = useState('');
+  const [editError, setEditError] = useState(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  
+  // Stati per gestire gli uffici tecnici associati al ruolo technical_staff
+  const [editUserTechnicalOffices, setEditUserTechnicalOffices] = useState([]);
+  const [originalUserTechnicalOffices, setOriginalUserTechnicalOffices] = useState([]);
+
+  // Delete User Dialog States
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletionError, setDeletionError] = useState(null);
+
   // Fetch Users
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -96,8 +173,8 @@ export default function MunicipalityUsers() {
     try {
       const { data } = await adminAPI.getUsers();
       const list = Array.isArray(data) ? data : [];
-      // Filtra via admin e citizen
-      const filtered = list.filter((user) => !isRestrictedRole(user?.role));
+      // Filter out citizens and admins
+      const filtered = list.filter((user) => !isRestrictedRole(user?.roles));
       setUsers(filtered);
     } catch (err) {
       console.error('Failed to fetch municipality users', err);
@@ -111,15 +188,23 @@ export default function MunicipalityUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Carica Ruoli e Uffici Tecnici quando si apre il dialog
+  // Carica Ruoli, Uffici Tecnici e Companies quando si apre il dialog
   const fetchDataForDialog = useCallback(async () => {
     setIsRolesLoading(true);
     setRolesError(null);
     try {
-      const [rolesRes, officesRes] = await Promise.all([
+      const promises = [
         adminAPI.getRoles(),
-        adminAPI.getTechnicalOffices() // Chiama la nuova route /offices
-      ]);
+        adminAPI.getTechnicalOffices(),
+        // Add companies with fallback to empty array on error
+        adminAPI.getCompanies().catch((err) => {
+          console.warn('Companies endpoint not available:', err.message || err);
+          return { data: [] };
+        })
+      ];
+
+      const results = await Promise.all(promises);
+      const [rolesRes, officesRes, companiesRes] = results;
 
       // Processa Ruoli
       const roleList = Array.isArray(rolesRes.data) ? rolesRes.data : [];
@@ -128,11 +213,14 @@ export default function MunicipalityUsers() {
           id: role?.id ?? role.name,
           name: extractRoleName(role),
         }))
-        .filter((role) => role.name && !isRestrictedRole(role.name));
+        .filter((role) => role.name && !isRestrictedRole([role.name]));
       setRoleOptions(formattedRoles);
 
       // Processa Uffici
       setTechnicalOffices(Array.isArray(officesRes.data) ? officesRes.data : []);
+
+      // Processa Companies
+      setCompanies(Array.isArray(companiesRes.data) ? companiesRes.data : []);
 
     } catch (err) {
       console.error('Failed to load form data', err);
@@ -143,10 +231,11 @@ export default function MunicipalityUsers() {
   }, []);
 
   useEffect(() => {
-    if (!isAddDialogOpen) return;
+    // Carica i dati quando si apre uno dei due dialog (creazione o modifica)
+    if (!isAddDialogOpen && !isEditDialogOpen) return;
     if (roleOptions.length > 0) return; 
     fetchDataForDialog();
-  }, [isAddDialogOpen, roleOptions.length, fetchDataForDialog]);
+  }, [isAddDialogOpen, isEditDialogOpen, roleOptions.length, fetchDataForDialog]);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -236,16 +325,260 @@ export default function MunicipalityUsers() {
     }
   };
 
+  // Funzioni per Edit User
+  const handleOpenEditDialog = (user) => {
+    setEditingUser(user);
+    // Use roles array from backend
+    const userRoles = user.roles || [];
+    const normalizedRoles = Array.isArray(userRoles) ? userRoles : [userRoles];
+    setEditUserRoles(normalizedRoles);
+    setOriginalUserRoles(normalizedRoles);
+    
+    // Carica gli uffici tecnici associati
+    const userOffices = user.technicalOffices || [];
+    setEditUserTechnicalOffices(userOffices);
+    setOriginalUserTechnicalOffices(userOffices);
+    
+    setNewRoleToAdd('');
+    setNewRoleTechnicalOfficeId('');
+    setNewRoleCompanyId('');
+    setEditError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditingUser(null);
+    setEditUserRoles([]);
+    setOriginalUserRoles([]);
+    setEditUserTechnicalOffices([]);
+    setOriginalUserTechnicalOffices([]);
+    setNewRoleToAdd('');
+    setNewRoleTechnicalOfficeId('');
+    setNewRoleCompanyId('');
+    setEditError(null);
+  };
+
+  const handleAddRoleToUser = () => {
+    if (!newRoleToAdd) {
+      setEditError('Please select a role to add.');
+      return;
+    }
+
+    const roleToAdd = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
+    if (!roleToAdd) return;
+
+    const roleName = roleToAdd.name.toLowerCase();
+    const isTechnicalRole = roleName.includes('technical_staff') || roleName.includes('technician');
+    const isExternalRole = roleName.includes('external_maintainer') || roleName.includes('external');
+
+    // Validazione ufficio tecnico
+    if (isTechnicalRole && !newRoleTechnicalOfficeId) {
+      setEditError('Please select a Technical Office for this role.');
+      return;
+    }
+
+    // Validazione company
+    if (isExternalRole && !newRoleCompanyId) {
+      setEditError('Please select a Company for this role.');
+      return;
+    }
+
+    // Controlla se il ruolo è già assegnato
+    const alreadyHasRole = editUserRoles.some(r => 
+      normalizeRole(r) === normalizeRole(roleToAdd.name)
+    );
+    
+    // Per technical_staff, permettiamo di aggiungere uffici anche se il ruolo esiste già
+    if (isTechnicalRole) {
+      const officeId = Number(newRoleTechnicalOfficeId);
+      const alreadyHasOffice = editUserTechnicalOffices.some(o => o.id === officeId);
+      
+      if (alreadyHasOffice) {
+        setEditError('This technical office is already assigned to this user.');
+        return;
+      }
+      
+      const selectedOffice = technicalOffices.find(o => o.id === officeId);
+      if (selectedOffice) {
+        setEditUserTechnicalOffices(prev => [...prev, selectedOffice]);
+      }
+      
+      // Se il ruolo non esiste ancora, aggiungilo
+      if (!alreadyHasRole) {
+        const newRole = { 
+          id: roleToAdd.id, 
+          name: roleToAdd.name 
+        };
+        setEditUserRoles(prev => [...prev, newRole]);
+      }
+    } else {
+      // Per altri ruoli, non permettere duplicati
+      if (alreadyHasRole) {
+        setEditError('This role is already assigned to the user.');
+        return;
+      }
+
+      // Aggiungi il ruolo alla lista
+      const newRole = { 
+        id: roleToAdd.id, 
+        name: roleToAdd.name 
+      };
+
+      if (isExternalRole) {
+        newRole.companyId = Number(newRoleCompanyId);
+      }
+
+      setEditUserRoles(prev => [...prev, newRole]);
+    }
+    setNewRoleToAdd('');
+    setNewRoleTechnicalOfficeId('');
+    setNewRoleCompanyId('');
+    setEditError(null);
+  };
+
+  // Verifica se ci sono modifiche ai ruoli o agli uffici tecnici
+  const hasRoleChanges = useMemo(() => {
+    // Controlla cambiamenti nei ruoli
+    if (editUserRoles.length !== originalUserRoles.length) return true;
+    
+    const currentRoleNames = editUserRoles.map(r => normalizeRole(r)).sort((a, b) => a.localeCompare(b));
+    const originalRoleNames = originalUserRoles.map(r => normalizeRole(r)).sort((a, b) => a.localeCompare(b));
+    
+    if (!currentRoleNames.every((role, index) => role === originalRoleNames[index])) {
+      return true;
+    }
+    
+    // Controlla cambiamenti negli uffici tecnici
+    if (editUserTechnicalOffices.length !== originalUserTechnicalOffices.length) return true;
+    
+    const currentOfficeIds = editUserTechnicalOffices.map(o => o.id).sort((a, b) => a - b);
+    const originalOfficeIds = originalUserTechnicalOffices.map(o => o.id).sort((a, b) => a - b);
+    
+    return !currentOfficeIds.every((id, index) => id === originalOfficeIds[index]);
+  }, [editUserRoles, originalUserRoles, editUserTechnicalOffices, originalUserTechnicalOffices]);
+
+  const handleSaveUserRoles = async () => {
+    if (editUserRoles.length === 0) {
+      setEditError('A user must have at least one role.');
+      return;
+    }
+
+    setIsEditSubmitting(true);
+    setEditError(null);
+
+    try {
+      // Format roles with their associations
+      const roles = editUserRoles.map(role => {
+        const roleData = { roleId: typeof role === 'object' ? role.id : role };
+        const roleName = normalizeRole(role);
+        
+        // Se è technical_staff, aggiungi TUTTI gli uffici tecnici
+        if (roleName.includes('technical')) {
+          roleData.technicalOfficeIds = editUserTechnicalOffices.map(o => o.id);
+        }
+        
+        // Add company association if present
+        if (typeof role === 'object' && role.companyId) {
+          roleData.companyId = role.companyId;
+        }
+        
+        return roleData;
+      });
+
+      await adminAPI.updateUserRoles(editingUser.id, roles);
+
+      toast.success('User roles updated successfully', {
+        description: `Roles for ${formatDisplayName(editingUser)} have been updated.`,
+        style: {
+          color: 'black',
+        },
+        descriptionClassName: 'text-black dark:text-white'
+      });
+
+      // Aggiorna la lista utenti
+      await fetchUsers();
+      handleCloseEditDialog();
+    } catch (err) {
+      console.error('Failed to update user roles', err);
+      setEditError(
+        err.response?.data?.message ||
+          'Unable to update user roles. Please try again.'
+      );
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  // Funzioni per Delete User
+  const handleOpenDeleteDialog = async (user) => {
+    // Check if user can be deleted before showing dialog
+    try {
+      const { data } = await adminAPI.checkUserDeletion(user.id);
+      
+      if (!data.canDelete) {
+        // Show error dialog instead of delete confirmation
+        setDeletionError({
+          user,
+          message: data.message,
+          activeReportsCount: data.activeReportsCount
+        });
+        return;
+      }
+      
+      // User can be deleted, show confirmation dialog
+      setUserToDelete(user);
+    } catch (error) {
+      console.error('Error checking user deletion:', error);
+      setDeletionError({
+        user,
+        message: error.response?.data?.message || 'Failed to check if user can be deleted',
+        activeReportsCount: 0
+      });
+    }
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setUserToDelete(null);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await adminAPI.deleteUser(userToDelete.id);
+
+      const deletedUserName = formatDisplayName(userToDelete);
+
+      toast.success('User deleted successfully', {
+        description: `${deletedUserName} and all associated roles have been permanently removed.`
+      });
+
+      // Aggiorna la lista utenti
+      await fetchUsers();
+      handleCloseDeleteDialog();
+    } catch (err) {
+      console.error('Failed to delete user', err);
+      toast.error('Failed to delete user', {
+        description: err.response?.data?.message || 'Unable to delete user. Please try again.'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const displayedUsers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return users;
 
     return users.filter((user) => {
+      const roleNames = extractRoleNames(user?.roles).join(' ');
       const haystack = [
         formatDisplayName(user),
         user.email,
         user.username,
-        extractRoleName(user?.role),
+        roleNames,
       ].join(' ').toLowerCase();
 
       return haystack.includes(term);
@@ -256,7 +589,7 @@ export default function MunicipalityUsers() {
     if (isLoading) {
       return [
         <tr key="loading">
-          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+          <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
             Loading municipality users...
           </td>
         </tr>
@@ -266,14 +599,18 @@ export default function MunicipalityUsers() {
     if (displayedUsers.length === 0) {
       return [
         <tr key="empty">
-          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">
+          <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
             No municipality users found matching your criteria.
           </td>
         </tr>
       ];
     }
 
-    return displayedUsers.map((user) => (
+    return displayedUsers.map((user) => {
+      const roleNames = extractRoleNames(user?.roles);
+      const rolesDisplay = roleNames.length > 0 ? roleNames.join(', ') : '—';
+      
+      return (
       <tr key={user.id} className="transition hover:bg-background/80">
         <td className="px-4 py-4">
           <div className="flex items-center gap-3">
@@ -289,14 +626,39 @@ export default function MunicipalityUsers() {
           </div>
         </td>
         <td className="px-4 py-4 text-muted-foreground">
-          {extractRoleName(user?.role)}
+          {rolesDisplay}
         </td>
         {/* Cella Office con logica di visualizzazione */}
         <td className="px-4 py-4 text-muted-foreground font-medium">
           {getOfficeDisplay(user)}
         </td>
+        {/* Cella Actions */}
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+              onClick={() => handleOpenEditDialog(user)}
+              data-cy="edit-user-button"
+              title="Edit user"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => handleOpenDeleteDialog(user)}
+              data-cy="delete-user-button"
+              title="Delete user"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </td>
       </tr>
-    ));
+    );});
   };
 
   return (
@@ -512,6 +874,9 @@ export default function MunicipalityUsers() {
                 <th scope="col" className="px-4 py-3 text-left font-semibold">
                   Office
                 </th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50 bg-card/60">
@@ -520,6 +885,278 @@ export default function MunicipalityUsers() {
           </table>
         </div>
       </section>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        if (!open) handleCloseEditDialog();
+      }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit user roles</DialogTitle>
+            <DialogDescription>
+              Manage roles for {editingUser ? formatDisplayName(editingUser) : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            {/* Mostra info utente */}
+            {editingUser && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                <p className="text-sm font-medium">{formatDisplayName(editingUser)}</p>
+                <p className="text-xs text-muted-foreground">{editingUser.email}</p>
+                <p className="text-xs text-muted-foreground">@{editingUser.username}</p>
+              </div>
+            )}
+
+            {/* Lista ruoli attuali */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Current roles</Label>
+              <div className="space-y-2">
+                {editUserRoles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No roles assigned</p>
+                ) : (
+                  editUserRoles.map((role) => {
+                    const roleName = extractRoleName(role);
+                    const roleId = typeof role === 'object' ? role.id : role;
+                    const normalized = normalizeRole(role);
+                    
+                    // Determina informazioni aggiuntive (company)
+                    let additionalInfo = null;
+                    if (typeof role === 'object' && role.companyId) {
+                      const company = companies.find(c => c.id === role.companyId);
+                      additionalInfo = company ? ` • ${company.name}` : ' • Company';
+                    } else if (normalized.includes('external') && editingUser?.company) {
+                      additionalInfo = ` • ${editingUser.company.name}`;
+                    }
+                    
+                    return (
+                      <div
+                        key={roleId || roleName}
+                        className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
+                        data-cy="assigned-role-item"
+                      >
+                        <div className="flex flex-col flex-1">
+                          <span className="text-sm font-medium">{roleName}</span>
+                          {additionalInfo && (
+                            <span className="text-xs text-muted-foreground">{additionalInfo}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Lista uffici tecnici (se presente il ruolo technical_staff) */}
+            {editUserRoles.some(r => normalizeRole(r).includes('technical')) && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Technical Offices</Label>
+                <div className="space-y-2">
+                  {editUserTechnicalOffices.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No technical offices assigned</p>
+                  ) : (
+                    editUserTechnicalOffices.map((office) => (
+                      <div
+                        key={office.id}
+                        className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
+                      >
+                        <div className="flex flex-col flex-1">
+                          <span className="text-sm font-medium">{office.name}</span>
+                          {office.category && (
+                            <span className="text-xs text-muted-foreground">Category: {office.category.name}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Aggiungi nuovo ruolo */}
+            <div className="space-y-2">
+              <Label htmlFor="newRole" className="text-sm font-semibold">Add new role</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={newRoleToAdd}
+                  onValueChange={(value) => {
+                    setNewRoleToAdd(value);
+                    setNewRoleTechnicalOfficeId('');
+                    setNewRoleCompanyId('');
+                    setEditError(null);
+                  }}
+                  disabled={isRolesLoading || !!rolesError}
+                >
+                  <SelectTrigger id="newRole" data-cy="select-new-role" className="flex-1">
+                    <SelectValue
+                      placeholder={(() => {
+                        if (isRolesLoading) return 'Loading roles…';
+                        if (rolesError) return 'Roles unavailable';
+                        return 'Select a role to add';
+                      })()}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((role) => (
+                      <SelectItem key={role.id} value={String(role.id)} data-cy="new-role-option">
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddRoleToUser}
+                  disabled={!newRoleToAdd || isRolesLoading}
+                  data-cy="add-role-button"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Campo condizionale per Technical Office */}
+              {(() => {
+                if (!newRoleToAdd) return null;
+                const selectedRole = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
+                const roleName = selectedRole?.name.toLowerCase() || '';
+                const isTechnicalRole = roleName.includes('technical_staff') || roleName.includes('technician');
+                
+                if (!isTechnicalRole) return null;
+
+                return (
+                  <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Label htmlFor="newRoleTechnicalOffice">Technical Office</Label>
+                    <Select
+                      value={newRoleTechnicalOfficeId}
+                      onValueChange={setNewRoleTechnicalOfficeId}
+                    >
+                      <SelectTrigger id="newRoleTechnicalOffice" data-cy="select-new-role-office">
+                        <SelectValue placeholder="Select an office" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {technicalOffices.map((office) => (
+                          <SelectItem key={office.id} value={String(office.id)}>
+                            {office.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()}
+
+              {/* Campo condizionale per Company */}
+              {(() => {
+                if (!newRoleToAdd) return null;
+                const selectedRole = roleOptions.find(r => String(r.id) === String(newRoleToAdd));
+                const roleName = selectedRole?.name.toLowerCase() || '';
+                const isExternalRole = roleName.includes('external_maintainer') || roleName.includes('external');
+                
+                if (!isExternalRole) return null;
+
+                return (
+                  <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Label htmlFor="newRoleCompany">Company</Label>
+                    <Select
+                      value={newRoleCompanyId}
+                      onValueChange={setNewRoleCompanyId}
+                    >
+                      <SelectTrigger id="newRoleCompany" data-cy="select-new-role-company">
+                        <SelectValue placeholder="Select a company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={String(company.id)}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {editError && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {editError}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" disabled={isEditSubmitting} data-cy="cancel-edit">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={handleSaveUserRoles}
+              disabled={isEditSubmitting || editUserRoles.length === 0 || !hasRoleChanges}
+              data-cy="save-roles"
+            >
+              {isEditSubmitting ? 'Saving...' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => {
+        if (!open) handleCloseDeleteDialog();
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete <strong>{userToDelete ? formatDisplayName(userToDelete) : ''}</strong>?
+              <br/><br/>
+              <span className="text-destructive font-medium">
+                This action will remove the user account and all their associated roles permanently.
+              </span>
+              <br/>
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting} data-cy="cancel-delete">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-cy="confirm-delete"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete user'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deletion Error Dialog */}
+      <AlertDialog open={!!deletionError} onOpenChange={(open) => {
+        if (!open) setDeletionError(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot delete user</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deletionError ? formatDisplayName(deletionError.user) : ''}</strong> cannot be deleted at this time.
+              <br/><br/>
+              {deletionError?.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletionError(null)}>
+              Close
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

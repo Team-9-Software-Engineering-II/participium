@@ -1,7 +1,12 @@
+import logger from "../shared/logging/logger.mjs";
 import { seedCategories } from "./seed-category.mjs";
+import { seedCompanyCategories } from "./seed-company-category.mjs";
+import { seedCompanies } from "./seed-company.mjs";
 import { seedReports } from "./seed-reports.mjs";
 import { seedRoles } from "./seed-roles.mjs";
 import { seedTechnicalOffices } from "./seed-technical-office.mjs";
+import { seedUserRoles } from "./seed-user-role.mjs";
+import { seedUserTechnicalOffices } from "./seed-user-technical-office.mjs";
 import { seedUsers } from "./seed-users.mjs";
 
 /**
@@ -10,18 +15,22 @@ import { seedUsers } from "./seed-users.mjs";
  * to respect Foreign Key constraints.
  */
 export const seedDatabase = async () => {
-  console.log("Starting database seeding...");
+  logger.info("Starting database seeding...");
 
   try {
     await seedRoles();
     await seedCategories();
     await seedTechnicalOffices();
+    await seedCompanies();
+    await seedCompanyCategories();
     await seedUsers();
     await seedReports();
+    await seedUserRoles();
+    await seedUserTechnicalOffices();
 
-    console.log("Database seeding finished successfully.");
+    logger.info("Database seeding finished successfully.");
   } catch (err) {
-    console.error("A critical error occurred during database seeding:", err);
+    logger.error("A critical error occurred during database seeding:", err);
 
     throw err;
   }
