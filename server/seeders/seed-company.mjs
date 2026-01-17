@@ -53,6 +53,14 @@ export const seedCompanies = async () => {
         region: "Piemonte",
         country: "Italia",
       },
+      {
+        id: 6,
+        name: "FixRoads Srl", // Azienda generica per manutenzione strade e arredo urbano
+        address: "Via Monginevro, 242",
+        city: "Torino",
+        region: "Piemonte",
+        country: "Italia",
+      },
     ]);
 
     logger.info("Companies seeded successfully.");

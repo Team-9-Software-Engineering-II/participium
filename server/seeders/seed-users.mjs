@@ -34,6 +34,14 @@ const getCitizenUsers = (hashedPassword) => {
       lastName: "Gialli",
       roleId: 1,
     },
+    {
+      email: "rosabianca@example.com",
+      username: "rosa.bianca",
+      hashedPassword,
+      firstName: "Rosa",
+      lastName: "Bianca",
+      roleId: 1,
+    },
   ];
 };
 
@@ -169,6 +177,16 @@ const getStaffUsers = (hashedPassword) => {
       roleId: 4,
       technicalOfficeId: 9,
     },
+    // Tech Staff Ada Lovelace (Office ID 7: Roads Maintenance)
+    {
+      email: "ada.lovelace@municipality.com",
+      username: "ada.lovelace",
+      hashedPassword,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      roleId: 4,
+      technicalOfficeId: 7,
+    },
   ];
 };
 
@@ -228,6 +246,15 @@ const getExternalMaintainers = (hashedPassword) => {
       roleId: 5,
       companyId: 5,
     },
+    {
+      email: "fixRoads@gmail.it",
+      username: "em_fix_roads",
+      hashedPassword,
+      firstName: "Marcello",
+      lastName: "Neri",
+      roleId: 5,
+      companyId: 6,
+    },
   ];
 };
 
@@ -264,7 +291,7 @@ export const seedUsers = async () => {
     // 1. Prepare Passwords
     const defaultHashedPassword = await bcrypt.hash(
       "password123",
-      PASSWORD_SALT_ROUNDS
+      PASSWORD_SALT_ROUNDS,
     );
     const testHashedPassword = await bcrypt.hash("test", PASSWORD_SALT_ROUNDS);
 

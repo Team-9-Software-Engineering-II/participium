@@ -28,6 +28,8 @@ export const seedCompanyCategories = async () => {
       // C.I.T. (ID 5): Roads/Urban Furnishings (7) + Public Green Areas (8)
       { company_id: 5, category_id: 7 },
       { company_id: 5, category_id: 8 },
+
+      { company_id: 6, category_id: 7 },
     ];
 
     // Bulk Insert nella tabella di giunzione
